@@ -1,0 +1,11 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.custom-w-margin {
+  @apply mx-[30rem];
+}
+
+.custom-w-padding {
+  @apply px-[30rem];
+}
