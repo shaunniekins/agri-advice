@@ -2,21 +2,10 @@
 
 "use client";
 
-import { supabase } from "@/utils/supabase";
-import { useRouter } from "next/navigation";
+import { useHandleLogout } from "@/utils/authUtils";
 
 export default function TechnicianPage() {
-  const router = useRouter();
-
-  const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
-
-    if (error) {
-      console.error("Error logging out:", error.message);
-    } else {
-      router.push("/signin");
-    }
-  };
+  const handleLogout = useHandleLogout();
 
   return (
     <>

@@ -45,8 +45,36 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/admin/dashboard", request.url));
   }
 
+  if (request.nextUrl.pathname === "/signin") {
+    return NextResponse.redirect(new URL("/ident/signin", request.url));
+  }
+
+  if (request.nextUrl.pathname === "/ident") {
+    return NextResponse.redirect(new URL("/ident/signin", request.url));
+  }
+
   if (user) {
     const userRole = user.user_metadata.role;
+
+    // Redirect users to their respective dashboards based on role
+    if (request.nextUrl.pathname === "/") {
+      if (userRole === "farmer" || userRole === "technician") {
+        return NextResponse.redirect(new URL(`/${userRole}`, request.url));
+      } else {
+        // Assuming any other role (like admin) should go to /admin/dashboard
+        return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+      }
+    }
+
+    // Redirect logged-in users from /signin or /signup to their respective dashboards
+    if (request.nextUrl.pathname.startsWith("/ident")) {
+      if (userRole === "farmer" || userRole === "technician") {
+        return NextResponse.redirect(new URL(`/${userRole}`, request.url));
+      } else {
+        // Assuming any other role (like admin) should go to /admin/dashboard
+        return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+      }
+    }
 
     // Redirect users to their respective dashboards based on role
     if (
@@ -87,5 +115,15 @@ export async function middleware(request: NextRequest) {
 
 // Optionally, specify which routes the middleware should run on
 export const config = {
-  matcher: ["/admin", "/admin/:path*", "/technician/:path*", "/farmer/:path*"],
+  matcher: [
+    "/",
+    "/ident",
+    "/ident/:path*",
+    "/admin",
+    "/admin/:path*",
+    "/technician/:path*",
+    "/farmer/:path*",
+    "/signin",
+    "/signup",
+  ],
 };

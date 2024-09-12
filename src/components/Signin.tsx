@@ -5,8 +5,15 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/utils/supabase";
+import { Button, Input } from "@nextui-org/react";
+import { EyeSlashFilledIcon } from "../../public/icons/EyeSlashFilledIcon";
+import { EyeFilledIcon } from "../../public/icons/EyeFilledIcon";
 
-const SigninComponent = () => {
+interface SigninComponentProps {
+  userType: string;
+}
+
+const SigninComponent = ({ userType }: SigninComponentProps) => {
   const [isInputUserPasswordVisible, setIsInputUserPasswordVisible] =
     useState(false);
   const [signInPending, setSignInPending] = useState(false);
@@ -35,54 +42,73 @@ const SigninComponent = () => {
   };
 
   return (
-    <div className="w-full bg-white">
-      <div className="mx-5 md:container md:mx-auto md:px-[35rem] min-h-[100svh] h-[100svh] flex flex-col justify-around items-center">
-        {/* <img
-          src="/images/logo.svg"
-          alt="logo"
-          width={100}
-          height={100}
-          className="mt-16"
-        /> */}
-        <form
-          className="animate-in flex-1 flex flex-col w-full justify-center gap-2"
-          onSubmit={handleSubmit}
-        >
-          <div className="flex flex-col rounded-md shadow-sm gap-3 mb-16">
-            <input
-              type="email"
-              name="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-            />
-            <input
-              type={isInputUserPasswordVisible ? "text" : "password"}
-              name="password"
-              placeholder="Password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-            <button
-              type="button"
-              onClick={() =>
-                setIsInputUserPasswordVisible(!isInputUserPasswordVisible)
-              }
-            >
-              {isInputUserPasswordVisible ? "Hide Password" : "Show Password"}
-            </button>
-            <button type="submit">
-              {signInPending ? "Signing In..." : "Sign In"}
-            </button>
-          </div>
-        </form>
-        <button type="button" color="primary" className="mb-10">
-          Create New Account
-        </button>
-      </div>
+    // <div className="w-full bg-white">
+    <div className="w-full h-full flex flex-col justify-center items-center">
+      <h4>LOGIN</h4>
+      <form
+        className="animate-in h-full flex flex-col w-full justify-center items-center gap-2 relative"
+        onSubmit={handleSubmit}
+      >
+        <div className="absolute inset-0 w-full h-full flex flex-col justify-center items-center rounded-md shadow-sm gap-3 mb-16">
+          <Input
+            type="email"
+            label="Email"
+            variant="bordered"
+            color="success"
+            isRequired
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <Input
+            type={isInputUserPasswordVisible ? "text" : "password"}
+            label="Password"
+            variant="bordered"
+            color="success"
+            isRequired
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            endContent={
+              <button
+                className="focus:outline-none"
+                type="button"
+                onClick={() =>
+                  setIsInputUserPasswordVisible(!isInputUserPasswordVisible)
+                }
+              >
+                {isInputUserPasswordVisible ? (
+                  <EyeSlashFilledIcon className="text-2xl text-default-400 pointer-events-none" />
+                ) : (
+                  <EyeFilledIcon className="text-2xl text-default-400 pointer-events-none" />
+                )}
+              </button>
+            }
+          />
+
+          <Button
+            type="submit"
+            color="success"
+            disabled={signInPending}
+            size="lg"
+            className="text-white"
+          >
+            {signInPending ? "Signing In..." : "Sign In"}
+          </Button>
+        </div>
+      </form>
+      <Button
+        type="submit"
+        variant="ghost"
+        isDisabled={userType === "Administrator"}
+        color="success"
+        onClick={() => {
+          // return router.push(`/ident/${role}/signup`);
+        }}
+        className="mb-10"
+      >
+        {userType !== "Administrator" ? "Create New Account" : "Administrator"}
+      </Button>
     </div>
+    // </div>
   );
 };
 
