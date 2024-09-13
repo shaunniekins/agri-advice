@@ -6,20 +6,18 @@ export default function IdentSlugLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body suppressHydrationWarning={true}>
-        <main className="min-h-[100svh] grid lg:grid-cols-[1fr_2fr] items-center bg-green-300">
-          <div className="hidden lg:block h-full relative">
-            {/* <img
+    <body suppressHydrationWarning={true}>
+      <main className="min-h-[100svh] grid lg:grid-cols-[1fr_2fr] items-center bg-green-300">
+        <div className="hidden lg:block h-full relative">
+          {/* <img
               src="/images/grass.jpg"
               alt="Image BG"
               className="absolute inset-0 w-full h-full object-cover opacity-85"
             /> */}
-            <BackButton />
-          </div>
-          <div className="h-full bg-white lg:rounded-l-3xl">{children}</div>
-        </main>
-      </body>
-    </html>
+          <BackButton />
+        </div>
+        <div className="h-full bg-white lg:rounded-l-3xl">{children}</div>
+      </main>
+    </body>
   );
 }

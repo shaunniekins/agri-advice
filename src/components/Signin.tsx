@@ -43,13 +43,15 @@ const SigninComponent = ({ userType }: SigninComponentProps) => {
 
   return (
     // <div className="w-full bg-white">
-    <div className="w-full h-full flex flex-col justify-center items-center">
-      <h4>LOGIN</h4>
+    <div className="w-full h-full flex flex-col justify-center items-center relative">
       <form
-        className="animate-in h-full flex flex-col w-full justify-center items-center gap-2 relative"
+        className="animate-in h-full flex flex-col w-full justify-center items-center gap-2 px-3 md:px-12 2xl:px-80"
         onSubmit={handleSubmit}
       >
-        <div className="absolute inset-0 w-full h-full flex flex-col justify-center items-center rounded-md shadow-sm gap-3 mb-16">
+        <div className="w-full h-full flex flex-col justify-center items-center rounded-md shadow-sm gap-3 ">
+          <h4 className="absolute top-32 self-center lg:self-start font-semibold text-xl">
+            {userType !== "Administrator" && userType.toUpperCase()} LOGIN
+          </h4>
           <Input
             type="email"
             label="Email"
@@ -85,11 +87,12 @@ const SigninComponent = ({ userType }: SigninComponentProps) => {
           />
 
           <Button
+            fullWidth
             type="submit"
             color="success"
             disabled={signInPending}
             size="lg"
-            className="text-white"
+            className="text-white mt-8"
           >
             {signInPending ? "Signing In..." : "Sign In"}
           </Button>

@@ -25,9 +25,9 @@ export default function Home() {
 
   return (
     <>
-      <div className="bg-green-300 h-[100svh] w-screen flex justify-center items-center">
+      <div className="bg-[#F4FFFC] h-[100svh] w-screen flex justify-center items-center">
         <Card className="w-80 h-80 mx-3">
-          <CardHeader className="bg-green-600 flex justify-center items-center">
+          <CardHeader className="bg-[#007057] flex justify-center items-center">
             <p className="text-center text-white text-lg font-semibold">
               Select User Type
             </p>

@@ -53,6 +53,15 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/ident/signin", request.url));
   }
 
+  if (
+    request.nextUrl.pathname === "/ident/signin" &&
+    !request.nextUrl.searchParams.has("usertype")
+  ) {
+    return NextResponse.redirect(
+      new URL("/ident/signin?usertype=Farmer", request.url)
+    );
+  }
+
   if (user) {
     const userRole = user.user_metadata.role;
 
