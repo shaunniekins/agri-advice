@@ -13,15 +13,18 @@ import {
 } from "react-icons/fa";
 import classNames from "classnames";
 import { useHandleLogout } from "@/utils/authUtils";
+import { useEffect } from "react";
 
 interface AdminSidebarComponentProps {
   isSidebarOpen: boolean;
   setIsSidebarOpen: (isOpen: boolean) => void;
+  setIsLoading: (isLoading: boolean) => void;
 }
 
 const AdminSidebarComponent = ({
   isSidebarOpen,
   setIsSidebarOpen,
+  setIsLoading,
 }: AdminSidebarComponentProps) => {
   const navItems = [
     { path: "/admin/dashboard", label: "Dashboard", icon: <FaTachometerAlt /> },
@@ -30,6 +33,13 @@ const AdminSidebarComponent = ({
     { path: "/admin/settings", label: "Settings", icon: <FaCog /> },
     { path: "/admin/report", label: "Report", icon: <FaChartBar /> },
   ];
+
+  const handleLogout = useHandleLogout();
+
+  const onLogoutClick = () => {
+    setIsLoading(true);
+    handleLogout();
+  };
 
   return (
     <div className="bg-[#007057] text-white h-full w-full flex flex-col justify-center select-none relative">
@@ -59,7 +69,7 @@ const AdminSidebarComponent = ({
         color={"danger"}
         startContent={<FaSignOutAlt />}
         className="absolute bottom-6 left-1/2 transform -translate-x-1/2"
-        onClick={useHandleLogout()}
+        onClick={onLogoutClick}
       >
         Logout
       </Button>
