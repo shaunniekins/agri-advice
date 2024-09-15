@@ -7,7 +7,7 @@ export default function AdminSlugPage() {
 
   let display = `admin ${pathname} page`;
 
-  if (pathname.startsWith("/admin/chats")) {
+  if (pathname.startsWith("/admin/monitor")) {
     display = "Chats";
   } else if (pathname.startsWith("/admin/dashboard")) {
     display = "Hello user";
@@ -17,7 +17,6 @@ export default function AdminSlugPage() {
 
   return <div>{display}</div>;
 }
-
 
 // "use client";
 

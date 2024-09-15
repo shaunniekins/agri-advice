@@ -33,12 +33,12 @@ const SigninComponent = ({ userType }: SigninComponentProps) => {
 
     if (error) {
       console.error("Error signing in:", error.message);
+      setSignInPending(false);
     } else {
       console.log("Signed in successfully:", data);
       router.push("/admin");
+      return;
     }
-
-    setSignInPending(false);
   };
 
   return (
@@ -48,8 +48,8 @@ const SigninComponent = ({ userType }: SigninComponentProps) => {
         className="animate-in h-full flex flex-col w-full justify-center items-center gap-2 px-3 md:px-12 2xl:px-80"
         onSubmit={handleSubmit}
       >
-        <div className="w-full h-full flex flex-col justify-center items-center rounded-md shadow-sm gap-3 ">
-          <h4 className="absolute top-32 self-center lg:self-start font-semibold text-xl">
+        <div className="w-full overflow-y-auto flex flex-col justify-center items-center rounded-md shadow-sm gap-3 ">
+          <h4 className="absolute top-16 lg:top-32 self-center lg:self-start font-semibold text-xl">
             {userType !== "Administrator" && userType.toUpperCase()} LOGIN
           </h4>
           <Input
@@ -92,7 +92,7 @@ const SigninComponent = ({ userType }: SigninComponentProps) => {
             color="success"
             disabled={signInPending}
             size="lg"
-            className="text-white mt-8"
+            className="text-white mt-3"
           >
             {signInPending ? "Signing In..." : "Sign In"}
           </Button>
@@ -104,9 +104,9 @@ const SigninComponent = ({ userType }: SigninComponentProps) => {
         isDisabled={userType === "Administrator"}
         color="success"
         onClick={() => {
-          // return router.push(`/ident/${role}/signup`);
+          return router.push(`/ident/signup?usertype=${userType}`);
         }}
-        className="mb-10"
+        className="absolute bottom-5"
       >
         {userType !== "Administrator" ? "Create New Account" : "Administrator"}
       </Button>

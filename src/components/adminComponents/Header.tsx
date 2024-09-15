@@ -18,8 +18,8 @@ const AdminHeaderComponent = ({
   let display = "";
   if (pathname === "/admin/dashboard") {
     display = "Dashboard";
-  } else if (pathname === "/admin/chats") {
-    display = "Chats";
+  } else if (pathname === "/admin/monitor") {
+    display = "Monitor Chats";
   } else if (pathname === "/admin/users") {
     display = "Users";
   } else if (pathname === "/admin/settings") {

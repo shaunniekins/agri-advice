@@ -36,7 +36,7 @@ export default function Home() {
             <div className="flex flex-col justify-around gap-2 px-2">
               <div
                 className={`text-start border p-2 rounded-xl cursor-pointer transition-all duration-300 ${
-                  selectedUserType === "Administrator" ? "border-green-600" : ""
+                  selectedUserType === "Administrator" ? "border-[#007057]" : ""
                 }`}
                 onClick={() => handleSelect("Administrator")}
               >
@@ -45,7 +45,7 @@ export default function Home() {
               </div>
               <div
                 className={`text-start border p-2 rounded-xl cursor-pointer transition-all duration-300 ${
-                  selectedUserType === "Technician" ? "border-green-600" : ""
+                  selectedUserType === "Technician" ? "border-[#007057]" : ""
                 }`}
                 onClick={() => handleSelect("Technician")}
               >
@@ -54,7 +54,7 @@ export default function Home() {
               </div>
               <div
                 className={`text-start border p-2 rounded-xl cursor-pointer transition-all duration-300 ${
-                  selectedUserType === "Farmer" ? "border-green-600" : ""
+                  selectedUserType === "Farmer" ? "border-[#007057]" : ""
                 }`}
                 onClick={() => handleSelect("Farmer")}
               >
@@ -66,10 +66,10 @@ export default function Home() {
           <CardFooter className="flex justify-center items-center">
             <Button
               radius="full"
-              color="success"
+              // color="success"
               size="sm"
               isDisabled={!selectedUserType}
-              className="text-white self-center"
+              className="text-white self-center bg-[#007057]"
               onClick={handleChoose}
             >
               Choose

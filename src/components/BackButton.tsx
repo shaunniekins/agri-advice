@@ -1,6 +1,6 @@
 "use client";
 
-import { IoChevronBack } from "react-icons/io5";
+import { IoHome } from "react-icons/io5";
 import { Button } from "@nextui-org/react";
 import { useRouter } from "next/navigation";
 
@@ -9,13 +9,13 @@ export default function BackButton() {
 
   return (
     <Button
-      color="secondary"
+      color="success"
       variant="ghost"
-      startContent={<IoChevronBack />}
-      className="absolute top-5 left-5"
+      startContent={<IoHome />}
+      className="absolute bottom-5 left-1/2 transform -translate-x-1/2"
       onClick={() => router.push("/")}
     >
-      back
+      Home
     </Button>
   );
 }
