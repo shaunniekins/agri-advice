@@ -8,6 +8,8 @@ import { supabase } from "@/utils/supabase";
 import { Button, Input } from "@nextui-org/react";
 import { EyeSlashFilledIcon } from "../../public/icons/EyeSlashFilledIcon";
 import { EyeFilledIcon } from "../../public/icons/EyeFilledIcon";
+import { setUser } from "@/app/reduxUtils/userSlice";
+import { useDispatch } from "react-redux";
 
 interface SigninComponentProps {
   userType: string;
@@ -21,6 +23,7 @@ const SigninComponent = ({ userType }: SigninComponentProps) => {
   const [password, setPassword] = useState("");
 
   const router = useRouter();
+  const dispatch = useDispatch();
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
@@ -35,9 +38,12 @@ const SigninComponent = ({ userType }: SigninComponentProps) => {
       console.error("Error signing in:", error.message);
       setSignInPending(false);
     } else {
+      const user = data.user;
+      if (user) {
+        dispatch(setUser(user));
+      }
       console.log("Signed in successfully:", data);
       router.push(`/${userType}`);
-      return;
     }
   };
 
