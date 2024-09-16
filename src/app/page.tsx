@@ -36,27 +36,27 @@ export default function Home() {
             <div className="flex flex-col justify-around gap-2 px-2">
               <div
                 className={`text-start border p-2 rounded-xl cursor-pointer transition-all duration-300 ${
-                  selectedUserType === "Administrator" ? "border-[#007057]" : ""
+                  selectedUserType === "administrator" ? "border-[#007057]" : ""
                 }`}
-                onClick={() => handleSelect("Administrator")}
+                onClick={() => handleSelect("administrator")}
               >
                 <p className="font-semibold">Administrator</p>
                 <p className="text-xs">Oversee and manage system operations</p>
               </div>
               <div
                 className={`text-start border p-2 rounded-xl cursor-pointer transition-all duration-300 ${
-                  selectedUserType === "Technician" ? "border-[#007057]" : ""
+                  selectedUserType === "technician" ? "border-[#007057]" : ""
                 }`}
-                onClick={() => handleSelect("Technician")}
+                onClick={() => handleSelect("technician")}
               >
                 <p className="font-semibold">Technician</p>
                 <p className="text-xs">Provide technical support and advice</p>
               </div>
               <div
                 className={`text-start border p-2 rounded-xl cursor-pointer transition-all duration-300 ${
-                  selectedUserType === "Farmer" ? "border-[#007057]" : ""
+                  selectedUserType === "farmer" ? "border-[#007057]" : ""
                 }`}
-                onClick={() => handleSelect("Farmer")}
+                onClick={() => handleSelect("farmer")}
               >
                 <p className="font-semibold">Farmer</p>
                 <p className="text-xs">Manage your farm and crops</p>

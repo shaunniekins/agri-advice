@@ -41,8 +41,15 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   // Redirect /admin to /admin/dashboard
-  if (request.nextUrl.pathname === "/admin") {
+  if (
+    request.nextUrl.pathname === "/admin" ||
+    request.nextUrl.pathname === "/administrator"
+  ) {
     return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+  }
+
+  if (request.nextUrl.pathname === "/farmer") {
+    return NextResponse.redirect(new URL("/farmer/chat", request.url));
   }
 
   if (request.nextUrl.pathname === "/signin") {
@@ -58,7 +65,7 @@ export async function middleware(request: NextRequest) {
     !request.nextUrl.searchParams.has("usertype")
   ) {
     return NextResponse.redirect(
-      new URL("/ident/signin?usertype=Farmer", request.url)
+      new URL("/ident/signin?usertype=farmer", request.url)
     );
   }
 
@@ -67,17 +74,17 @@ export async function middleware(request: NextRequest) {
     !request.nextUrl.searchParams.has("usertype")
   ) {
     return NextResponse.redirect(
-      new URL("/ident/signup?usertype=Farmer", request.url)
+      new URL("/ident/signup?usertype=farmer", request.url)
     );
   }
 
   if (user) {
-    const userRole = user.user_metadata.role;
+    const user_type = user.user_metadata.user_type;
 
     // Redirect users to their respective dashboards based on role
     if (request.nextUrl.pathname === "/") {
-      if (userRole === "farmer" || userRole === "technician") {
-        return NextResponse.redirect(new URL(`/${userRole}`, request.url));
+      if (user_type === "farmer" || user_type === "technician") {
+        return NextResponse.redirect(new URL(`/${user_type}`, request.url));
       } else {
         // Assuming any other role (like admin) should go to /admin/dashboard
         return NextResponse.redirect(new URL("/admin/dashboard", request.url));
@@ -86,8 +93,8 @@ export async function middleware(request: NextRequest) {
 
     // Redirect logged-in users from /signin or /signup to their respective dashboards
     if (request.nextUrl.pathname.startsWith("/ident")) {
-      if (userRole === "farmer" || userRole === "technician") {
-        return NextResponse.redirect(new URL(`/${userRole}`, request.url));
+      if (user_type === "farmer" || user_type === "technician") {
+        return NextResponse.redirect(new URL(`/${user_type}`, request.url));
       } else {
         // Assuming any other role (like admin) should go to /admin/dashboard
         return NextResponse.redirect(new URL("/admin/dashboard", request.url));
@@ -97,15 +104,15 @@ export async function middleware(request: NextRequest) {
     // Redirect users to their respective dashboards based on role
     if (
       request.nextUrl.pathname.startsWith("/admin") &&
-      (userRole === "farmer" || userRole === "technician")
+      (user_type === "farmer" || user_type === "technician")
     ) {
-      return NextResponse.redirect(new URL(`/${userRole}`, request.url));
+      return NextResponse.redirect(new URL(`/${user_type}`, request.url));
     }
 
     // Redirect non-technicians to / if trying to access /technician
     if (
       request.nextUrl.pathname.startsWith("/technician") &&
-      userRole !== "technician"
+      user_type !== "technician"
     ) {
       return NextResponse.redirect(new URL("/", request.url));
     }
@@ -113,7 +120,7 @@ export async function middleware(request: NextRequest) {
     // Redirect non-farmers to / if trying to access /farmer
     if (
       request.nextUrl.pathname.startsWith("/farmer") &&
-      userRole !== "farmer"
+      user_type !== "farmer"
     ) {
       return NextResponse.redirect(new URL("/", request.url));
     }
@@ -138,6 +145,7 @@ export const config = {
     "/ident",
     "/ident/:path*",
     "/admin",
+    "/administrator",
     "/admin/:path*",
     "/technician/:path*",
     "/farmer/:path*",

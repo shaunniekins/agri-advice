@@ -9,7 +9,7 @@ export default function TechnicianPage() {
 
   return (
     <>
-      <div>Technician Page</div>
+      <div>technician Page</div>
       <button onClick={handleLogout}>Logout</button>
     </>
   );

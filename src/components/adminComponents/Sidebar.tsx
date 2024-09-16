@@ -41,6 +41,27 @@ const AdminSidebarComponent = ({
     handleLogout();
   };
 
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 1024) {
+        setIsSidebarOpen(false);
+      } else {
+        setIsSidebarOpen(true);
+      }
+    };
+
+    // Initial check
+    handleResize();
+
+    // Add event listener
+    window.addEventListener("resize", handleResize);
+
+    // Cleanup event listener on component unmount
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
   return (
     <div className="bg-[#007057] text-white h-full w-full flex flex-col justify-center select-none relative">
       <h1 className="hidden lg:block absolute top-28 left-1/2 transform -translate-x-1/2 font-semibold text-3xl">

@@ -3,7 +3,7 @@
 import AdminHeaderComponent from "@/components/adminComponents/Header";
 import AdminSidebarComponent from "@/components/adminComponents/Sidebar";
 import { Spinner } from "@nextui-org/react";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 
 export default function AdminSlugLayout({
   children,
@@ -61,7 +61,7 @@ export default function AdminSlugLayout({
               }
             >
               <div
-                className="h-full flex flex-1 bg-[#F4FFFC] justify-center items-center"
+                className="h-full flex flex-1 bg-[#F4FFFC] justify-center items-center p-5 lg:p-10"
                 onClick={handleContentClick}
               >
                 {children}

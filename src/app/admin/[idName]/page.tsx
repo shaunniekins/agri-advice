@@ -1,21 +1,26 @@
 "use client";
 
+import UserComponent from "@/components/adminComponents/Users";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 
 export default function AdminSlugPage() {
   const pathname = usePathname();
+  const [display, setDisplay] = useState<string | JSX.Element>("");
 
-  let display = `admin ${pathname} page`;
+  useEffect(() => {
+    if (pathname.startsWith("/admin/monitor")) {
+      setDisplay("Chats");
+    } else if (pathname.startsWith("/admin/dashboard")) {
+      setDisplay("Hello user");
+    } else if (pathname.startsWith("/admin/users")) {
+      setDisplay(<UserComponent />);
+    } else {
+      setDisplay("No page found");
+    }
+  }, [pathname]);
 
-  if (pathname.startsWith("/admin/monitor")) {
-    display = "Chats";
-  } else if (pathname.startsWith("/admin/dashboard")) {
-    display = "Hello user";
-  } else {
-    display = "No page found";
-  }
-
-  return <div>{display}</div>;
+  return <div className="h-full w-full">{display}</div>;
 }
 
 // "use client";
@@ -31,7 +36,7 @@ export default function AdminSlugPage() {
 
 //   let ComponentToRender;
 
-//   if (pathname.startsWith("/admin/chats")) {
+//   if (pathname.startsWith("/admin/chat")) {
 //     ComponentToRender = ChatsComponent;
 //   } else if (pathname.startsWith("/admin/dashboard")) {
 //     ComponentToRender = DashboardComponent;

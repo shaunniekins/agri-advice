@@ -36,7 +36,7 @@ const SigninComponent = ({ userType }: SigninComponentProps) => {
       setSignInPending(false);
     } else {
       console.log("Signed in successfully:", data);
-      router.push("/admin");
+      router.push(`/${userType}`);
       return;
     }
   };
@@ -50,7 +50,7 @@ const SigninComponent = ({ userType }: SigninComponentProps) => {
       >
         <div className="w-full overflow-y-auto flex flex-col justify-center items-center rounded-md shadow-sm gap-3 ">
           <h4 className="absolute top-16 lg:top-32 self-center lg:self-start font-semibold text-xl">
-            {userType !== "Administrator" && userType.toUpperCase()} LOGIN
+            {userType !== "administrator" && userType.toUpperCase()} LOGIN
           </h4>
           <Input
             type="email"
@@ -90,8 +90,9 @@ const SigninComponent = ({ userType }: SigninComponentProps) => {
             fullWidth
             type="submit"
             color="success"
-            disabled={signInPending}
             size="lg"
+            disabled={signInPending}
+            isDisabled={!email || password.length < 8}
             className="text-white mt-3"
           >
             {signInPending ? "Signing In..." : "Sign In"}
@@ -101,14 +102,14 @@ const SigninComponent = ({ userType }: SigninComponentProps) => {
       <Button
         type="submit"
         variant="ghost"
-        isDisabled={userType === "Administrator"}
+        isDisabled={userType === "administrator"}
         color="success"
         onClick={() => {
           return router.push(`/ident/signup?usertype=${userType}`);
         }}
         className="absolute bottom-5"
       >
-        {userType !== "Administrator" ? "Create New Account" : "Administrator"}
+        {userType !== "administrator" ? "Create New Account" : "administrator"}
       </Button>
     </div>
     // </div>

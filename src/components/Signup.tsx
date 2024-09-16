@@ -2,9 +2,9 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase, supabaseAdmin } from "@/utils/supabase";
+import { supabaseAdmin } from "@/utils/supabase";
 import {
   Button,
   Input,
@@ -25,8 +25,7 @@ interface SignupComponentProps {
 }
 
 const SignupComponent = ({ userType }: SignupComponentProps) => {
-  const { users, isLoading, insertUser, updateUser, deleteUser } =
-    useTechnicianUsers();
+  const { insertTechnicianUser } = useTechnicianUsers();
 
   const [isInputUserPasswordVisible, setIsInputUserPasswordVisible] =
     useState(false);
@@ -61,7 +60,7 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
 
     setSignUpPending(true);
 
-    if (userType === "Farmer") {
+    if (userType === "farmer") {
       const { data, error } = await supabaseAdmin.auth.admin.createUser({
         email: email,
         password: password,
@@ -69,6 +68,7 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
         user_metadata: {
           email: email,
           password: password,
+          user_type: userType.toLowerCase(),
           first_name: firstName,
           last_name: lastName,
           middle_name: middleName,
@@ -86,7 +86,7 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
         router.push(`/ident/signin?usertype=${userType}`);
         return;
       }
-    } else if (userType === "Technician") {
+    } else if (userType === "technician") {
       const newTechnicianUserData = {
         email: email,
         password: password,
@@ -101,7 +101,7 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
         specialization: specialization,
       };
 
-      await insertUser(newTechnicianUserData);
+      await insertTechnicianUser(newTechnicianUserData);
 
       setSignUpPending(false);
       setIsSignupConfirmationModalOpen(true);
@@ -122,7 +122,7 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
           {(onClose) => (
             <>
               <ModalHeader className="flex flex-col">
-                Awaiting Administrator Approval
+                Awaiting administrator Approval
                 <span className="text-xs font-normal">
                   Your account creation is currently under review.
                 </span>
@@ -160,7 +160,7 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
         >
           <div className="w-full overflow-y-auto flex flex-col justify-center items-center rounded-md shadow-sm gap-3 ">
             <h4 className="absolute top-16 lg:top-32 self-center lg:self-start font-semibold text-xl">
-              {userType !== "Administrator" && userType.toUpperCase()} REGISTER
+              {userType !== "administrator" && userType.toUpperCase()} REGISTER
             </h4>
             {currentViewInput === 1 && (
               <>
@@ -265,7 +265,7 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
                 </div>
               </>
             )}
-            {userType === "Technician" && currentViewInput === 2 && (
+            {userType === "technician" && currentViewInput === 2 && (
               <div className="w-full flex flex-col lg:flex-row gap-2">
                 <Input
                   type="text"
@@ -307,9 +307,9 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
                 fullWidth
                 type="submit"
                 color="success"
-                disabled={signupPending}
                 size="lg"
                 endContent={currentViewInput === 1 && <IoIosArrowForward />}
+                disabled={signupPending}
                 isDisabled={
                   currentViewInput === 1
                     ? !(email && password.length >= 8 && firstName && lastName)
@@ -322,7 +322,7 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
                         mobileNumber &&
                         birthDate &&
                         address &&
-                        (userType !== "Technician" ||
+                        (userType !== "technician" ||
                           (licenseNumber && specialization))
                       )
                     : true
@@ -341,7 +341,7 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
         <Button
           type="submit"
           variant="ghost"
-          isDisabled={userType === "Administrator"}
+          isDisabled={userType === "administrator"}
           color="success"
           onClick={() => {
             return router.push(`/ident/signin?usertype=${userType}`);
