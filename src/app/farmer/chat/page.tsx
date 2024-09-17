@@ -213,7 +213,7 @@ const FarmerChatPage = () => {
               variant={!chosenTechnicianId ? "ghost" : "flat"}
               color="success"
               startContent={<GiChoice />}
-              className="self-end "
+              className="self-start"
               onClick={() => setOpenTechnicianModal(true)}
             >
               {!chosenTechnicianId
@@ -241,7 +241,7 @@ const FarmerChatPage = () => {
               size="lg"
               radius="lg"
               maxRows={3}
-              minRows={2}
+              minRows={1}
               color="success"
               endContent={
                 <div className="flex gap-4 text-2xl">

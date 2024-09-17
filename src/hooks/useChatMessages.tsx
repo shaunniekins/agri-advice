@@ -9,16 +9,23 @@ const useChatMessages = () => {
 
   // Fetch initial data and subscribe to real-time changes
   const fetchAndSubscribeChatMessages = useCallback(
-    async (rowsPerPage: number, currentPage: number) => {
+    async (rowsPerPage: number, currentPage: number, sender_id?: string) => {
       try {
         const offset = (currentPage - 1) * rowsPerPage;
 
         // Build the query
-        const { data, error, count } = await supabase
+        let query = supabase
           .from("ChatMessages")
           .select("*", { count: "exact" }) // To get the total number of rows
-          .order("created_at", { ascending: false })
+          .order("last_accessed_at", { ascending: false })
           .range(offset, offset + rowsPerPage - 1);
+
+        if (sender_id) {
+          query = query.eq("sender_id", sender_id);
+        }
+
+        // Fetch the paginated data
+        const { data, error, count } = await query;
 
         if (error) {
           throw error;
@@ -37,23 +44,43 @@ const useChatMessages = () => {
               event: "*",
               schema: "public",
               table: "ChatMessages",
+              filter: sender_id && `sender_id.eq.${sender_id}`,
             },
             (payload: any) => {
+              // console.log("payload", payload);
               setChatMessages((prev) => {
                 const { new: newMessage, old: oldMessage, eventType } = payload;
 
                 // Handle INSERT
                 if (eventType === "INSERT") {
-                  return [...prev, newMessage];
+                  const exists = prev.find(
+                    (msg) => msg.chat_message_id === newMessage.chat_message_id
+                  );
+                  if (!exists) {
+                    return [newMessage, ...prev.map((msg) => ({ ...msg }))];
+                  }
+                  return prev.map((msg) => ({ ...msg }));
                 }
+
+                // // Handle INSERT
+                // if (eventType === "INSERT") {
+                //   console.log("insert true");
+                //   const msg = [newMessage, ...prev];
+
+                //   console.log("msgInsert", msg);
+                //   return msg;
+                // }
 
                 // Handle UPDATE
                 else if (eventType === "UPDATE") {
-                  return prev.map((message) =>
+                  const msg = prev.map((message) =>
                     message.chat_message_id === newMessage.chat_message_id
                       ? newMessage
                       : message
                   );
+
+                  // console.log("msgUpdate", msg);
+                  return msg;
                 }
 
                 // Handle DELETE
@@ -98,7 +125,7 @@ const useChatMessages = () => {
         throw response.error;
       }
 
-      setChatMessages((prev) => [...prev, ...response.data]);
+      // setChatMessages((prev) => [...prev, ...response.data]);
       return response;
     } catch (error: any) {
       console.error("Error inserting chat message:", error);
