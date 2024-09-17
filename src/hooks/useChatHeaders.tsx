@@ -65,7 +65,19 @@ const useChatHeaders = (
             switch (eventType) {
               case "INSERT":
                 if (newRecord.sender_id === sender_id) {
-                  return [newRecord, ...prev];
+                  // Check if a record with the same chat_connection_id already exists
+                  const existingIndex = prev.findIndex(
+                    (record) =>
+                      record.chat_connection_id === newRecord.chat_connection_id
+                  );
+
+                  if (existingIndex !== -1) {
+                    // Retain the old value by returning the prev array as is
+                    return prev;
+                  } else {
+                    // Add the new record
+                    return [newRecord, ...prev];
+                  }
                 }
                 break;
               case "UPDATE":

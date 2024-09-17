@@ -86,91 +86,11 @@ const useChatConnections = () => {
     []
   );
 
-  // Insert a new chat connection
-  const insertChatConnection = useCallback(async (newChat: any) => {
-    try {
-      const response = await supabase
-        .from("ChatConnections")
-        .insert(newChat)
-        .select();
-
-      if (response.error) {
-        throw response.error;
-      }
-
-      setChatConnections((prev) => [...prev, ...response.data]);
-      return response;
-    } catch (error: any) {
-      console.error("Error inserting chat connection:", error);
-      return null;
-    }
-  }, []);
-
-  // Update an existing chat connection
-  const updateChatConnection = useCallback(
-    async (chatConnectionId: number, updatedChat: any) => {
-      try {
-        const response = await supabase
-          .from("ChatConnections")
-          .update(updatedChat)
-          .eq("chat_connection_id", chatConnectionId)
-          .select();
-
-        if (response.error) {
-          throw response.error;
-        }
-
-        setChatConnections((prev) =>
-          prev.map((chat) =>
-            chat.chat_connection_id === updatedChat.chat_connection_id
-              ? response.data[0]
-              : chat
-          )
-        );
-        return response;
-      } catch (error: any) {
-        console.error("Error updating chat connection:", error);
-        return null;
-      }
-    },
-    []
-  );
-
-  // Delete a chat connection
-  const deleteChatConnection = useCallback(async (chatConnectionId: any) => {
-    try {
-      const response = await supabase
-        .from("ChatConnections")
-        .delete()
-        .eq("chat_connection_id", chatConnectionId);
-
-      if (response.error) {
-        throw response.error;
-      }
-
-      setChatConnections((prev) =>
-        prev.filter((chat) => chat.chat_connection_id !== chatConnectionId)
-      );
-      return response;
-    } catch (error: any) {
-      console.error("Error deleting chat connection:", error);
-      return null;
-    }
-  }, []);
-
-  useEffect(() => {
-    // Fetch first page with default rowsPerPage
-    fetchAndSubscribeChatConnections(10, 1);
-  }, [fetchAndSubscribeChatConnections]);
-
   return {
     chatConnections,
     isLoadingChatConnections,
     totalChatEntries,
-    fetchAndSubscribeChatConnections,
-    insertChatConnection,
-    updateChatConnection,
-    deleteChatConnection,
+    fetchAndSubscribeChatConnections
   };
 };
 

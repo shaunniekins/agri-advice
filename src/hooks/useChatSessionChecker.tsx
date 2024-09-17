@@ -3,7 +3,7 @@ import { supabase } from "@/utils/supabase";
 import { useRouter } from "next/navigation";
 
 // Hook to check if a chat session ID exists and listen for real-time deletion
-const useChatSessionChecker = (chatSessionId: string) => {
+const useChatSessionChecker = (chatConnectionId: string) => {
   const [exists, setExists] = useState(true); // Start assuming the session exists
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -16,7 +16,7 @@ const useChatSessionChecker = (chatSessionId: string) => {
       const { data, error } = await supabase
         .from("ChatMessages")
         .select("chat_connection_id")
-        .eq("chat_connection_id", chatSessionId);
+        .eq("chat_connection_id", chatConnectionId);
 
       if (error) {
         throw error;
@@ -41,7 +41,7 @@ const useChatSessionChecker = (chatSessionId: string) => {
           event: "DELETE",
           schema: "public",
           table: "ChatMessages",
-          //   filter: `chat_connection_id=eq.${chatSessionId}`,  // doesn't work
+          //   filter: `chat_connection_id=eq.${chatConnectionId}`,  // doesn't work
         },
         (payload) => {
           const { eventType, new: newRecord, old: oldRecord } = payload;
@@ -66,7 +66,7 @@ const useChatSessionChecker = (chatSessionId: string) => {
   };
 
   useEffect(() => {
-    if (chatSessionId) {
+    if (chatConnectionId) {
       checkChatSessionId(); // Initial check
       const unsubscribe = subscribeToDeletions(); // Set up real-time listener
 
@@ -74,7 +74,7 @@ const useChatSessionChecker = (chatSessionId: string) => {
         unsubscribe(); // Cleanup subscription on component unmount
       };
     }
-  }, [chatSessionId]);
+  }, [chatConnectionId]);
 
   // If the chat session no longer exists, redirect the user
   useEffect(() => {

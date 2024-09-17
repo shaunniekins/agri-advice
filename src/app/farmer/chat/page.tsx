@@ -1,8 +1,9 @@
 "use client";
 
+import { insertChatConnection } from "@/app/api/chatConnectionsIUD";
+import { insertChatMessage } from "@/app/api/chatMessagesIUD";
 import { RootState } from "@/app/reduxUtils/store";
 import useChatConnections from "@/hooks/useChatConnections";
-import useChatMessages from "@/hooks/useChatMessages";
 import useTechnicianUsers from "@/hooks/useTechnicianUsers";
 import {
   Avatar,
@@ -32,9 +33,6 @@ const FarmerChatPage = () => {
     fetchAndSubscribeTechnicianUsers,
     updateTechnicianUser,
   } = useTechnicianUsers();
-
-  const { insertChatConnection } = useChatConnections();
-  const { insertChatMessage } = useChatMessages();
 
   const user = useSelector((state: RootState) => state.user.user);
 

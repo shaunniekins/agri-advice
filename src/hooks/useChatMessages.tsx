@@ -1,203 +1,122 @@
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/utils/supabase";
+import { PostgrestResponse } from "@supabase/supabase-js";
 
-const useChatMessages = () => {
+const useChatMessages = (
+  rowsPerPage: number,
+  currentPage: number,
+  chatConnectionId: string
+) => {
   const [chatMessages, setChatMessages] = useState<any[]>([]);
-  const [isLoadingChatMessages, setIsLoadingChatMessages] =
-    useState<boolean>(true);
-  const [totalMessageEntries, setTotalMessageEntries] = useState<number>(0);
-
-  // Fetch initial data and subscribe to real-time changes
-  const fetchAndSubscribeChatMessages = useCallback(
-    async (rowsPerPage: number, currentPage: number, sender_id?: string) => {
-      try {
-        const offset = (currentPage - 1) * rowsPerPage;
-
-        // Build the query
-        let query = supabase
-          .from("ChatMessages")
-          .select("*", { count: "exact" }) // To get the total number of rows
-          .order("last_accessed_at", { ascending: false })
-          .range(offset, offset + rowsPerPage - 1);
-
-        if (sender_id) {
-          query = query.eq("sender_id", sender_id);
-        }
-
-        // Fetch the paginated data
-        const { data, error, count } = await query;
-
-        if (error) {
-          throw error;
-        }
-
-        setChatMessages(data);
-        setTotalMessageEntries(count || 0);
-        setIsLoadingChatMessages(false);
-
-        // Subscribe to real-time changes
-        const channel: any = supabase
-          .channel("chat_messages_realtime")
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "ChatMessages",
-              filter: sender_id && `sender_id.eq.${sender_id}`,
-            },
-            (payload: any) => {
-              // console.log("payload", payload);
-              setChatMessages((prev) => {
-                const { new: newMessage, old: oldMessage, eventType } = payload;
-
-                // Handle INSERT
-                if (eventType === "INSERT") {
-                  const exists = prev.find(
-                    (msg) => msg.chat_message_id === newMessage.chat_message_id
-                  );
-                  if (!exists) {
-                    return [newMessage, ...prev.map((msg) => ({ ...msg }))];
-                  }
-                  return prev.map((msg) => ({ ...msg }));
-                }
-
-                // // Handle INSERT
-                // if (eventType === "INSERT") {
-                //   console.log("insert true");
-                //   const msg = [newMessage, ...prev];
-
-                //   console.log("msgInsert", msg);
-                //   return msg;
-                // }
-
-                // Handle UPDATE
-                else if (eventType === "UPDATE") {
-                  const msg = prev.map((message) =>
-                    message.chat_message_id === newMessage.chat_message_id
-                      ? newMessage
-                      : message
-                  );
-
-                  // console.log("msgUpdate", msg);
-                  return msg;
-                }
-
-                // Handle DELETE
-                else if (eventType === "DELETE") {
-                  return prev.filter(
-                    (message) =>
-                      message.chat_message_id !== oldMessage.chat_message_id
-                  );
-                }
-
-                return prev;
-              });
-            }
-          )
-          .subscribe((status: any) => {
-            if (status !== "SUBSCRIBED") {
-              console.error("Error subscribing to channel:", status);
-            }
-          });
-
-        // Cleanup the subscription
-        return () => {
-          supabase.removeChannel(channel);
-        };
-      } catch (error: any) {
-        console.error("Error fetching or subscribing:", error);
-        setIsLoadingChatMessages(false);
-      }
-    },
-    []
+  const [totalChatMessages, setTotalChatMessages] = useState(0);
+  const [loadingChatMessages, setLoadingChatMessages] = useState(true);
+  const [errorChatMessages, setErrorChatMessages] = useState<string | null>(
+    null
   );
 
-  // Insert a new chat message
-  const insertChatMessage = useCallback(async (newMessage: any) => {
+  // Fetch chat messages from Supabase
+  const fetchChatMessages = useCallback(async () => {
+    const offset = (currentPage - 1) * rowsPerPage;
+    setLoadingChatMessages(true);
+    setErrorChatMessages(null);
+
     try {
-      const response = await supabase
+      let query = supabase
         .from("ChatMessages")
-        .insert(newMessage)
-        .select();
+        .select("*", { count: "exact" })
+        .eq("chat_connection_id", chatConnectionId)
+        .order("created_at", { ascending: true });
 
-      if (response.error) {
-        throw response.error;
-      }
-
-      // setChatMessages((prev) => [...prev, ...response.data]);
-      return response;
-    } catch (error: any) {
-      console.error("Error inserting chat message:", error);
-      return null;
-    }
-  }, []);
-
-  // Update an existing chat message
-  const updateChatMessage = useCallback(
-    async (chatMessageId: number, updatedMessage: any) => {
-      try {
-        const response = await supabase
-          .from("ChatMessages")
-          .update(updatedMessage)
-          .eq("chat_message_id", chatMessageId)
-          .select();
-
-        if (response.error) {
-          throw response.error;
-        }
-
-        setChatMessages((prev) =>
-          prev.map((message) =>
-            message.chat_message_id === updatedMessage.chat_message_id
-              ? response.data[0]
-              : message
-          )
-        );
-        return response;
-      } catch (error: any) {
-        console.error("Error updating chat message:", error);
-        return null;
-      }
-    },
-    []
-  );
-
-  // Delete a chat message
-  const deleteChatMessage = useCallback(async (chatMessageId: any) => {
-    try {
-      const response = await supabase
-        .from("ChatMessages")
-        .delete()
-        .eq("chat_message_id", chatMessageId);
-
-      if (response.error) {
-        throw response.error;
-      }
-
-      setChatMessages((prev) =>
-        prev.filter((message) => message.chat_message_id !== chatMessageId)
+      const response: PostgrestResponse<any> = await query.range(
+        offset,
+        offset + rowsPerPage - 1
       );
-      return response;
-    } catch (error: any) {
-      console.error("Error deleting chat message:", error);
-      return null;
+
+      if (response.error) {
+        throw response.error;
+      }
+
+      setChatMessages(response.data || []);
+      setTotalChatMessages(response.count || 0);
+    } catch (err) {
+      if (err instanceof Error) {
+        setErrorChatMessages(err.message || "Error fetching chat messages");
+      } else {
+        setErrorChatMessages("An unknown error occurred");
+      }
+    } finally {
+      setLoadingChatMessages(false);
     }
-  }, []);
+  }, [rowsPerPage, currentPage, chatConnectionId]);
+
+  // Set up real-time subscription for INSERT, UPDATE, and DELETE events
+  const subscribeToChanges = useCallback(() => {
+    const channel = supabase
+      .channel("chat_sessions_chat_messages")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "ChatMessages",
+        },
+        (payload) => {
+          const { eventType, new: newRecord, old: oldRecord } = payload;
+
+          setChatMessages((prev) => {
+            switch (eventType) {
+              case "INSERT":
+                if (newRecord.chat_connection_id === chatConnectionId) {
+                  return [...prev, newRecord];
+                }
+                break;
+              case "UPDATE":
+                return prev.map((message) =>
+                  message.chat_message_id === newRecord.chat_message_id
+                    ? newRecord
+                    : message
+                );
+                break;
+              case "DELETE":
+                return prev.filter(
+                  (message) =>
+                    message.chat_message_id !== oldRecord.chat_message_id
+                );
+                break;
+              default:
+                return prev;
+            }
+            return prev;
+          });
+        }
+      )
+      .subscribe((status) => {
+        if (status !== "SUBSCRIBED") {
+          setErrorChatMessages("Error subscribing to real-time updates");
+          console.error("Error subscribing to channel:", status);
+        }
+      });
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [chatConnectionId]);
 
   useEffect(() => {
-    // Fetch first page with default rowsPerPage
-    fetchAndSubscribeChatMessages(10, 1);
-  }, [fetchAndSubscribeChatMessages]);
+    fetchChatMessages(); // Fetch initial data
+
+    const unsubscribe = subscribeToChanges(); // Set up real-time subscription
+
+    return () => {
+      if (unsubscribe) unsubscribe(); // Clean up on unmount
+    };
+  }, [fetchChatMessages, subscribeToChanges]);
 
   return {
     chatMessages,
-    isLoadingChatMessages,
-    totalMessageEntries,
-    fetchAndSubscribeChatMessages,
-    insertChatMessage,
-    updateChatMessage,
-    deleteChatMessage,
+    totalChatMessages,
+    loadingChatMessages,
+    errorChatMessages,
   };
 };
 

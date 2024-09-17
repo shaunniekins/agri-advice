@@ -20,7 +20,7 @@ export const useHandleLogout = () => {
 
       // Purge persisted state from local storage
       persistor.purge();
-      router.push("/signin");
+      router.push("/");
     }
   };
 

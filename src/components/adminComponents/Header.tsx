@@ -1,8 +1,11 @@
 "use client";
 
+import { RootState } from "@/app/reduxUtils/store";
 import { Avatar } from "@nextui-org/react";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 import { FaBars } from "react-icons/fa";
+import { useSelector } from "react-redux";
 
 interface AdminHeaderComponentProps {
   isSidebarOpen: boolean;
@@ -28,6 +31,21 @@ const AdminHeaderComponent = ({
     display = "Report";
   }
 
+  const [initials, setInitials] = useState("");
+
+  const user = useSelector((state: RootState) => state.user.user);
+
+  useEffect(() => {
+    if (user && user.user_metadata) {
+      const { first_name, last_name } = user.user_metadata;
+      const initials =
+        first_name && last_name
+          ? `${first_name[0].toUpperCase()}${last_name[0].toUpperCase()}`
+          : "Admin";
+      setInitials(initials);
+    }
+  }, [user]);
+
   return (
     <div className="w-full bg-[#007057] text-white flex justify-between items-center px-5">
       <button
@@ -40,10 +58,11 @@ const AdminHeaderComponent = ({
       <div className="flex items-center gap-2">
         <Avatar
           size="sm"
+          name={initials}
           showFallback
-          src="https://images.unsplash.com/broken"
+          // src="https://images.unsplash.com/broken"
         />
-        <h4 className="text-sm">Hey, Junior</h4>
+        <h4 className="text-sm">Hey, {initials}</h4>
       </div>
     </div>
   );
