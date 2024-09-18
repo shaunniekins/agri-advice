@@ -18,17 +18,17 @@ export default function FarmerChatSlugPage() {
   const pathname = usePathname();
   const router = useRouter();
   const user = useSelector((state: RootState) => state.user.user);
-  const [initials, setInitials] = useState("");
+  // const [initials, setInitials] = useState("");
   const [messageInput, setMessageInput] = useState("");
   const [isTextareaDisabled, setIsTextareaDisabled] = useState(false);
 
-  useEffect(() => {
-    if (user && user.user_metadata) {
-      const { first_name, last_name } = user.user_metadata;
-      const initials = `${first_name[0].toUpperCase()}${last_name[0].toUpperCase()}`;
-      setInitials(initials);
-    }
-  }, [user]);
+  // useEffect(() => {
+  //   if (user && user.user_metadata) {
+  //     const { first_name, last_name } = user.user_metadata;
+  //     const initials = `${first_name[0].toUpperCase()}${last_name[0].toUpperCase()}`;
+  //     setInitials(initials);
+  //   }
+  // }, [user]);
 
   // chatId === chatSessionId
   const chatId = getIdFromPathname(pathname);
@@ -48,6 +48,10 @@ export default function FarmerChatSlugPage() {
     loadingChatMessages,
     errorChatMessages,
   } = useChatMessages(100, 1, chatId);
+
+  // useEffect(() => {
+  //   console.log("chatMessages", chatMessages);
+  // }, [chatMessages]);
 
   useEffect(() => {
     if (chatMessages.length > 0) {
@@ -79,6 +83,23 @@ export default function FarmerChatSlugPage() {
           <div className="flex flex-col gap-3">
             {chatMessages.map((message) => {
               const isSender = message.sender_id === user.id;
+              const isFarmer = message.sender_id === message.farmer_id;
+
+              const senderFirstName = isFarmer
+                ? message.farmer_first_name
+                : message.technician_first_name;
+              const senderLastName = isFarmer
+                ? message.farmer_last_name
+                : message.technician_last_name;
+
+              // Provide default values if senderFirstName or senderLastName is undefined
+              const initials = `${(senderFirstName
+                ? senderFirstName[0]
+                : "A"
+              ).toUpperCase()}${(senderLastName
+                ? senderLastName[0]
+                : "A"
+              ).toUpperCase()}`;
 
               return (
                 <div
@@ -90,7 +111,9 @@ export default function FarmerChatSlugPage() {
                   {!isSender && <Avatar name={initials} showFallback />}
                   <div
                     className={`message py-2 ${
-                      isSender ? "text-right px-3 rounded-2xl bg-gray-300" : "text-left"
+                      isSender
+                        ? "text-right px-3 rounded-2xl bg-gray-300"
+                        : "text-left"
                     }`}
                     style={{ whiteSpace: "pre-wrap" }} // Preserve newlines
                   >

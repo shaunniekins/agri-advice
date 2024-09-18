@@ -1,21 +1,25 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/utils/supabase";
 
-const useChatConnectionChecker = (chatConnectionId: string) => {
+const useChatConnectionChecker = (chatConnectionId: string | null) => {
   const [chatConnectionData, setChatConnectionData] = useState<any[]>([]);
   const [loadingConnectionData, setLoadingConnectionData] = useState(true);
   const [errorConnectionData, setErrorConnectionData] = useState<string | null>(
     null
   );
 
-  const checkChatConnectionData = async () => {
+  const checkChatConnectionData = useCallback(async () => {
+    if (!chatConnectionId) {
+      setErrorConnectionData("Invalid chat connection ID");
+      setLoadingConnectionData(false);
+      return;
+    }
+
     try {
       setLoadingConnectionData(true);
       let query = supabase.from("ViewFullChatConnectionsInfo").select("*");
 
-      if (chatConnectionId) {
-        query = query.eq("chat_connection_id", chatConnectionId);
-      }
+      query = query.eq("chat_connection_id", chatConnectionId);
 
       const { data, error } = await query.single();
 
@@ -36,13 +40,11 @@ const useChatConnectionChecker = (chatConnectionId: string) => {
     } finally {
       setLoadingConnectionData(false);
     }
-  };
+  }, [chatConnectionId]);
 
   useEffect(() => {
-    if (chatConnectionId) {
-      checkChatConnectionData();
-    }
-  }, [chatConnectionId]);
+    checkChatConnectionData();
+  }, [checkChatConnectionData, chatConnectionId]);
 
   return { chatConnectionData, loadingConnectionData, errorConnectionData };
 };

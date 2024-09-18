@@ -6,7 +6,7 @@ export default function IdentSlugLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <body suppressHydrationWarning={true}>
+    <>
       <main className="min-h-[100svh] grid lg:grid-cols-[1fr_2fr] items-center bg-[#007057]">
         <div className="hidden lg:block h-full relative">
           {/* <img
@@ -18,6 +18,6 @@ export default function IdentSlugLayout({
         </div>
         <div className="h-full bg-white lg:rounded-l-3xl">{children}</div>
       </main>
-    </body>
+    </>
   );
 }

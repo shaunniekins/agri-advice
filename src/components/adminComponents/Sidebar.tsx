@@ -60,7 +60,7 @@ const AdminSidebarComponent = ({
     return () => {
       window.removeEventListener("resize", handleResize);
     };
-  }, []);
+  }, [setIsSidebarOpen]);
 
   return (
     <div className="bg-[#007057] text-white h-full w-full flex flex-col justify-center select-none relative">

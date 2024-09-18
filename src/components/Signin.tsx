@@ -42,7 +42,7 @@ const SigninComponent = ({ userType }: SigninComponentProps) => {
       if (user) {
         dispatch(setUser(user));
       }
-      console.log("Signed in successfully:", data);
+      // console.log("Signed in successfully:", data);
       router.push(`/${userType}`);
     }
   };

@@ -57,16 +57,13 @@ export default function FarmerChatsLayout({
     totalChatHeaders,
     loadingChatHeaders,
     errorChatHeaders,
-  } = user
-    ? useChatHeaders(rowsPerPage, page, user.id)
-    : {
-        chatHeaders: [],
-        totalChatHeaders: 0,
-        loadingChatHeaders: false,
-        errorChatHeaders: null,
-      };
+  } = useChatHeaders(rowsPerPage, page, user ? user.id : null);
 
   const { chatConnectionData } = useChatConnectionChecker(chatId);
+
+  // useEffect(() => {
+  //   console.log("chatConnectionData", chatConnectionData);
+  // }, [chatConnectionData]);
 
   // Handle sidebar open/close on small screens
   const handleContentClick = () => {
@@ -230,11 +227,12 @@ export default function FarmerChatsLayout({
                   } flex-col items-center`}
                 >
                   <span className="text-xs">You&apos;re talking to</span>
-                  {!chatConnectionData && (
+                  {chatConnectionData && (
                     <span>{`${
-                      (chatConnectionData as any).technician_first_name
+                      (chatConnectionData as any).technician_first_name ||
+                      ""
                     } ${
-                      (chatConnectionData as any).technician_last_name
+                      (chatConnectionData as any).technician_last_name || ""
                     }`}</span>
                   )}
                 </div>

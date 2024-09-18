@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/utils/supabase";
 import { useRouter } from "next/navigation";
 
@@ -10,7 +10,7 @@ const useChatSessionChecker = (chatConnectionId: string) => {
   const router = useRouter();
 
   // Function to check if the chat session ID exists in the database
-  const checkChatSessionId = async () => {
+  const checkChatSessionId = useCallback(async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -29,7 +29,7 @@ const useChatSessionChecker = (chatConnectionId: string) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [chatConnectionId]);
 
   // Real-time subscription to detect when the chat session is deleted
   const subscribeToDeletions = () => {
@@ -56,7 +56,7 @@ const useChatSessionChecker = (chatConnectionId: string) => {
       )
       .subscribe((status) => {
         if (status !== "SUBSCRIBED") {
-          console.error("Error subscribing to deletions:", status);
+          setError("Error subscribing to chat session changes");
         }
       });
 
@@ -74,7 +74,7 @@ const useChatSessionChecker = (chatConnectionId: string) => {
         unsubscribe(); // Cleanup subscription on component unmount
       };
     }
-  }, [chatConnectionId]);
+  }, [chatConnectionId, checkChatSessionId]);
 
   // If the chat session no longer exists, redirect the user
   useEffect(() => {

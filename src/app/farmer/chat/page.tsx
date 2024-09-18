@@ -55,7 +55,7 @@ const FarmerChatPage = () => {
 
   useEffect(() => {
     fetchAndSubscribeTechnicianUsers(rowsPerPage, page);
-  }, [fetchAndSubscribeTechnicianUsers]);
+  }, [fetchAndSubscribeTechnicianUsers, rowsPerPage, page]);
 
   const totalPages = Math.ceil(totalTechnicianEntries / rowsPerPage);
 

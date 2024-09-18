@@ -21,7 +21,7 @@ export default function AdminSlugLayout({
   };
 
   return (
-    <body suppressHydrationWarning={true}>
+    <>
       {isLoading && (
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
           <Spinner color="success" />
@@ -70,6 +70,6 @@ export default function AdminSlugLayout({
           </div>
         </div>
       )}
-    </body>
+    </>
   );
 }

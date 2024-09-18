@@ -22,10 +22,10 @@ const useChatMessages = (
 
     try {
       let query = supabase
-        .from("ChatMessages")
+        .from("ViewChatMessagesWithFullData")
         .select("*", { count: "exact" })
         .eq("chat_connection_id", chatConnectionId)
-        .order("created_at", { ascending: true });
+        .order("message_created_at", { ascending: true });
 
       const response: PostgrestResponse<any> = await query.range(
         offset,
@@ -49,6 +49,26 @@ const useChatMessages = (
     }
   }, [rowsPerPage, currentPage, chatConnectionId]);
 
+  // Fetch full data for a specific chat message from the view
+  const fetchFullChatMessage = async (chat_message_id: number) => {
+    try {
+      const { data, error } = await supabase
+        .from("ViewChatMessagesWithFullData")
+        .select("*")
+        .eq("chat_message_id", chat_message_id)
+        .single(); // Fetch a single row
+
+      if (error) {
+        throw error;
+      }
+
+      return data;
+    } catch (err) {
+      console.error("Error fetching full chat message:", err);
+      return null;
+    }
+  };
+
   // Set up real-time subscription for INSERT, UPDATE, and DELETE events
   const subscribeToChanges = useCallback(() => {
     const channel = supabase
@@ -60,21 +80,35 @@ const useChatMessages = (
           schema: "public",
           table: "ChatMessages",
         },
-        (payload) => {
+        async (payload) => {
           const { eventType, new: newRecord, old: oldRecord } = payload;
 
           setChatMessages((prev) => {
             switch (eventType) {
               case "INSERT":
                 if (newRecord.chat_connection_id === chatConnectionId) {
-                  return [...prev, newRecord];
+                  fetchFullChatMessage(newRecord.chat_message_id).then(
+                    (fullMessage) => {
+                      if (fullMessage) {
+                        setChatMessages([...prev, fullMessage]);
+                      }
+                    }
+                  );
                 }
                 break;
               case "UPDATE":
-                return prev.map((message) =>
-                  message.chat_message_id === newRecord.chat_message_id
-                    ? newRecord
-                    : message
+                fetchFullChatMessage(newRecord.chat_message_id).then(
+                  (fullMessage) => {
+                    if (fullMessage) {
+                      setChatMessages(
+                        prev.map((message) =>
+                          message.chat_message_id === newRecord.chat_message_id
+                            ? fullMessage
+                            : message
+                        )
+                      );
+                    }
+                  }
                 );
                 break;
               case "DELETE":
@@ -82,7 +116,6 @@ const useChatMessages = (
                   (message) =>
                     message.chat_message_id !== oldRecord.chat_message_id
                 );
-                break;
               default:
                 return prev;
             }
