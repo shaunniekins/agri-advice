@@ -5,7 +5,8 @@ import { PostgrestResponse } from "@supabase/supabase-js";
 const useChatMessages = (
   rowsPerPage: number,
   currentPage: number,
-  chatConnectionId: string
+  userId: string,
+  selectedChatPartnerId: string
 ) => {
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [totalChatMessages, setTotalChatMessages] = useState(0);
@@ -16,16 +17,24 @@ const useChatMessages = (
 
   // Fetch chat messages from Supabase
   const fetchChatMessages = useCallback(async () => {
+    if (!userId || !selectedChatPartnerId) return;
+
+    // console.log('userId', userId);
+    // console.log('selectedChatPartnerId', selectedChatPartnerId);
+
     const offset = (currentPage - 1) * rowsPerPage;
     setLoadingChatMessages(true);
     setErrorChatMessages(null);
 
     try {
-      let query = supabase
-        .from("ViewChatMessagesWithFullData")
-        .select("*", { count: "exact" })
-        .eq("chat_connection_id", chatConnectionId)
-        .order("message_created_at", { ascending: true });
+      const query = supabase
+        .from("ViewFullChatMessages")
+        .select("*")
+        .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+        .or(
+          `sender_id.eq.${selectedChatPartnerId},receiver_id.eq.${selectedChatPartnerId}`
+        )
+        .order("last_accessed_at", { ascending: true });
 
       const response: PostgrestResponse<any> = await query.range(
         offset,
@@ -47,16 +56,17 @@ const useChatMessages = (
     } finally {
       setLoadingChatMessages(false);
     }
-  }, [rowsPerPage, currentPage, chatConnectionId]);
+  }, [rowsPerPage, currentPage, userId, selectedChatPartnerId]);
 
-  // Fetch full data for a specific chat message from the view
-  const fetchFullChatMessage = async (chat_message_id: number) => {
+  const fetchFullChatMessages = async (chatMessageId: number) => {
+    if (!chatMessageId) return;
+
     try {
       const { data, error } = await supabase
-        .from("ViewChatMessagesWithFullData")
+        .from("ViewFullChatMessages")
         .select("*")
-        .eq("chat_message_id", chat_message_id)
-        .single(); // Fetch a single row
+        .eq("chat_message_id", chatMessageId)
+        .single();
 
       if (error) {
         throw error;
@@ -72,7 +82,7 @@ const useChatMessages = (
   // Set up real-time subscription for INSERT, UPDATE, and DELETE events
   const subscribeToChanges = useCallback(() => {
     const channel = supabase
-      .channel("chat_sessions_chat_messages")
+      .channel("chat_messages_session")
       .on(
         "postgres_changes",
         {
@@ -80,36 +90,24 @@ const useChatMessages = (
           schema: "public",
           table: "ChatMessages",
         },
-        async (payload) => {
+        (payload) => {
           const { eventType, new: newRecord, old: oldRecord } = payload;
 
           setChatMessages((prev) => {
             switch (eventType) {
               case "INSERT":
-                if (newRecord.chat_connection_id === chatConnectionId) {
-                  fetchFullChatMessage(newRecord.chat_message_id).then(
-                    (fullMessage) => {
-                      if (fullMessage) {
-                        setChatMessages([...prev, fullMessage]);
+                if (
+                  newRecord.sender_id === userId ||
+                  newRecord.receiver_id === userId
+                ) {
+                  fetchFullChatMessages(newRecord.chat_message_id).then(
+                    (fullChatMessage) => {
+                      if (fullChatMessage) {
+                        setChatMessages([...prev, fullChatMessage]);
                       }
                     }
                   );
                 }
-                break;
-              case "UPDATE":
-                fetchFullChatMessage(newRecord.chat_message_id).then(
-                  (fullMessage) => {
-                    if (fullMessage) {
-                      setChatMessages(
-                        prev.map((message) =>
-                          message.chat_message_id === newRecord.chat_message_id
-                            ? fullMessage
-                            : message
-                        )
-                      );
-                    }
-                  }
-                );
                 break;
               case "DELETE":
                 return prev.filter(
@@ -126,14 +124,14 @@ const useChatMessages = (
       .subscribe((status) => {
         if (status !== "SUBSCRIBED") {
           setErrorChatMessages("Error subscribing to real-time updates");
-          console.error("Error subscribing to channel:", status);
+          // console.error("Error subscribing to channel:", status);
         }
       });
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [chatConnectionId]);
+  }, [userId, selectedChatPartnerId]);
 
   useEffect(() => {
     fetchChatMessages(); // Fetch initial data

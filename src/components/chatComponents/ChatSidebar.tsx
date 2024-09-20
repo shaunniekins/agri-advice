@@ -1,6 +1,5 @@
 "use client";
 
-import { supabase } from "@/utils/supabase";
 import { usePathname, useRouter } from "next/navigation";
 import {
   Avatar,
@@ -10,12 +9,11 @@ import {
   PopoverTrigger,
   Spinner,
 } from "@nextui-org/react";
-import { use, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { FaBars, FaSignOutAlt } from "react-icons/fa";
 import { IoAddCircleOutline, IoAddSharp } from "react-icons/io5";
 import { IoMdAdd, IoMdTrash } from "react-icons/io";
 import { useHandleLogout } from "@/utils/authUtils";
-import useChatMessages from "@/hooks/useChatMessages";
 import { useSelector } from "react-redux";
 import { RootState } from "@/app/reduxUtils/store";
 import useChatHeaders from "@/hooks/useChatHeaders";
@@ -23,9 +21,8 @@ import { getIdFromPathname } from "@/utils/compUtils";
 import { BsThreeDotsVertical } from "react-icons/bs";
 import { deleteChatMessage } from "@/app/api/chatMessagesIUD";
 import { deleteChatConnection } from "@/app/api/chatConnectionsIUD";
-import useChatConnectionChecker from "@/hooks/useChatConnectionChecker";
 
-export default function FarmerChatsLayout({
+export default function ChatSidebarComponent({
   children,
 }: Readonly<{
   children: React.ReactNode;
@@ -41,6 +38,7 @@ export default function FarmerChatsLayout({
 
   const chatId = getIdFromPathname(pathname);
   const [initials, setInitials] = useState("");
+  const [userType, setUserType] = useState("");
 
   const user = useSelector((state: RootState) => state.user.user);
 
@@ -49,21 +47,13 @@ export default function FarmerChatsLayout({
       const { first_name, last_name } = user.user_metadata;
       const initials = `${first_name[0].toUpperCase()}${last_name[0].toUpperCase()}`;
       setInitials(initials);
+      setUserType(user.user_metadata.user_type);
     }
   }, [user]);
 
-  const {
-    chatHeaders,
-    totalChatHeaders,
-    loadingChatHeaders,
-    errorChatHeaders,
-  } = useChatHeaders(rowsPerPage, page, user ? user.id : null);
-
-  const { chatConnectionData } = useChatConnectionChecker(chatId);
-
-  // useEffect(() => {
-  //   console.log("chatConnectionData", chatConnectionData);
-  // }, [chatConnectionData]);
+  const { chatHeaders, loadingChatHeaders, errorChatHeaders } = useChatHeaders(
+    user ? user.id : ""
+  );
 
   // Handle sidebar open/close on small screens
   const handleContentClick = () => {
@@ -116,7 +106,7 @@ export default function FarmerChatsLayout({
           <div
             className={`${
               isSidebarOpen ? "z-10 flex lg:block" : "hidden lg:hidden"
-            } fixed inset-y-0 left-0 w-4/5 bg-white lg:relative lg:w-auto lg:bg-transparent`}
+            } fixed inset-y-0 left-0 w-4/5 lg:relative lg:w-auto lg:bg-transparent`}
           >
             <div className="bg-[#007057] text-white h-full w-80 flex flex-col justify-center select-none relative">
               <button
@@ -133,10 +123,9 @@ export default function FarmerChatsLayout({
                   startContent={<IoAddSharp />}
                   className="mt-16 py-5 mx-3 inline-flex"
                   onClick={() => {
-                    if (pathname !== "/farmer/chat") {
-                      setIsLoading(true);
-                      router.push("/farmer/chat");
-                      setIsLoading(false);
+                    if (pathname !== `/${userType}/chat`) {
+                      // setIsLoading(true);
+                      router.push(`/${userType}/chat`);
                     }
                   }}
                 >
@@ -149,41 +138,64 @@ export default function FarmerChatsLayout({
                     No chat history
                   </li>
                 ) : (
-                  chatHeaders.map((message, index) => (
-                    <li
-                      key={message.chat_connection_id} // Using chat_connection_id as the key
-                      className={`${
-                        chatId === message.chat_connection_id && "bg-[#005c4d]"
-                      } flex items-center py-2 px-3 text-sm rounded-md hover:bg-[#005c4d] cursor-pointer w-full relative group`}
-                      onClick={() => {
-                        router.push(
-                          `/farmer/chat/${message.chat_connection_id}`
-                        );
-                      }}
-                    >
-                      <span className="truncate w-full">{message.message}</span>
-                      {/* <span className="text-xs truncate w-full">{message.sender_id}</span> */}
-                      <Popover showArrow placement="bottom">
-                        <PopoverTrigger>
-                          <div className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full p-2 hover:bg-green-900">
-                            <BsThreeDotsVertical />
+                  chatHeaders.map((message, index) => {
+                    const displayName =
+                      message.sender_id !== user.id
+                        ? `${message.sender_raw_user_meta_data.first_name} ${message.sender_raw_user_meta_data.last_name}`
+                        : message.receiver_id !== user.id
+                        ? `${message.receiver_raw_user_meta_data.first_name} ${message.receiver_raw_user_meta_data.last_name}`
+                        : "Unknown";
+
+                    // Determine if the user is the latest messager
+                    const isUserLatestMessager = message.sender_id === user.id;
+
+                    return (
+                      <li
+                        key={message.chat_message_id}
+                        className={`${
+                          chatId === message.chat_message_id && "bg-[#005c4d]"
+                        } flex items-center py-2 px-3 text-sm rounded-md hover:bg-[#005c4d] cursor-pointer w-full relative group`}
+                        onClick={() => {
+                          router.push(
+                            `/${userType}/chat/${message.partner_id}`
+                          );
+                        }}
+                      >
+                        <span className="w-full flex items-center gap-2">
+                          {/* <Avatar size="sm" name={displayName} showFallback /> */}
+                          <div className="flex flex-col justify-center truncate">
+                            <span className="truncate text-lg font-semibold">
+                              {displayName}
+                            </span>
+                            <span className="text-xs truncate">
+                              {isUserLatestMessager
+                                ? `You: ${message.message}`
+                                : message.message}
+                            </span>
                           </div>
-                        </PopoverTrigger>
-                        <PopoverContent className="p-1">
-                          <Button
-                            size="sm"
-                            startContent={<IoMdTrash />}
-                            onClick={() => {
-                              deleteChatMessage(message.chat_connection_id);
-                              deleteChatConnection(message.chat_connection_id);
-                            }}
-                          >
-                            Delete
-                          </Button>
-                        </PopoverContent>
-                      </Popover>
-                    </li>
-                  ))
+                        </span>
+                        <Popover showArrow placement="bottom">
+                          <PopoverTrigger>
+                            <div className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full p-2 hover:bg-green-900">
+                              <BsThreeDotsVertical />
+                            </div>
+                          </PopoverTrigger>
+                          <PopoverContent className="p-1">
+                            <Button
+                              size="sm"
+                              startContent={<IoMdTrash />}
+                              onClick={() => {
+                                deleteChatMessage(message.chat_message_id);
+                                deleteChatConnection(message.chat_message_id);
+                              }}
+                            >
+                              Delete
+                            </Button>
+                          </PopoverContent>
+                        </Popover>
+                      </li>
+                    );
+                  })
                 )}
               </ul>
               <Button
@@ -198,7 +210,7 @@ export default function FarmerChatsLayout({
           </div>
           {/* HEADER */}
           <div className="h-full w-full flex flex-col relative overflow-hidden">
-            <div className="flex">
+            <div className="flex-none">
               <div className="w-full bg-[#007057] text-white flex justify-between items-center px-5">
                 <div className="flex h-11 items-center gap-2">
                   <button
@@ -209,7 +221,7 @@ export default function FarmerChatsLayout({
                   </button>
                   <button
                     className={`${isSidebarOpen && "hidden"}`}
-                    onClick={() => router.push("/farmer/chat")}
+                    onClick={() => router.push(`/${userType}/chat`)}
                   >
                     <IoAddCircleOutline size={25} />
                   </button>
@@ -221,7 +233,7 @@ export default function FarmerChatsLayout({
                     AgriAdvice
                   </div>
                 </div>
-                <div
+                {/* <div
                   className={`${
                     chatId === "chat" ? "hidden" : "flex"
                   } flex-col items-center`}
@@ -229,30 +241,25 @@ export default function FarmerChatsLayout({
                   <span className="text-xs">You&apos;re talking to</span>
                   {chatConnectionData && (
                     <span>{`${
-                      (chatConnectionData as any).technician_first_name ||
-                      ""
+                      (chatConnectionData as any).technician_first_name || ""
                     } ${
                       (chatConnectionData as any).technician_last_name || ""
                     }`}</span>
                   )}
-                </div>
+                </div> */}
                 <div className="flex items-center gap-2">
-                  <Avatar
-                    size="sm"
-                    name={initials}
-                    showFallback
-                    // src="https://images.unsplash.com/broken"
-                  />
-                  {/* <h4 className="text-sm">Hey, Junior</h4> */}
+                  <Avatar size="sm" name={initials} showFallback />
                 </div>
               </div>
             </div>
 
-            <div
-              className="h-full w-full flex flex-1 bg-[#F4FFFC] px-4 lg:px-72 pt-5 lg:pt-10 justify-center items-center"
-              onClick={handleContentClick}
-            >
-              {childrenIsLoading ? <Spinner color="success" /> : children}
+            <div className="flex-1 overflow-hidden">
+              <div
+                className="h-full w-full flex flex-col bg-[#F4FFFC] px-4 lg:px-72 pt-5 lg:pt-10"
+                onClick={handleContentClick}
+              >
+                {childrenIsLoading ? <Spinner color="success" /> : children}
+              </div>
             </div>
           </div>
         </div>

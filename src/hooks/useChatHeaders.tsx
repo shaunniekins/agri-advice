@@ -1,56 +1,50 @@
-import { useEffect, useState, useCallback } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/utils/supabase";
 import { PostgrestResponse } from "@supabase/supabase-js";
 
-const useChatHeaders = (
-  rowsPerPage: number,
-  currentPage: number,
-  sender_id: string
-) => {
+const useChatHeaders = (userId: string) => {
   const [chatHeaders, setChatHeaders] = useState<any[]>([]);
-  const [totalChatHeaders, setTotalChatHeaders] = useState(0);
   const [loadingChatHeaders, setLoadingChatHeaders] = useState(true);
   const [errorChatHeaders, setErrorChatHeaders] = useState<string | null>(null);
 
-  // Fetch chat headers from Supabase
+  // Fetch the latest chat headers for the user
   const fetchChatHeaders = useCallback(async () => {
-    const offset = (currentPage - 1) * rowsPerPage;
+    if (!userId) return;
+
     setLoadingChatHeaders(true);
     setErrorChatHeaders(null);
+    
 
     try {
-      let query = supabase
-        .from("ChatMessagesDistinctConnectionsView")
-        .select("*", { count: "exact" })
-        .eq("sender_id", sender_id)
-        .order("last_accessed_at", { ascending: true });
+      // Query from the new view that returns the latest conversation for each partner
+      const { data, error }: PostgrestResponse<any> = await supabase
+        .from("ViewLatestChatHeaders")
+        .select("*")
+        .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+        .order("created_at", { ascending: false });
 
-      const response: PostgrestResponse<any> = await query.range(
-        offset,
-        offset + rowsPerPage - 1
-      );
-
-      if (response.error) {
-        throw response.error;
+      if (error) {
+        throw error;
       }
 
-      setChatHeaders(response.data || []);
-      setTotalChatHeaders(response.count || 0);
+      setChatHeaders(data || []);
     } catch (err) {
       if (err instanceof Error) {
         setErrorChatHeaders(err.message || "Error fetching chat headers");
       } else {
-        setErrorChatHeaders("An unknown errorChatHeaders occurred");
+        setErrorChatHeaders("An unknown error occurred");
       }
     } finally {
       setLoadingChatHeaders(false);
     }
-  }, [rowsPerPage, currentPage, sender_id]);
+  }, [userId]);
 
-  // Set up real-time subscription for INSERT, UPDATE, and DELETE events
-  const subscribeToChanges = useCallback(() => {
-    const channel = supabase
-      .channel("chat_sessions_chat_headers")
+  useEffect(() => {
+    fetchChatHeaders(); // Fetch initial chat headers
+
+    // Optionally set up real-time updates for new messages or deleted messages
+    const unsubscribe = supabase
+      .channel("chat_headers")
       .on(
         "postgres_changes",
         {
@@ -59,72 +53,18 @@ const useChatHeaders = (
           table: "ChatMessages",
         },
         (payload) => {
-          const { eventType, new: newRecord, old: oldRecord } = payload;
-
-          setChatHeaders((prev) => {
-            switch (eventType) {
-              case "INSERT":
-                if (newRecord.sender_id === sender_id) {
-                  // Check if a record with the same chat_connection_id already exists
-                  const existingIndex = prev.findIndex(
-                    (record) =>
-                      record.chat_connection_id === newRecord.chat_connection_id
-                  );
-
-                  if (existingIndex !== -1) {
-                    // Retain the old value by returning the prev array as is
-                    return prev;
-                  } else {
-                    // Add the new record
-                    return [newRecord, ...prev];
-                  }
-                }
-                break;
-              case "UPDATE":
-                return prev.map((message) =>
-                  message.chat_message_id === newRecord.chat_message_id
-                    ? newRecord
-                    : message
-                );
-                break;
-              case "DELETE":
-                return prev.filter(
-                  (message) =>
-                    message.chat_message_id !== oldRecord.chat_message_id
-                );
-                break;
-              default:
-                return prev;
-            }
-            return prev;
-          });
+          fetchChatHeaders(); // Re-fetch the latest headers on changes
         }
       )
-      .subscribe((status) => {
-        if (status !== "SUBSCRIBED") {
-          setErrorChatHeaders("Error subscribing to real-time updates");
-          console.error("Error subscribing to channel:", status);
-        }
-      });
+      .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(unsubscribe); // Clean up on unmount
     };
-  }, [sender_id]);
-
-  useEffect(() => {
-    fetchChatHeaders(); // Fetch initial data
-
-    const unsubscribe = subscribeToChanges(); // Set up real-time subscription
-
-    return () => {
-      if (unsubscribe) unsubscribe(); // Clean up on unmount
-    };
-  }, [fetchChatHeaders, subscribeToChanges]);
+  }, [fetchChatHeaders]);
 
   return {
     chatHeaders,
-    totalChatHeaders,
     loadingChatHeaders,
     errorChatHeaders,
   };

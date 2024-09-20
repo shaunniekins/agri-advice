@@ -52,6 +52,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/farmer/chat", request.url));
   }
 
+  if (request.nextUrl.pathname === "/technician") {
+    return NextResponse.redirect(new URL("/technician/chat", request.url));
+  }
+
   if (request.nextUrl.pathname === "/signin") {
     return NextResponse.redirect(new URL("/ident/signin", request.url));
   }

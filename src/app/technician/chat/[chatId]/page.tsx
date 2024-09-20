@@ -1,5 +1,5 @@
 import ChatDisplayComponent from "@/components/chatComponents/ChatDisplay";
 
-export default function FarmerChatSlugPage() {
+export default function TechnicianChatSlugPage() {
   return <ChatDisplayComponent />;
 }
