@@ -82,7 +82,7 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
         console.error("Error signing up:", error.message);
         setSignUpPending(false);
       } else {
-        console.log("Signed up successfully:", data);
+        // console.log("Signed up successfully:", data);
         router.push(`/ident/signin?usertype=${userType}`);
         return;
       }

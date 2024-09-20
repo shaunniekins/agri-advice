@@ -2,9 +2,10 @@ create view
   "ViewLatestChatHeaders" as
 select
   cm.chat_message_id,
-  cm.sender_id,
-  cm.receiver_id,
   cm.message,
+  cm.sender_id,
+  cm.is_active,
+  cm.receiver_id,
   cm.last_accessed_at,
   cm.created_at,
   greatest(cm.sender_id, cm.receiver_id) as partner_id,

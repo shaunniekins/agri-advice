@@ -20,12 +20,16 @@ export const insertChatConnection = async (newChat: any) => {
 };
 
 // Delete a chat connection
-export const deleteChatConnection = async (chatConnectionDd: any) => {
+export const deleteChatConnection = async (
+  user1Id: string,
+  user2Id: string
+) => {
   try {
     const response = await supabase
       .from("ChatConnections")
       .delete()
-      .eq("chat_connection_id", chatConnectionDd);
+      .or(`farmer_id.eq.${user1Id},technician_id.eq.${user1Id}`)
+      .or(`farmer_id.eq.${user2Id},technician_id.eq.${user2Id}`);
 
     if (response.error) {
       throw response.error;

@@ -12,7 +12,7 @@ import {
 import { useEffect, useState } from "react";
 import { FaBars, FaSignOutAlt } from "react-icons/fa";
 import { IoAddCircleOutline, IoAddSharp } from "react-icons/io5";
-import { IoMdAdd, IoMdTrash } from "react-icons/io";
+import { IoMdAdd, IoMdMenu, IoMdTrash } from "react-icons/io";
 import { useHandleLogout } from "@/utils/authUtils";
 import { useSelector } from "react-redux";
 import { RootState } from "@/app/reduxUtils/store";
@@ -21,6 +21,7 @@ import { getIdFromPathname } from "@/utils/compUtils";
 import { BsThreeDotsVertical } from "react-icons/bs";
 import { deleteChatMessage } from "@/app/api/chatMessagesIUD";
 import { deleteChatConnection } from "@/app/api/chatConnectionsIUD";
+import { MdOutlineSpaceDashboard } from "react-icons/md";
 
 export default function ChatSidebarComponent({
   children,
@@ -39,6 +40,7 @@ export default function ChatSidebarComponent({
   const chatId = getIdFromPathname(pathname);
   const [initials, setInitials] = useState("");
   const [userType, setUserType] = useState("");
+  const [currentHeader, setCurrentHeader] = useState("");
 
   const user = useSelector((state: RootState) => state.user.user);
 
@@ -120,7 +122,13 @@ export default function ChatSidebarComponent({
               <div>
                 <Button
                   radius="full"
-                  startContent={<IoAddSharp />}
+                  startContent={
+                    userType === "farmer" ? (
+                      <IoAddSharp />
+                    ) : (
+                      <MdOutlineSpaceDashboard />
+                    )
+                  }
                   className="mt-16 py-5 mx-3 inline-flex"
                   onClick={() => {
                     if (pathname !== `/${userType}/chat`) {
@@ -129,7 +137,7 @@ export default function ChatSidebarComponent({
                     }
                   }}
                 >
-                  New Chat
+                  {userType === "farmer" ? "New Chat" : "Main"}
                 </Button>
               </div>
               <ul className="h-full mt-2 mb-20 flex flex-col pt-3 pb-5">
@@ -153,12 +161,23 @@ export default function ChatSidebarComponent({
                       <li
                         key={message.chat_message_id}
                         className={`${
-                          chatId === message.chat_message_id && "bg-[#005c4d]"
+                          chatId === message.chat_message_id ||
+                          currentHeader === message.chat_message_id
+                            ? "bg-[#005c4d]"
+                            : ""
                         } flex items-center py-2 px-3 text-sm rounded-md hover:bg-[#005c4d] cursor-pointer w-full relative group`}
                         onClick={() => {
-                          router.push(
-                            `/${userType}/chat/${message.partner_id}`
-                          );
+                          if (user.id === message.sender_id) {
+                            // alert("You are the sender");
+                            router.push(
+                              `/${userType}/chat/id?sender=${message.sender_id}&receiver=${message.receiver_id}`
+                            );
+                          } else {
+                            // alert("You are the receiver");
+                            router.push(
+                              `/${userType}/chat/id?sender=${message.sender_id}&receiver=${message.receiver_id}`
+                            );
+                          }
                         }}
                       >
                         <span className="w-full flex items-center gap-2">
@@ -176,7 +195,11 @@ export default function ChatSidebarComponent({
                         </span>
                         <Popover showArrow placement="bottom">
                           <PopoverTrigger>
-                            <div className="ml-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full p-2 hover:bg-green-900">
+                            <div
+                              className={`${
+                                userType === "technician" && "hidden"
+                              } absolute top-1/2 right-3 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full p-2 hover:bg-green-900`}
+                            >
                               <BsThreeDotsVertical />
                             </div>
                           </PopoverTrigger>
@@ -185,8 +208,15 @@ export default function ChatSidebarComponent({
                               size="sm"
                               startContent={<IoMdTrash />}
                               onClick={() => {
-                                deleteChatMessage(message.chat_message_id);
-                                deleteChatConnection(message.chat_message_id);
+                                deleteChatMessage(
+                                  message.sender_id,
+                                  message.receiver_id
+                                );
+
+                                deleteChatConnection(
+                                  message.sender_id,
+                                  message.receiver_id
+                                );
                               }}
                             >
                               Delete

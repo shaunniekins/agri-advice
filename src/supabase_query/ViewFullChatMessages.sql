@@ -3,9 +3,10 @@ create view
 select
   cm.chat_message_id,
   cm.message,
-  cm.created_at,
-  cm.last_accessed_at,
   cm.sender_id,
+  cm.is_active,
+  cm.last_accessed_at,
+  cm.created_at,
   coalesce(
     s.raw_user_meta_data ->> 'first_name'::text,
     'Unknown'::text
