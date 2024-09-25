@@ -4,6 +4,12 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Avatar,
   Button,
+  Input,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -12,16 +18,25 @@ import {
 import { useEffect, useState } from "react";
 import { FaBars, FaSignOutAlt } from "react-icons/fa";
 import { IoAddCircleOutline, IoAddSharp } from "react-icons/io5";
-import { IoMdAdd, IoMdMenu, IoMdTrash } from "react-icons/io";
+import { IoMdTrash } from "react-icons/io";
 import { useHandleLogout } from "@/utils/authUtils";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { RootState } from "@/app/reduxUtils/store";
 import useChatHeaders from "@/hooks/useChatHeaders";
 import { getIdFromPathname } from "@/utils/compUtils";
 import { BsThreeDotsVertical } from "react-icons/bs";
 import { deleteChatMessage } from "@/app/api/chatMessagesIUD";
 import { deleteChatConnection } from "@/app/api/chatConnectionsIUD";
-import { MdOutlineSpaceDashboard } from "react-icons/md";
+import {
+  MdCancel,
+  MdClose,
+  MdDeleteOutline,
+  MdModeEditOutline,
+  MdOutlineSpaceDashboard,
+  MdSave,
+} from "react-icons/md";
+import { supabase, supabaseAdmin } from "@/utils/supabase";
+import { setUser } from "@/app/reduxUtils/userSlice";
 
 export default function ChatSidebarComponent({
   children,
@@ -42,14 +57,67 @@ export default function ChatSidebarComponent({
   const [userType, setUserType] = useState("");
   const [currentHeader, setCurrentHeader] = useState("");
 
+  const [openUserInfo, setOpenUserInfo] = useState(false);
+  const [userInfo, setUserInfo] = useState({
+    profile_picture: "",
+    address: "",
+    birth_date: "",
+    email: "",
+    first_name: "",
+    last_name: "",
+    middle_name: "",
+    mobile_number: "",
+    password: "",
+  });
+  const [tempUserInfo, setTempUserInfo] = useState(userInfo);
+  const [isEditing, setIsEditing] = useState(false);
+  const [isChanged, setIsChanged] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+
   const user = useSelector((state: RootState) => state.user.user);
+  const dispatch = useDispatch();
 
   useEffect(() => {
     if (user && user.user_metadata) {
-      const { first_name, last_name } = user.user_metadata;
+      const {
+        profile_picture,
+        address,
+        birth_date,
+        email,
+        first_name,
+        last_name,
+        middle_name,
+        mobile_number,
+        user_type,
+      } = user.user_metadata;
+
+      setUserInfo({
+        profile_picture: profile_picture || "",
+        address: address || "",
+        birth_date: birth_date || "",
+        email: email || user.email || "",
+        first_name: first_name || "",
+        last_name: last_name || "",
+        middle_name: middle_name || "",
+        mobile_number: mobile_number || "",
+        password: "", // Password should not be set from user data for security reasons
+      });
+
+      setTempUserInfo({
+        profile_picture: profile_picture || "",
+        address: address || "",
+        birth_date: birth_date || "",
+        email: email || user.email || "",
+        first_name: first_name || "",
+        last_name: last_name || "",
+        middle_name: middle_name || "",
+        mobile_number: mobile_number || "",
+        password: "", // Password should not be set from user data for security reasons
+      });
+
       const initials = `${first_name[0].toUpperCase()}${last_name[0].toUpperCase()}`;
       setInitials(initials);
-      setUserType(user.user_metadata.user_type);
+      setUserType(user_type);
     }
   }, [user]);
 
@@ -90,8 +158,287 @@ export default function ChatSidebarComponent({
     handleLogout();
   };
 
+  const reloadUser = async () => {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    dispatch(setUser(user));
+  };
+
+  const handleInputChange = (e: any) => {
+    const { name, value } = e.target;
+    setTempUserInfo((prevState) => ({
+      ...prevState,
+      [name]: value,
+    }));
+    setIsChanged(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      const { error } = await supabase.auth.updateUser({
+        email: tempUserInfo.email,
+        data: {
+          profile_picture: tempUserInfo.profile_picture,
+          address: tempUserInfo.address,
+          birth_date: tempUserInfo.birth_date,
+          email: tempUserInfo.email,
+          first_name: tempUserInfo.first_name,
+          last_name: tempUserInfo.last_name,
+          middle_name: tempUserInfo.middle_name,
+          mobile_number: tempUserInfo.mobile_number,
+        },
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      reloadUser();
+      setIsEditing(false);
+      setIsChanged(false);
+    } catch (error) {
+      console.error("Error updating user:", error);
+    }
+  };
+
+  const handleEditToggle = () => {
+    if (isEditing) {
+      // If canceling, revert to tempUserInfo
+      setTempUserInfo(userInfo);
+      setIsChanged(false);
+    } else {
+      // If starting to edit, save current userInfo to tempUserInfo
+      setTempUserInfo(userInfo);
+    }
+    setIsEditing(!isEditing);
+  };
+
+  const handleDeleteToggle = async () => {
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this user? This action cannot be undone."
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      const { error } = await supabaseAdmin.auth.admin.deleteUser(user.id);
+
+      if (error) {
+        throw error;
+      }
+
+      setIsLoading(true);
+      handleLogout();
+    } catch (error) {
+      console.error("Error deleting user:", error);
+    }
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files[0]) {
+      setSelectedImage(files[0]);
+      setTempUserInfo((prevState) => ({
+        ...prevState,
+        profile_picture: URL.createObjectURL(files[0]),
+      }));
+      setIsChanged(true);
+    }
+  };
+
+  const handleImageUpload = async () => {
+    if (!selectedImage) return;
+
+    const BUCKET_NAME = "profile-pictures";
+    const { data, error } = await supabase.storage
+      .from(BUCKET_NAME)
+      .upload(`public/${user.id}`, selectedImage);
+
+    if (error) {
+      console.error("Error uploading image:", error.message);
+      return;
+    }
+
+    const { publicUrl } = supabase.storage
+      .from(BUCKET_NAME)
+      .getPublicUrl(data.path).data;
+
+    setTempUserInfo((prevState) => ({
+      ...prevState,
+      profile_picture: publicUrl,
+    }));
+    setSelectedImage(null);
+    setIsEditing(false);
+    setIsChanged(false);
+  };
+
+  const handleImageDelete = async () => {
+    const BUCKET_NAME = "profile-pictures";
+    const { error } = await supabase.storage
+      .from(BUCKET_NAME)
+      .remove([`public/${user.id}`]);
+
+    if (error) {
+      console.error("Error deleting image:", error.message);
+      return;
+    }
+
+    setTempUserInfo((prevState) => ({
+      ...prevState,
+      profile_picture: "",
+    }));
+
+    setSelectedImage(null);
+    setIsEditing(false);
+    setIsChanged(false);
+  };
+
   return (
     <>
+      <Modal
+        size="xl"
+        backdrop="blur"
+        isOpen={openUserInfo}
+        hideCloseButton={true}
+        onOpenChange={setOpenUserInfo}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                Personal Information
+              </ModalHeader>
+              <ModalBody>
+                <div className="w-full grid grid-cols-3 gap-4">
+                  <div className="col-span-3 flex justify-center">
+                    <label htmlFor="profile-picture-upload">
+                      <Avatar
+                        src={
+                          tempUserInfo.profile_picture ||
+                          `https://fakeimg.pl/500x500?text=${initials}&font=bebas`
+                        }
+                        alt="Profile"
+                        className="w-32 h-32 rounded-full object-cover cursor-pointer"
+                      />
+                    </label>
+                    <input
+                      id="profile-picture-upload"
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageChange}
+                      className="hidden"
+                    />
+                  </div>
+                  <Input
+                    label="First Name"
+                    name="first_name"
+                    value={tempUserInfo.first_name}
+                    onChange={handleInputChange}
+                    isDisabled={!isEditing}
+                  />
+                  <Input
+                    label="Last Name"
+                    name="last_name"
+                    value={tempUserInfo.last_name}
+                    onChange={handleInputChange}
+                    isDisabled={!isEditing}
+                  />
+                  <Input
+                    label="Middle Name"
+                    name="middle_name"
+                    value={tempUserInfo.middle_name}
+                    onChange={handleInputChange}
+                    isDisabled={!isEditing}
+                  />
+                  <div className="col-span-3 flex gap-4">
+                    <Input
+                      label="Email"
+                      name="email"
+                      value={tempUserInfo.email}
+                      onChange={handleInputChange}
+                      isDisabled={!isEditing}
+                      // className="col-span-2"
+                    />
+                    <Input
+                      label="Mobile Number"
+                      name="mobile_number"
+                      value={tempUserInfo.mobile_number}
+                      onChange={handleInputChange}
+                      isDisabled={!isEditing}
+                      // className="col-span-2"
+                    />
+                  </div>
+                  <Input
+                    label="Address"
+                    name="address"
+                    value={tempUserInfo.address}
+                    onChange={handleInputChange}
+                    isDisabled={!isEditing}
+                    className="col-span-2"
+                  />
+                  <Input
+                    label="Birth Date"
+                    name="birth_date"
+                    value={tempUserInfo.birth_date}
+                    onChange={handleInputChange}
+                    isDisabled={!isEditing}
+                  />
+                </div>
+              </ModalBody>
+              <ModalFooter>
+                <div className="w-full flex justify-between">
+                  <Button
+                    startContent={<MdDeleteOutline />}
+                    color="danger"
+                    onClick={handleDeleteToggle}
+                  >
+                    Delete Account
+                  </Button>
+                  <div className="flex justify-end items-center gap-3">
+                    <Button
+                      startContent={
+                        isEditing ? <MdCancel /> : <MdModeEditOutline />
+                      }
+                      color="secondary"
+                      onClick={handleEditToggle}
+                    >
+                      {isEditing ? "Cancel" : "Edit"}
+                    </Button>
+
+                    {/* {isEditing && (
+                      <Button
+                        startContent={<MdDeleteOutline />}
+                        color="danger"
+                        onClick={handleImageDelete}
+                      >
+                        Delete Image
+                      </Button>
+                    )} */}
+
+                    <Button
+                      startContent={isChanged ? <MdSave /> : <MdClose />}
+                      className="bg-[#007057] text-white self-center"
+                      onClick={() => {
+                        if (isChanged) {
+                          handleSave();
+                          handleImageUpload();
+                        } else {
+                          setOpenUserInfo(false);
+                        }
+                      }}
+                    >
+                      {isChanged ? "Save" : "Close"}
+                    </Button>
+                  </div>
+                </div>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
       {isLoading && (
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
           <Spinner color="success" />
@@ -277,9 +624,12 @@ export default function ChatSidebarComponent({
                     }`}</span>
                   )}
                 </div> */}
-                <div className="flex items-center gap-2">
+                <button
+                  className="flex items-center gap-2"
+                  onClick={() => setOpenUserInfo(true)}
+                >
                   <Avatar size="sm" name={initials} showFallback />
-                </div>
+                </button>
               </div>
             </div>
 
