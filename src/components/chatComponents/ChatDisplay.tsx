@@ -132,6 +132,7 @@ export default function ChatDisplayComponent() {
 
                     const senderFirstName = message.sender_first_name;
                     const senderLastName = message.sender_last_name;
+                    const senderProfilePicture = message.sender_profile_picture;
 
                     const initials = `${(senderFirstName
                       ? senderFirstName[0]
@@ -149,7 +150,19 @@ export default function ChatDisplayComponent() {
                         }`}
                       >
                         <div className="flex">
-                          {!isSender && <Avatar name={initials} showFallback />}
+                          {/* {!isSender && <Avatar name={initials} showFallback />} */}
+                          {!isSender &&
+                            (!senderProfilePicture ? (
+                              <Avatar size="sm" name={initials} showFallback />
+                            ) : (
+                              <Avatar
+                                size="sm"
+                                src={senderProfilePicture}
+                                alt="Profile"
+                                showFallback
+                                className="rounded-full object-cover cursor-pointer"
+                              />
+                            ))}
                         </div>
                         <div
                           className={`message text-sm py-2 max-w-full whitespace-pre-wrap flex-wrap text-wrap break-words ${

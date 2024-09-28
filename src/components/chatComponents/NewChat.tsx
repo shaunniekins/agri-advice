@@ -15,11 +15,15 @@ import {
   ModalFooter,
   ModalHeader,
   Pagination,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
   Spinner,
   Textarea,
 } from "@nextui-org/react";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
+import { BsThreeDotsVertical } from "react-icons/bs";
 import { FaPiggyBank } from "react-icons/fa";
 import { GiChoice } from "react-icons/gi";
 import { IoAddSharp, IoSendOutline } from "react-icons/io5";
@@ -154,7 +158,7 @@ const ChatPageComponent = () => {
                           chosenTechnicianId === item.auth_user_id
                             ? "border-[#007057]"
                             : ""
-                        } border flex flex-col items-center rounded-lg p-2 gap-1`}
+                        } border flex flex-col items-center rounded-lg p-2 gap-1 relative`}
                         onClick={() => {
                           setChosenTechnicianId(
                             chosenTechnicianId === item.auth_user_id
@@ -163,7 +167,46 @@ const ChatPageComponent = () => {
                           );
                         }}
                       >
-                        <Avatar size="sm" name={initials} showFallback />
+                        {/* <button
+                          className="absolute right-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            alert('clicked')
+                          }}
+                        >
+                          <BsThreeDotsVertical />
+                        </button> */}
+
+                        <Popover showArrow placement="top">
+                          <PopoverTrigger>
+                            {/* <BsThreeDotsVertical /> */}
+                            <button
+                              className="absolute right-1"
+                              // onClick={(e) => {
+                              //   e.stopPropagation();
+                              //   alert('clicked')
+                              // }}
+                            >
+                              <BsThreeDotsVertical />
+                            </button>
+                          </PopoverTrigger>
+                          <PopoverContent className="p-2 flex flex-col items-center gap-1">
+                            <h3>{item.email}</h3>
+                            <h4 className="text-xs">{item.birth_date}</h4>
+                          </PopoverContent>
+                        </Popover>
+                        {/* <Avatar size="sm" name={initials} showFallback /> */}
+                        {!item.profile_picture ? (
+                          <Avatar size="sm" name={initials} showFallback />
+                        ) : (
+                          <Avatar
+                            size="sm"
+                            src={item.profile_picture}
+                            alt="Profile"
+                            showFallback
+                            className="rounded-full object-cover cursor-pointer"
+                          />
+                        )}
                         <p className="text-xs">
                           {item.first_name} {item.last_name}
                         </p>

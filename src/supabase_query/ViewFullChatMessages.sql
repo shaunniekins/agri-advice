@@ -8,6 +8,10 @@ select
   cm.last_accessed_at,
   cm.created_at,
   coalesce(
+    s.raw_user_meta_data ->> 'profile_picture'::text,
+    'Unknown'::text
+  ) as sender_profile_picture,
+  coalesce(
     s.raw_user_meta_data ->> 'first_name'::text,
     'Unknown'::text
   ) as sender_first_name,
