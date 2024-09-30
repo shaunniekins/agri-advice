@@ -8,6 +8,8 @@ import useTechnicianUsers from "@/hooks/useTechnicianUsers";
 import {
   Avatar,
   Button,
+  Card,
+  CardBody,
   Input,
   Modal,
   ModalBody,
@@ -19,15 +21,20 @@ import {
   PopoverContent,
   PopoverTrigger,
   Spinner,
+  Tab,
+  Tabs,
   Textarea,
 } from "@nextui-org/react";
+import axios from "axios";
 import { useRouter } from "next/navigation";
+import React from "react";
 import { useEffect, useRef, useState } from "react";
 import { BsThreeDotsVertical } from "react-icons/bs";
 import { FaPiggyBank } from "react-icons/fa";
 import { GiChoice } from "react-icons/gi";
 import { IoAddSharp, IoSendOutline } from "react-icons/io5";
 import { useSelector } from "react-redux";
+import WeatherWidget from "../WeatherWidget";
 
 const ChatPageComponent = () => {
   const {
@@ -105,7 +112,6 @@ const ChatPageComponent = () => {
   };
 
   //   technician
-
   const [userType, setUserType] = useState("");
 
   useEffect(() => {
@@ -114,8 +120,114 @@ const ChatPageComponent = () => {
     }
   }, [user]);
 
+  const pdfFiles = [
+    {
+      id: 1,
+      label: "Preparation Guidelines",
+      src: "/reading-list/preparation-guidelines.pdf",
+    },
+    {
+      id: 2,
+      label: "Implementation Guidelines",
+      src: "/reading-list/implementation-guidelines.pdf",
+    },
+    { id: 3, label: "GAHP Swine", src: "/reading-list/gahp-swine.pdf" },
+  ];
+
+  const [weather, setWeather] = useState<any | null>(null);
+
+  useEffect(() => {
+    const fetchWeather = async (latitude: number, longitude: number) => {
+      try {
+        const apiKey = process.env.NEXT_PUBLIC_OPEN_WEATHER_API_KEY;
+
+        const response = await axios.get(
+          `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${apiKey}&units=metric`
+        );
+        setWeather(response.data);
+        setIsLoading(false);
+      } catch (err: any) {
+        console.error(err);
+        setIsLoading(false);
+      }
+    };
+
+    const getLocation = () => {
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const { latitude, longitude } = position.coords;
+            fetchWeather(latitude, longitude);
+            // Set up polling to fetch weather data every 10 minutes
+            const intervalId = setInterval(() => {
+              fetchWeather(latitude, longitude);
+            }, 600000); // 600000 ms = 10 minutes
+
+            // Clear interval on component unmount
+            return () => clearInterval(intervalId);
+          },
+          (error) => {
+            console.error(error);
+            // Use default coordinates for Bunawan City if location access is denied
+            const defaultLatitude = 8.1575;
+            const defaultLongitude = 125.9938;
+            fetchWeather(defaultLatitude, defaultLongitude);
+            // Set up polling to fetch weather data every 10 minutes
+            const intervalId = setInterval(() => {
+              fetchWeather(defaultLatitude, defaultLongitude);
+            }, 600000); // 600000 ms = 10 minutes
+
+            // Clear interval on component unmount
+            return () => clearInterval(intervalId);
+          }
+        );
+      } else {
+        // Use default coordinates for Bunawan City if geolocation is not supported
+        const defaultLatitude = 8.1575;
+        const defaultLongitude = 125.9938;
+        fetchWeather(defaultLatitude, defaultLongitude);
+        // Set up polling to fetch weather data every 10 minutes
+        const intervalId = setInterval(() => {
+          fetchWeather(defaultLatitude, defaultLongitude);
+        }, 600000); // 600000 ms = 10 minutes
+
+        // Clear interval on component unmount
+        return () => clearInterval(intervalId);
+      }
+    };
+
+    getLocation();
+  }, []);
+
   if (userType === "technician") {
-    return <div>technician</div>;
+    return (
+      <div className="h-full w-full grid grid-cols-1 lg:grid-cols-[1fr,2fr] gap-5 overflow-auto relative">
+        <div>{weather && <WeatherWidget weather={weather} />}</div>
+        <div className="h-full w-full flex flex-col gap-2 overflow-x-auto">
+          <h2 className="text-2xl font-bold text-gray-800">Reading List</h2>
+          <Tabs
+            aria-label="Dynamic tabs"
+            color="default"
+            radius="full"
+            items={pdfFiles}
+          >
+            {(item) => (
+              <Tab key={item.id} title={item.label} className="h-full">
+                <Card className="h-full">
+                  <CardBody className="p-0 m-0">
+                    <iframe
+                      src={item.src}
+                      className="w-full h-full"
+                      title={item.label}
+                    />
+                  </CardBody>
+                </Card>
+              </Tab>
+            )}
+          </Tabs>
+        </div>
+      </div>
+    );
   }
 
   return (

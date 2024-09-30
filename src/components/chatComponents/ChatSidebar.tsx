@@ -15,6 +15,7 @@ import {
   PopoverTrigger,
   Spinner,
 } from "@nextui-org/react";
+import React from "react";
 import { useEffect, useState } from "react";
 import { FaBars, FaSignOutAlt, FaUserCircle } from "react-icons/fa";
 import { IoAddCircleOutline, IoAddSharp } from "react-icons/io5";
@@ -385,6 +386,9 @@ export default function ChatSidebarComponent({
 
     reloadUser();
   };
+
+  const isTechnicianPathBase = pathname === "/technician/chat";
+  // console.log("isTechnicianPathBase", isTechnicianPathBase);
 
   return (
     <>
@@ -819,7 +823,11 @@ export default function ChatSidebarComponent({
 
             <div className="flex-1 overflow-hidden">
               <div
-                className="h-full w-full flex flex-col bg-[#F4FFFC] px-4 lg:px-72 pt-5 lg:pt-10"
+                className={`${
+                  isTechnicianPathBase && userType === "technician"
+                    ? "lg:px-10"
+                    : "lg:px-72"
+                } h-full w-full flex flex-col bg-[#F4FFFC] px-4 pt-5 lg:pt-10`}
                 onClick={handleContentClick}
               >
                 {childrenIsLoading ? <Spinner color="success" /> : children}

@@ -6,6 +6,7 @@ import useChatMessages from "@/hooks/useChatMessages";
 import { getIdFromPathname } from "@/utils/compUtils";
 import { Avatar, Button, Spinner, Textarea } from "@nextui-org/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import React from "react";
 import { useEffect, useState } from "react";
 import { IoSendOutline } from "react-icons/io5";
 import { useSelector } from "react-redux";
