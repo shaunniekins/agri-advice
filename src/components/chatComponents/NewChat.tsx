@@ -132,6 +132,8 @@ const ChatPageComponent = () => {
   const [weather, setWeather] = useState<any | null>(null);
 
   useEffect(() => {
+    if (userType !== "technician") return;
+
     const fetchWeather = async (latitude: number, longitude: number) => {
       try {
         const apiKey = process.env.NEXT_PUBLIC_OPEN_WEATHER_API_KEY;
@@ -192,7 +194,7 @@ const ChatPageComponent = () => {
     };
 
     getLocation();
-  }, []);
+  }, [userType]);
 
   if (userType === "technician") {
     return (

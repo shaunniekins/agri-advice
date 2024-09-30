@@ -1,5 +1,6 @@
 "use client";
 
+import AdminDashboard from "@/components/adminComponents/Dashboard";
 import UserComponent from "@/components/adminComponents/Users";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -12,7 +13,7 @@ export default function AdminSlugPage() {
     if (pathname.startsWith("/admin/monitor")) {
       setDisplay("Chats");
     } else if (pathname.startsWith("/admin/dashboard")) {
-      setDisplay("Hello user");
+      setDisplay(<AdminDashboard />);
     } else if (pathname.startsWith("/admin/users")) {
       setDisplay(<UserComponent />);
     } else {

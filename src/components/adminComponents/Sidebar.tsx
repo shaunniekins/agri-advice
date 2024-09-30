@@ -28,7 +28,7 @@ const AdminSidebarComponent = ({
 }: AdminSidebarComponentProps) => {
   const navItems = [
     { path: "/admin/dashboard", label: "Dashboard", icon: <FaTachometerAlt /> },
-    { path: "/admin/monitor", label: "Monitor Chats", icon: <FaComments /> },
+    // { path: "/admin/monitor", label: "Monitor Chats", icon: <FaComments /> },
     { path: "/admin/users", label: "Users", icon: <FaUsers /> },
     { path: "/admin/settings", label: "Settings", icon: <FaCog /> },
     { path: "/admin/report", label: "Report", icon: <FaChartBar /> },
