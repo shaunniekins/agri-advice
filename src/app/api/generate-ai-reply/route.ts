@@ -8,7 +8,9 @@ import {
 const MODEL_NAME = "gemini-1.0-pro";
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
 
-async function runChat(userInput: string): Promise<string> {
+async function runChat(
+  conversationHistory: Array<{ role: string; parts: Array<{ text: string }> }>
+): Promise<string> {
   const genAI = new GoogleGenerativeAI(API_KEY as string);
   const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
@@ -41,21 +43,23 @@ async function runChat(userInput: string): Promise<string> {
   const chat = model.startChat({
     generationConfig,
     safetySettings,
-    history: [],
+    history: conversationHistory, // Use the conversation history here
   });
 
-  const result = await chat.sendMessage(userInput);
+  const result = await chat.sendMessage(
+    "Generate a draft reply based on the conversation"
+  );
   const response = result.response;
   return response.text();
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { conversation } = await request.json();
+    const { conversationHistory } = await request.json(); // Accept the conversation history
 
-    const prompt = `Based on the following conversation, generate a draft reply for a technician responding to a farmer's query. Do not provide or suggest any links:\n\n${conversation}\n\nDraft reply:`;
+    const prompt = `Based on the following conversation between a farmer and a technician, generate a draft reply for a technician responding to a farmer's query. Do not provide or suggest any links.`;
 
-    const draftReply = await runChat(prompt);
+    const draftReply = await runChat(conversationHistory); // Pass conversation history
 
     return NextResponse.json({ draftReply });
   } catch (error) {

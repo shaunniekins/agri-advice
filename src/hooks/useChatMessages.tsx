@@ -19,9 +19,6 @@ const useChatMessages = (
   const fetchChatMessages = useCallback(async () => {
     if (!userId || !selectedChatPartnerId) return;
 
-    // console.log('userId', userId);
-    // console.log('selectedChatPartnerId', selectedChatPartnerId);
-
     const offset = (currentPage - 1) * rowsPerPage;
     setLoadingChatMessages(true);
     setErrorChatMessages(null);
@@ -109,6 +106,12 @@ const useChatMessages = (
                   );
                 }
                 break;
+              case "UPDATE":
+                return prev.map((message) =>
+                  message.chat_message_id === newRecord.chat_message_id
+                    ? { ...message, ...newRecord }
+                    : message
+                );
               case "DELETE":
                 return prev.filter(
                   (message) =>
@@ -124,7 +127,6 @@ const useChatMessages = (
       .subscribe((status) => {
         if (status !== "SUBSCRIBED") {
           setErrorChatMessages("Error subscribing to real-time updates");
-          // console.error("Error subscribing to channel:", status);
         }
       });
 

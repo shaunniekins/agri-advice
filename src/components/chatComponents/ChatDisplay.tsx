@@ -1,6 +1,9 @@
 "use client";
 
-import { insertChatMessage } from "@/app/api/chatMessagesIUD";
+import {
+  insertChatMessage,
+  updateChatMessage,
+} from "@/app/api/chatMessagesIUD";
 import { RootState } from "@/app/reduxUtils/store";
 import useChatMessages from "@/hooks/useChatMessages";
 import { getIdFromPathname } from "@/utils/compUtils";
@@ -57,6 +60,7 @@ export default function ChatDisplayComponent() {
       sender_id: user.id,
       receiver_id: partnerId,
       message: message,
+      is_active: userType === "technician" ? false : true,
     });
     setMessageInput("");
   };
@@ -68,15 +72,23 @@ export default function ChatDisplayComponent() {
 
     setIsGeneratingDraft(true);
     try {
-      const conversation = chatMessages
-        .map((msg) => `${msg.sender_first_name}: ${msg.message}`)
-        .join("\n");
+      // Limit to the last 30 messages or fewer
+      const limitedMessages = chatMessages.slice(-30);
+
+      // Map messages to "user" (farmer) and "model" (technician/AI)
+      const conversationHistory = limitedMessages.map((msg) => {
+        return {
+          role: msg.sender_id === user.id ? "model" : "user",
+          parts: [{ text: msg.message }],
+        };
+      });
+
       const response = await fetch("/api/generate-ai-reply", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ conversation }),
+        body: JSON.stringify({ conversationHistory }), // Pass the conversation history
       });
 
       if (!response.ok) {
@@ -93,6 +105,41 @@ export default function ChatDisplayComponent() {
       console.error("Error generating draft reply:", error);
     } finally {
       setIsGeneratingDraft(false);
+    }
+  };
+
+  const [editMessageId, setEditMessageId] = useState<number | null>(null);
+  const [editMessageInput, setEditMessageInput] = useState("");
+
+  const handleEditClick = (messageId: number, message: string) => {
+    setEditMessageId(messageId);
+    setEditMessageInput(message);
+  };
+
+  const handleUpdateMessage = async () => {
+    if (!editMessageInput || editMessageId === null) return;
+
+    const updatedMessage = {
+      message: editMessageInput,
+      is_active: userType === "technician" ? false : true,
+    };
+
+    const result = await updateChatMessage(editMessageId, updatedMessage);
+    if (result) {
+      setEditMessageId(null);
+      setEditMessageInput("");
+    }
+  };
+
+  const handleSendMessage = async (messageId: number) => {
+    const updatedMessage = {
+      is_active: true,
+    };
+
+    const result = await updateChatMessage(messageId, updatedMessage);
+    if (result) {
+      setEditMessageId(null);
+      setEditMessageInput("");
     }
   };
 
@@ -151,7 +198,6 @@ export default function ChatDisplayComponent() {
                         }`}
                       >
                         <div className="flex">
-                          {/* {!isSender && <Avatar name={initials} showFallback />} */}
                           {!isSender &&
                             (!senderProfilePicture ? (
                               <Avatar size="sm" name={initials} showFallback />
@@ -168,23 +214,81 @@ export default function ChatDisplayComponent() {
                         <div
                           className={`message text-sm py-2 max-w-full whitespace-pre-wrap flex-wrap text-wrap break-words ${
                             isSender ? "px-3 rounded-2xl bg-green-200" : ""
+                          } ${
+                            userType === "technician" &&
+                            isSender &&
+                            !message.is_active
+                              ? "w-full"
+                              : ""
                           }`}
                           style={{
-                            // whiteSpace: "pre-wrap",
-                            // wordWrap: "break-word",
                             overflowWrap: "break-word",
                             wordBreak: "break-word",
                             maxWidth: "100%",
                           }}
                         >
                           {message.is_active === false && (
-                            <div className="text-gray-500 text-xs">[Draft]</div>
+                            <div className="text-gray-500 text-xs flex justify-between items-center">
+                              <span>[Draft]</span>
+                              {userType === "technician" && (
+                                <div className="flex gap-3">
+                                  <button
+                                    className={`${
+                                      editMessageId ===
+                                        message.chat_message_id && "hidden"
+                                    } text-blue-500 text-xs`}
+                                    onClick={() =>
+                                      handleEditClick(
+                                        message.chat_message_id,
+                                        message.message
+                                      )
+                                    }
+                                  >
+                                    Edit
+                                  </button>
+                                  <button
+                                    className="text-green-500 text-xs"
+                                    onClick={() =>
+                                      handleSendMessage(message.chat_message_id)
+                                    }
+                                  >
+                                    Send
+                                  </button>
+                                </div>
+                              )}
+                            </div>
                           )}
-                          <ReactMarkdown>{message.message}</ReactMarkdown>
+                          {editMessageId === message.chat_message_id ? (
+                            <div className="w-full">
+                              <Textarea
+                                fullWidth
+                                height={100}
+                                maxRows={15}
+                                value={editMessageInput}
+                                onChange={(e) =>
+                                  setEditMessageInput(e.target.value)
+                                }
+                              />
+                              <div className="flex gap-2 mt-2">
+                                <Button size="sm" onClick={handleUpdateMessage}>
+                                  Save
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  color="secondary"
+                                  onClick={() => {
+                                    setEditMessageId(null);
+                                    setEditMessageInput("");
+                                  }}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          ) : (
+                            <ReactMarkdown>{message.message}</ReactMarkdown>
+                          )}
                         </div>
-                        {/* <div className="flex">
-                          {isSender && <Avatar name={initials} showFallback />}
-                        </div> */}
                       </div>
                     );
                   })}
