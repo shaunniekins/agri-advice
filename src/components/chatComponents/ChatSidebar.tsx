@@ -93,6 +93,7 @@ export default function ChatSidebarComponent({
     profile_picture: "",
   });
   const [displayImageOpen, setDisplayImageOpen] = useState(false);
+  const BUCKET_NAME = "profile-pictures";
 
   useEffect(() => {
     if (user && user.user_metadata) {
@@ -204,6 +205,14 @@ export default function ChatSidebarComponent({
       const { error } = await supabaseAdmin.auth.admin.deleteUser(user.id);
       if (error) throw error;
 
+      if (displayImage.profile_picture) {
+        const { error } = await supabase.storage
+          .from(BUCKET_NAME)
+          .remove([`public/${user.id}`]);
+
+        if (error) throw error;
+      }
+
       setIsLoading(true);
       handleLogout();
     } catch (error) {
@@ -298,12 +307,10 @@ export default function ChatSidebarComponent({
   };
 
   // Handlers for image
-  // Handlers for image
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     setDisplayImageOpen(false);
 
     const files = e.target.files;
-    const BUCKET_NAME = "profile-pictures";
 
     if (files && files[0]) {
       setDisplayImage((prevState) => ({
@@ -361,8 +368,6 @@ export default function ChatSidebarComponent({
 
   const handleImageDelete = async () => {
     setDisplayImageOpen(false);
-
-    const BUCKET_NAME = "profile-pictures";
 
     const { error } = await supabase.storage
       .from(BUCKET_NAME)

@@ -2,6 +2,7 @@
 
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient, type CookieOptions } from "@supabase/ssr";
+import { persistor } from "./app/reduxUtils/store";
 
 export async function middleware(request: NextRequest) {
   let response = NextResponse.next({
@@ -84,6 +85,16 @@ export async function middleware(request: NextRequest) {
 
   if (user) {
     const user_type = user.user_metadata.user_type;
+    const user_status = user.user_metadata.account_status;
+
+    if (user_type === "technician" && user_status !== "active") {
+      const { error } = await supabase.auth.signOut();
+
+      if (!error) {
+        persistor.purge();
+      }
+      return NextResponse.redirect(new URL("/ident/confirmation", request.url));
+    }
 
     // Redirect users to their respective dashboards based on role
     if (request.nextUrl.pathname === "/") {
@@ -102,6 +113,14 @@ export async function middleware(request: NextRequest) {
       } else {
         // Assuming any other role (like admin) should go to /admin/dashboard
         return NextResponse.redirect(new URL("/admin/dashboard", request.url));
+      }
+    }
+
+    if (request.nextUrl.pathname.startsWith("/ident/confirmation")) {
+      if (user_type === "technician" && user_status === "accepted") {
+        return NextResponse.redirect(new URL("/technician", request.url));
+      } else if (user_type === "farmer") {
+        return NextResponse.redirect(new URL("/farmer", request.url));
       }
     }
 

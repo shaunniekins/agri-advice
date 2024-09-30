@@ -8,138 +8,98 @@ import {
   TableRow,
   TableCell,
   Pagination,
-  getKeyValue,
   SelectItem,
   Select,
   Button,
   Spinner,
 } from "@nextui-org/react";
-import useTechnicianUsers from "@/hooks/useTechnicianUsers";
-import useFarmerUsers from "@/hooks/useFarmerUsers";
+import useUsers from "@/hooks/useUsers";
 import { useState, useEffect } from "react";
 import { supabaseAdmin } from "@/utils/supabase";
 
 const UserComponent = () => {
-  const {
-    technicianUsers,
-    isLoadingTechnicianUsers,
-    totalTechnicianEntries,
-    fetchAndSubscribeTechnicianUsers,
-    updateTechnicianUser,
-  } = useTechnicianUsers();
-
-  const {
-    farmerUsers,
-    isLoadingFarmerUsers,
-    totalFarmerEntries,
-    fetchAndSubscribeFarmerUsers,
-  } = useFarmerUsers();
-
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState("pending");
+  const [userType, setUserType] = useState("technician");
   const rowsPerPage = 10;
 
-  const [userType, setUserType] = useState("technician");
-
-  useEffect(() => {
-    setPage(1);
-  }, [userType]);
-
-  useEffect(() => {
-    if (userType === "farmer") {
-      fetchAndSubscribeFarmerUsers(rowsPerPage, page);
-    } else if (userType === "technician") {
-      fetchAndSubscribeTechnicianUsers(rowsPerPage, page, statusFilter);
-    }
-  }, [
-    userType,
+  const {
+    usersData,
+    isLoadingUsers,
+    totalUserEntries,
+    fetchAndSubscribeUsers,
+  } = useUsers(
     rowsPerPage,
     page,
-    statusFilter,
-    fetchAndSubscribeFarmerUsers,
-    fetchAndSubscribeTechnicianUsers,
-  ]);
+    userType,
+    userType === "technician" ? statusFilter : undefined
+  );
 
-  const totalPages =
-    userType === "farmer"
-      ? Math.ceil(totalFarmerEntries / rowsPerPage)
-      : Math.ceil(totalTechnicianEntries / rowsPerPage);
+  useEffect(() => {
+    setPage(1); // Reset the page when userType changes
+  }, [userType]);
 
-  if (
-    (userType === "farmer" && isLoadingFarmerUsers) ||
-    (userType === "technician" && isLoadingTechnicianUsers)
-  ) {
-    return <div className="h-full w-full">Loading...</div>;
+  const totalPages = Math.ceil(totalUserEntries / rowsPerPage);
+
+  if (isLoadingUsers) {
+    return (
+      <div className="h-full w-full flex justify-center items-center">
+        Loading...
+      </div>
+    );
   }
 
-  const handleAction = async (user_id: any, action: string, item_data: any) => {
-    // console.log(item_data);
-    if (action === "accepted") {
-      const { data } = await supabaseAdmin.auth.admin.createUser({
-        email: item_data.email,
-        password: item_data.password,
-        email_confirm: true,
-        user_metadata: {
-          email: item_data.email,
-          password: item_data.password,
-          user_type: "technician",
-          first_name: item_data.first_name,
-          last_name: item_data.last_name,
-          middle_name: item_data.middle_name,
-          mobile_number: item_data.mobile_number,
-          birth_date: item_data.birth_date,
-          address: item_data.address,
-        },
-      });
-
-      if (data) {
-        await updateTechnicianUser(user_id, {
-          auth_user_id: data.user?.id,
-          account_status: "accepted",
+  const handleAction = async (
+    user_id: string,
+    action: string,
+    item_data: any
+  ) => {
+    try {
+      const { data: user, error } =
+        await supabaseAdmin.auth.admin.updateUserById(user_id, {
+          user_metadata: { account_status: action },
         });
 
-        const email = item_data.email;
-        const recipient_name = `${item_data.first_name} ${item_data.last_name}`;
-        const subject = "Account Approved";
-        const message = `
-Greetings!
-  
-We are pleased to inform you that your account associated with the email ${email} has been approved. You can now sign in and access your account.
-  
-Thank you!
-  
-Best regards,
-Agri Advice Team`;
+      if (error) throw error;
 
-        try {
-          const response = await fetch("/api/send-email", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email, recipient_name, subject, message }),
-          });
+      //       if (action === "active" && user) {
+      //         const emailData = {
+      //           email: item_data.email,
+      //           recipient_name: `${item_data.first_name} ${item_data.last_name}`,
+      //           subject: "Account Approved",
+      //           message: `
+      // Greetings!
+      // We are pleased to inform you that your account associated with the email ${item_data.email} has been approved. You can now sign in and access your account.
+      // Thank you!
+      // Best regards,
+      // Agri Advice Team`,
+      //         };
 
-          let data;
-          try {
-            data = await response.json();
-          } catch (error) {
-            data = null;
-          }
+      //         try {
+      //           const response = await fetch("/api/send-email", {
+      //             method: "POST",
+      //             headers: { "Content-Type": "application/json" },
+      //             body: JSON.stringify(emailData),
+      //           });
 
-          if (response.ok) {
-            console.log("Email sent successfully!");
-          } else {
-            console.log(
-              `Failed to send email: ${data?.error || "Unknown error"}`
-            );
-          }
-        } catch (error) {
-          console.error("Error sending email:", error);
-        }
-      }
-      return;
+      //           const data = await response.json();
+
+      //           if (response.ok) {
+      //             console.log("Email sent successfully!");
+      //           } else {
+      //             console.log(
+      //               `Failed to send email: ${data?.error || "Unknown error"}`
+      //             );
+      //           }
+      //         } catch (error) {
+      //           console.error("Error sending email:", error);
+      //         }
+      //       }
+
+      fetchAndSubscribeUsers();
+    } catch (error) {
+      console.error("Error updating user:", error);
     }
-
-    await updateTechnicianUser(user_id, { account_status: action });
   };
 
   const TechnicianColumns = [
@@ -160,11 +120,12 @@ Agri Advice Team`;
   ];
 
   const columns = userType === "technician" ? TechnicianColumns : FarmerColumns;
-  const data = userType === "technician" ? technicianUsers : farmerUsers;
+  const data = usersData;
 
   return (
     <div className="h-full w-full flex flex-col gap-2">
       <div className="flex justify-end gap-2">
+        {/* Status filter shown only for technician */}
         <Select
           label="Filter by Status"
           disallowEmptySelection={true}
@@ -177,13 +138,15 @@ Agri Advice Team`;
           <SelectItem key="pending" value="pending">
             Pending
           </SelectItem>
-          <SelectItem key="accepted" value="accepted">
+          <SelectItem key="active" value="active">
             Accepted
           </SelectItem>
           <SelectItem key="rejected" value="rejected">
             Rejected
           </SelectItem>
         </Select>
+
+        {/* User type switch */}
         <Select
           label="User Type"
           disallowEmptySelection={true}
@@ -201,6 +164,8 @@ Agri Advice Team`;
           </SelectItem>
         </Select>
       </div>
+
+      {/* Table to display users */}
       <Table
         fullWidth
         layout="fixed"
@@ -248,13 +213,11 @@ Agri Advice Team`;
                       <div className="flex gap-2 justify-center">
                         <Button
                           color="success"
-                          isDisabled={item.account_status === "accepted"}
+                          isDisabled={item.account_status === "active"}
                           className="text-white"
-                          onClick={() =>
-                            handleAction(item.user_id, "accepted", item)
-                          }
+                          onClick={() => handleAction(item.id, "active", item)}
                         >
-                          {item.account_status === "accepted"
+                          {item.account_status === "active"
                             ? "Active"
                             : "Accept"}
                         </Button>
@@ -264,7 +227,7 @@ Agri Advice Team`;
                             item.account_status !== "pending" && "hidden"
                           }`}
                           onClick={() =>
-                            handleAction(item.user_id, "rejected", item)
+                            handleAction(item.id, "rejected", item)
                           }
                         >
                           Reject

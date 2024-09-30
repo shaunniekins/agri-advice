@@ -4,7 +4,6 @@ import { insertChatConnection } from "@/app/api/chatConnectionsIUD";
 import { insertChatMessage } from "@/app/api/chatMessagesIUD";
 import { RootState } from "@/app/reduxUtils/store";
 import useChatConnections from "@/hooks/useChatConnections";
-import useTechnicianUsers from "@/hooks/useTechnicianUsers";
 import {
   Avatar,
   Button,
@@ -35,16 +34,9 @@ import { GiChoice } from "react-icons/gi";
 import { IoAddSharp, IoSendOutline } from "react-icons/io5";
 import { useSelector } from "react-redux";
 import WeatherWidget from "../WeatherWidget";
+import useUsers from "@/hooks/useUsers";
 
 const ChatPageComponent = () => {
-  const {
-    technicianUsers,
-    isLoadingTechnicianUsers,
-    totalTechnicianEntries,
-    fetchAndSubscribeTechnicianUsers,
-    updateTechnicianUser,
-  } = useTechnicianUsers();
-
   const user = useSelector((state: RootState) => state.user.user);
 
   const [page, setPage] = useState(1);
@@ -60,17 +52,20 @@ const ChatPageComponent = () => {
 
   const router = useRouter();
 
-  useEffect(() => {
-    fetchAndSubscribeTechnicianUsers(rowsPerPage, page);
-  }, [fetchAndSubscribeTechnicianUsers, rowsPerPage, page]);
+  const {
+    usersData,
+    isLoadingUsers,
+    totalUserEntries,
+    fetchAndSubscribeUsers,
+  } = useUsers(rowsPerPage, page, "technician", "active");
 
-  const totalPages = Math.ceil(totalTechnicianEntries / rowsPerPage);
+  const totalPages = Math.ceil(totalUserEntries / rowsPerPage);
 
   useEffect(() => {
-    if (!isLoadingTechnicianUsers) {
+    if (!isLoadingUsers) {
       setIsLoading(false);
     }
-  }, [isLoadingTechnicianUsers]);
+  }, [isLoadingUsers]);
 
   useEffect(() => {
     // Fetch suggested prompts
@@ -261,7 +256,7 @@ const ChatPageComponent = () => {
               </ModalHeader>
               <ModalBody>
                 <div className="w-full grid grid-cols-3">
-                  {technicianUsers.map((item, index) => {
+                  {usersData.map((item, index) => {
                     const initials = `${item.first_name[0].toUpperCase()}${item.last_name[0].toUpperCase()}`;
                     return (
                       <button

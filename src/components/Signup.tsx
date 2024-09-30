@@ -2,6 +2,7 @@
 
 "use client";
 
+import React from "react";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseAdmin } from "@/utils/supabase";
@@ -18,7 +19,6 @@ import {
 import { EyeSlashFilledIcon } from "../../public/icons/EyeSlashFilledIcon";
 import { EyeFilledIcon } from "../../public/icons/EyeFilledIcon";
 import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
-import useTechnicianUsers from "@/hooks/useTechnicianUsers";
 import { FaCheck } from "react-icons/fa";
 
 interface SignupComponentProps {
@@ -26,8 +26,6 @@ interface SignupComponentProps {
 }
 
 const SignupComponent = ({ userType }: SignupComponentProps) => {
-  const { insertTechnicianUser } = useTechnicianUsers();
-
   const [isInputUserPasswordVisible, setIsInputUserPasswordVisible] =
     useState(false);
   const [signupPending, setSignUpPending] = useState(false);
@@ -41,9 +39,15 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
   const [birthDate, setBirthDate] = useState("");
   const [address, setAddress] = useState("");
 
+  // exclusive for farmer
+  const [numHeads, setNumHeads] = useState("");
+  const [experienceYears, setExperienceYears] = useState("");
+  const [operations, setOperations] = useState("");
+
   // exclusive for technician
   const [licenseNumber, setLicenseNumber] = useState("");
   const [specialization, setSpecialization] = useState("");
+  const [experiences, setExperiences] = useState("");
 
   const [currentViewInput, setCurrentViewInput] = useState(1);
   const [isSignupConfirmationModalOpen, setIsSignupConfirmationModalOpen] =
@@ -61,52 +65,78 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
 
     setSignUpPending(true);
 
-    if (userType === "farmer") {
-      const { data, error } = await supabaseAdmin.auth.admin.createUser({
-        email: email,
-        password: password,
-        email_confirm: true,
-        user_metadata: {
+    try {
+      let data, error;
+
+      if (userType === "farmer") {
+        ({ data, error } = await supabaseAdmin.auth.admin.createUser({
           email: email,
           password: password,
-          user_type: userType.toLowerCase(),
-          first_name: firstName,
-          last_name: lastName,
-          middle_name: middleName,
-          mobile_number: mobileNumber,
-          birth_date: birthDate,
-          address: address,
-        },
-      });
+          email_confirm: true,
+          user_metadata: {
+            email: email,
+            password: password,
+            user_type: userType.toLowerCase(),
+            first_name: firstName,
+            last_name: lastName,
+            middle_name: middleName,
+            mobile_number: mobileNumber,
+            birth_date: birthDate,
+            address: address,
+            num_heads: "",
+            experience_years: "",
+            operations: "",
+            account_status: "active",
+          },
+        }));
 
-      if (error) {
+        if (error) {
+          throw error;
+        }
+
+        // Redirect farmers to the sign-in page
+        router.push(`/ident/signin?usertype=${userType}`);
+      } else if (userType === "technician") {
+        ({ data, error } = await supabaseAdmin.auth.admin.createUser({
+          email: email,
+          password: password,
+          email_confirm: true,
+          user_metadata: {
+            email: email,
+            password: password,
+            user_type: userType.toLowerCase(),
+            first_name: firstName,
+            last_name: lastName,
+            middle_name: middleName,
+            mobile_number: mobileNumber,
+            birth_date: birthDate,
+            address: address,
+            license_number: licenseNumber,
+            specialization: specialization,
+            experiences: "",
+            account_status: "pending",
+          },
+        }));
+
+        if (error) {
+          throw error;
+        }
+
+        // Open the signup confirmation modal for technicians
+        setIsSignupConfirmationModalOpen(true);
+      }
+
+      // Successful signup
+    } catch (error) {
+      if (error instanceof Error) {
         console.error("Error signing up:", error.message);
-        setSignUpPending(false);
         alert(error.message);
       } else {
-        // console.log("Signed up successfully:", data);
-        router.push(`/ident/signin?usertype=${userType}`);
-        return;
+        console.error("Error signing up:", error);
+        alert("An unknown error occurred.");
       }
-    } else if (userType === "technician") {
-      const newTechnicianUserData = {
-        email: email,
-        password: password,
-
-        first_name: firstName,
-        last_name: lastName,
-        middle_name: middleName,
-        mobile_number: mobileNumber,
-        birth_date: birthDate,
-        address: address,
-        license_number: licenseNumber,
-        specialization: specialization,
-      };
-
-      await insertTechnicianUser(newTechnicianUserData);
-
+    } finally {
       setSignUpPending(false);
-      setIsSignupConfirmationModalOpen(true);
     }
   };
 
