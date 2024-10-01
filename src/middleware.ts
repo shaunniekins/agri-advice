@@ -117,10 +117,12 @@ export async function middleware(request: NextRequest) {
     }
 
     if (request.nextUrl.pathname.startsWith("/ident/confirmation")) {
-      if (user_type === "technician" && user_status === "accepted") {
+      if (user_type === "technician" && user_status === "active") {
         return NextResponse.redirect(new URL("/technician", request.url));
       } else if (user_type === "farmer") {
         return NextResponse.redirect(new URL("/farmer", request.url));
+      } else {
+        return NextResponse.redirect(new URL("/admin/dashboard", request.url));
       }
     }
 

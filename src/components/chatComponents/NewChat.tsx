@@ -264,15 +264,13 @@ const ChatPageComponent = () => {
                       <button
                         key={index}
                         className={`${
-                          chosenTechnicianId === item.auth_user_id
+                          chosenTechnicianId === item.id
                             ? "border-[#007057]"
                             : ""
                         } border flex flex-col items-center rounded-lg p-2 gap-1 relative`}
                         onClick={() => {
                           setChosenTechnicianId(
-                            chosenTechnicianId === item.auth_user_id
-                              ? null
-                              : item.auth_user_id
+                            chosenTechnicianId === item.id ? null : item.id
                           );
                         }}
                       >
