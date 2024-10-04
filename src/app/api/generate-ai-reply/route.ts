@@ -43,7 +43,7 @@ async function runChat(
   const chat = model.startChat({
     generationConfig,
     safetySettings,
-    history: conversationHistory, // Use the conversation history here
+    history: conversationHistory,
   });
 
   const result = await chat.sendMessage(
@@ -57,9 +57,18 @@ export async function POST(request: NextRequest) {
   try {
     const { conversationHistory } = await request.json(); // Accept the conversation history
 
-    const prompt = `Based on the following conversation between a farmer and a technician, generate a draft reply for a technician responding to a farmer's query. Do not provide or suggest any links.`;
+    const prompt = {
+      role: "system",
+      parts: [
+        {
+          text: "Based on the following conversation between a farmer and a technician, generate a draft reply for a technician responding to a farmer's query in the Bisaya/Cebuano dialect. Do not provide or suggest any links.",
+        },
+      ],
+    };
 
-    const draftReply = await runChat(conversationHistory); // Pass conversation history
+    const updatedConversationHistory = [prompt, ...conversationHistory]; // Prepend the prompt to the conversation history
+
+    const draftReply = await runChat(updatedConversationHistory); // Pass updated conversation history
 
     return NextResponse.json({ draftReply });
   } catch (error) {
