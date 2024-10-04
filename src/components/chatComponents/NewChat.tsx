@@ -35,6 +35,7 @@ import { IoAddSharp, IoSendOutline } from "react-icons/io5";
 import { useSelector } from "react-redux";
 import WeatherWidget from "../WeatherWidget";
 import useUsers from "@/hooks/useUsers";
+import usePremadePrompts from "@/hooks/usePremadePrompts";
 
 const ChatPageComponent = () => {
   const user = useSelector((state: RootState) => state.user.user);
@@ -67,16 +68,7 @@ const ChatPageComponent = () => {
     }
   }, [isLoadingUsers]);
 
-  useEffect(() => {
-    // Fetch suggested prompts
-    setSuggestedPrompts([
-      "Unsaon nako pagsugod og pagbuhi og baboy?",
-      "Unsa ang mga maayo nga pamaagi sa pagbuhi og baboy?",
-      "Unsaon pagpakana og baboy para sa hapsay nga pagtubo?",
-      "Unsa ang kasagarang sakit sa baboy ug unsaon kini malikayan?",
-      "Unsaon pagpatambok og baboy?",
-    ]);
-  }, []);
+  const { premadePrompts, isLoadingPrompts } = usePremadePrompts();
 
   const handleSubmit = async () => {
     // insert chat connection
@@ -383,16 +375,23 @@ const ChatPageComponent = () => {
             </Button>
             <div className="w-full flex overflow-x-auto custom-scrollbar">
               <div className="flex flex-nowrap gap-2">
-                {suggestedPrompts.map((prompt, index) => (
-                  <button
-                    key={index}
-                    className="relative h-44 w-44 bg-[#007057] text-white text-start px-4 py-2 rounded-xl flex items-start justify-center"
-                    onClick={() => setMessageInput(prompt)}
-                  >
-                    {prompt}
-                    <FaPiggyBank className="absolute bottom-4 right-4 text-white text-2xl" />
-                  </button>
-                ))}
+                {isLoadingPrompts && (
+                  <div className="h-44 w-44 justify-center items-center">
+                    <Spinner color="success" />
+                  </div>
+                )}
+                {!isLoadingPrompts &&
+                  premadePrompts.length > 0 &&
+                  premadePrompts.map((prompt, index) => (
+                    <button
+                      key={index}
+                      className="relative h-44 w-44 bg-[#007057] text-white text-start px-4 py-2 rounded-xl flex items-start justify-center"
+                      onClick={() => setMessageInput(prompt.prompt_message)}
+                    >
+                      {prompt.prompt_message}
+                      <FaPiggyBank className="absolute bottom-4 right-4 text-white text-2xl" />
+                    </button>
+                  ))}
               </div>
             </div>
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import AdminDashboard from "@/components/adminComponents/Dashboard";
+import AdminSettings from "@/components/adminComponents/Settings";
 import UserComponent from "@/components/adminComponents/Users";
 import { usePathname } from "next/navigation";
 import { useState, useEffect } from "react";
@@ -16,6 +17,8 @@ export default function AdminSlugPage() {
       setDisplay(<AdminDashboard />);
     } else if (pathname.startsWith("/admin/users")) {
       setDisplay(<UserComponent />);
+    } else if (pathname.startsWith("/admin/settings")) {
+      setDisplay(<AdminSettings />);
     } else {
       setDisplay("No page found");
     }
