@@ -24,7 +24,7 @@ export default function AdminSlugPage() {
     }
   }, [pathname]);
 
-  return <div className="h-full w-full">{display}</div>;
+  return <div className="h-full w-full overflow-hidden">{display}</div>;
 }
 
 // "use client";

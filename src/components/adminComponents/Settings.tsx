@@ -19,8 +19,15 @@ import {
   updatePremadePrompt,
   deletePremadePrompt,
 } from "@/app/api/premadePromptsIUD";
+import useReadingLists from "@/hooks/useReadingLists";
+import {
+  deleteReadingList,
+  insertReadingList,
+  updateReadingList,
+} from "@/app/api/readingListsIUD";
 
 const AdminSettings = () => {
+  // suggested prompt structure
   const { premadePrompts, isLoadingPrompts, lastOrderValue } =
     usePremadePrompts();
   const [isModalSuggestedPromptOpen, setIsModalSuggestedPromptOpen] =
@@ -28,7 +35,7 @@ const AdminSettings = () => {
   const [isSuggestedPromptEditMode, setIsSuggestedPromptEditMode] =
     useState(false);
   const [newMsg, setNewMsg] = useState("");
-  const [selectedSuggstedPrompt, setSelectedSuggstedPrompt] =
+  const [selectedSuggstedPrompt, setSelectedSuggestedPrompt] =
     useState<any>(null);
 
   const handleAddPrompt = async () => {
@@ -58,7 +65,7 @@ const AdminSettings = () => {
     if (response) {
       setIsModalSuggestedPromptOpen(false);
       setIsSuggestedPromptEditMode(false);
-      setSelectedSuggstedPrompt(null);
+      setSelectedSuggestedPrompt(null);
       setNewMsg("");
     }
   };
@@ -72,9 +79,67 @@ const AdminSettings = () => {
     if (response) {
       setIsModalSuggestedPromptOpen(false);
       setIsSuggestedPromptEditMode(false);
-      setSelectedSuggstedPrompt(null);
+      setSelectedSuggestedPrompt(null);
       setNewMsg("");
     }
+  };
+
+  // suggested reading lists
+  const BUCKET_NAME = "reading-lists";
+
+  const { readingLists, isLoadingLists, lastListOrderValue } =
+    useReadingLists();
+  const [isModalSuggestedListOpen, setIsModalSuggestedListOpen] =
+    useState(false);
+  const [isSuggestedListEditMode, setIsSuggestedListEditMode] = useState(false);
+  const [newFileName, setNewFileName] = useState("");
+  const [newFile, setNewFile] = useState<File | null>(null);
+  const [selectedSuggestedList, setSelectedSuggestedList] = useState<any>(null);
+
+  const handleCloseReadingListModal = () => {
+    setIsModalSuggestedListOpen(false);
+    setIsSuggestedListEditMode(false);
+    setSelectedSuggestedList(null);
+    setNewFileName("");
+    setNewFile(null);
+  };
+
+  const handleAddReadingList = async () => {
+    if (!newFile) return;
+
+    handleCloseReadingListModal();
+
+    await insertReadingList(
+      newFileName,
+      BUCKET_NAME,
+      lastListOrderValue ? lastListOrderValue + 1 : 1,
+      newFile
+    );
+  };
+
+  const handleEditReadingList = async () => {
+    if (!selectedSuggestedList) return;
+
+    handleCloseReadingListModal();
+
+    await updateReadingList(
+      selectedSuggestedList.list_id,
+      newFileName,
+      BUCKET_NAME,
+      selectedSuggestedList.list_id
+    );
+  };
+
+  const handleDeleteReadingList = async () => {
+    if (!selectedSuggestedList) return;
+
+    handleCloseReadingListModal();
+
+    await deleteReadingList(
+      selectedSuggestedList.file_name,
+      BUCKET_NAME,
+      selectedSuggestedList.list_id
+    );
   };
 
   return (
@@ -84,7 +149,7 @@ const AdminSettings = () => {
         onOpenChange={setIsModalSuggestedPromptOpen}
         onClose={() => {
           setIsSuggestedPromptEditMode(false);
-          setSelectedSuggstedPrompt(null);
+          setSelectedSuggestedPrompt(null);
           setNewMsg("");
         }}
       >
@@ -126,7 +191,7 @@ const AdminSettings = () => {
                     onClick={() => {
                       setIsModalSuggestedPromptOpen(false);
                       setIsSuggestedPromptEditMode(false);
-                      setSelectedSuggstedPrompt(null);
+                      setSelectedSuggestedPrompt(null);
                       setNewMsg("");
                     }}
                   >
@@ -150,43 +215,195 @@ const AdminSettings = () => {
         </ModalContent>
       </Modal>
 
-      <div className="h-full w-full flex flex-col gap-2">
-        <div className="flex justify-between gap-2">
-          <h2 className="text-lg font-semibold">Suggested Prompts</h2>
-          <Button
-            color="success"
-            className="text-white"
-            startContent={<IoAdd />}
-            onClick={() => setIsModalSuggestedPromptOpen(true)}
-          >
-            Add New Prompt
-          </Button>
+      <Modal
+        isOpen={isModalSuggestedListOpen}
+        onOpenChange={setIsModalSuggestedListOpen}
+        onClose={() => handleCloseReadingListModal}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader>
+                {isSuggestedListEditMode
+                  ? "Edit Reading List"
+                  : "Add New Reading List"}
+              </ModalHeader>
+              <ModalBody className="flex flex-col gap-2">
+                <Input
+                  fullWidth
+                  label="File Name"
+                  value={newFileName}
+                  onChange={(e) => setNewFileName(e.target.value)}
+                />
+                {isSuggestedListEditMode ? (
+                  <iframe
+                    src={selectedSuggestedList?.file_url}
+                    className="w-full h-52"
+                    title="Reading List"
+                  />
+                ) : (
+                  <Input
+                    fullWidth
+                    color="success"
+                    type="file"
+                    // label="File"s
+                    onChange={(e) => {
+                      if (e.target.files && e.target.files.length > 0) {
+                        setNewFile(e.target.files[0]);
+                      }
+                    }}
+                  />
+                )}
+              </ModalBody>
+              <ModalFooter
+                className={`flex ${
+                  isSuggestedListEditMode ? "justify-between" : "justify-end"
+                }`}
+              >
+                <Button
+                  color="danger"
+                  variant="flat"
+                  className={`${
+                    isSuggestedListEditMode && selectedSuggestedList
+                      ? "block"
+                      : "hidden"
+                  }`}
+                  onClick={handleDeleteReadingList}
+                >
+                  Delete
+                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    color="warning"
+                    variant="flat"
+                    onClick={handleCloseReadingListModal}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    color="primary"
+                    variant="flat"
+                    onClick={() =>
+                      isSuggestedListEditMode && selectedSuggestedList
+                        ? handleEditReadingList()
+                        : handleAddReadingList()
+                    }
+                  >
+                    {isSuggestedListEditMode ? "Save" : "Add"}
+                  </Button>
+                </div>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      <div className="h-full w-full flex flex-col gap-20 pb-20 overflow-y-auto ">
+        <div className="flex flex-col gap-2">
+          {/* 1.1 suggested prompts header */}
+          <div className="flex justify-between gap-2">
+            <h2 className="text-lg font-semibold">Suggested Prompts</h2>
+            <Button
+              color="success"
+              className="text-white"
+              startContent={<IoAdd />}
+              onClick={() => setIsModalSuggestedPromptOpen(true)}
+            >
+              Add New Prompt
+            </Button>
+          </div>
+
+          {/* 1.2 suggested prompts data */}
+          <div className="w-full flex overflow-x-auto custom-scrollbar">
+            <div
+              className={`${
+                (isLoadingPrompts ||
+                  (!isLoadingPrompts && premadePrompts.length === 0)) &&
+                "w-full"
+              } flex flex-nowrap gap-2`}
+            >
+              {isLoadingPrompts && (
+                <div className="h-52 w-full flex justify-center items-center">
+                  <Spinner color="success" />
+                </div>
+              )}
+              {!isLoadingPrompts && premadePrompts.length === 0 && (
+                <div className="h-52 w-full flex justify-center items-center text-gray-500">
+                  No prompts yet
+                </div>
+              )}
+              {!isLoadingPrompts &&
+                premadePrompts.length > 0 &&
+                premadePrompts.map((prompt, index) => (
+                  <div
+                    key={index}
+                    className="relative h-52 w-52 bg-[#007057] text-white text-start p-4 rounded-xl flex items-start justify-center"
+                    onClick={() => {
+                      setIsSuggestedPromptEditMode(true);
+                      setSelectedSuggestedPrompt(prompt);
+                      setNewMsg(prompt.prompt_message);
+                      setIsModalSuggestedPromptOpen(true);
+                    }}
+                  >
+                    {prompt.prompt_message}
+                    <FaPiggyBank className="absolute bottom-4 right-4 text-white text-2xl" />
+                  </div>
+                ))}
+            </div>
+          </div>
         </div>
 
-        <div className="w-full flex overflow-x-auto custom-scrollbar">
-          <div className="flex flex-nowrap gap-2">
-            {isLoadingPrompts && (
-              <div className="h-52 w-52 flex justify-center items-center">
-                <Spinner color="success" />
-              </div>
-            )}
-            {!isLoadingPrompts &&
-              premadePrompts.length > 0 &&
-              premadePrompts.map((prompt, index) => (
-                <div
-                  key={index}
-                  className="relative h-52 w-52 bg-[#007057] text-white text-start p-4 rounded-xl flex items-start justify-center"
-                  onClick={() => {
-                    setIsSuggestedPromptEditMode(true);
-                    setSelectedSuggstedPrompt(prompt);
-                    setNewMsg(prompt.prompt_message);
-                    setIsModalSuggestedPromptOpen(true);
-                  }}
-                >
-                  {prompt.prompt_message}
-                  <FaPiggyBank className="absolute bottom-4 right-4 text-white text-2xl" />
+        <div className="flex flex-col gap-2">
+          {/* 2.1 suggested reading lists header */}
+          <div className="flex justify-between gap-2">
+            <h2 className="text-lg font-semibold">Reading Lists</h2>
+            <Button
+              color="success"
+              className="text-white"
+              startContent={<IoAdd />}
+              onClick={() => setIsModalSuggestedListOpen(true)}
+            >
+              Add New File
+            </Button>
+          </div>
+
+          {/* 2.2 suggested reading lists data */}
+          <div className="w-full flex overflow-x-auto custom-scrollbar">
+            <div
+              className={`${
+                (isLoadingLists ||
+                  (!isLoadingLists && readingLists.length === 0)) &&
+                "w-full"
+              } flex flex-nowrap gap-2`}
+            >
+              {isLoadingLists && (
+                <div className="h-52 w-full flex justify-center items-center">
+                  <Spinner color="success" />
                 </div>
-              ))}
+              )}
+              {!isLoadingLists && readingLists.length === 0 && (
+                <div className="h-52 w-full flex justify-center items-center text-gray-500">
+                  No reading lists yet
+                </div>
+              )}
+              {!isLoadingLists &&
+                readingLists.length > 0 &&
+                readingLists.map((list, index) => (
+                  <div
+                    key={index}
+                    className="w-72 border border-[#007057] text-[#007057] text-start p-4 rounded-xl flex items-start justify-start gap-2"
+                    onClick={() => {
+                      setIsSuggestedListEditMode(true);
+                      setSelectedSuggestedList(list);
+                      setNewFileName(list.file_name);
+                      setIsModalSuggestedListOpen(true);
+                    }}
+                  >
+                    <FaPiggyBank className="text-2xl flex-shrink-0" />
+                    <div className="truncate flex-grow">{list.file_name}</div>
+                  </div>
+                ))}
+            </div>
           </div>
         </div>
       </div>

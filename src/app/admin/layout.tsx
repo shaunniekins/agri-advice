@@ -3,6 +3,7 @@
 import AdminHeaderComponent from "@/components/adminComponents/Header";
 import AdminSidebarComponent from "@/components/adminComponents/Sidebar";
 import { Spinner } from "@nextui-org/react";
+import React from "react";
 import { Suspense, useState } from "react";
 
 export default function AdminSlugLayout({
@@ -46,7 +47,7 @@ export default function AdminSlugLayout({
               setIsLoading={setIsLoading}
             />
           </div>
-          <div className="h-full flex flex-col w-full relative">
+          <div className="h-full flex flex-col w-full relative overflow-hidden">
             <div className="flex">
               <AdminHeaderComponent
                 isSidebarOpen={isSidebarOpen}
