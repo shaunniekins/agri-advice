@@ -270,7 +270,7 @@ const ChatPageComponent = () => {
                           <Popover showArrow placement="top">
                             <PopoverTrigger>
                               {/* <BsThreeDotsVertical /> */}
-                              <button
+                              <div
                                 className="absolute right-1"
                                 // onClick={(e) => {
                                 //   e.stopPropagation();
@@ -278,11 +278,33 @@ const ChatPageComponent = () => {
                                 // }}
                               >
                                 <BsThreeDotsVertical />
-                              </button>
+                              </div>
                             </PopoverTrigger>
-                            <PopoverContent className="p-2 flex flex-col items-center gap-1">
-                              <h3>{item.email}</h3>
-                              <h4 className="text-xs">{item.birth_date}</h4>
+                            <PopoverContent className="w-52 p-2 flex flex-col items-start gap-1">
+                              <h4 className="text-xs">
+                                <span className="font-semibold">License: </span>
+                                {item.license_number}
+                              </h4>
+                              <h4 className="text-xs">
+                                <span className="font-semibold">Address: </span>
+                                {item.address}
+                              </h4>
+                              <h4 className="text-xs">
+                                <span className="font-semibold">
+                                  Specialization:{" "}
+                                </span>
+                                {item.specialization}
+                              </h4>
+                              <h4
+                                className={`${
+                                  !item.experiences && "hidden"
+                                } text-xs`}
+                              >
+                                <span className="font-semibold">
+                                  Experiences:{" "}
+                                </span>
+                                {item.experiences}
+                              </h4>
                             </PopoverContent>
                           </Popover>
                           {/* <Avatar size="sm" name={initials} showFallback /> */}

@@ -40,6 +40,7 @@ import { supabase, supabaseAdmin } from "@/utils/supabase";
 import { setUser } from "@/app/reduxUtils/userSlice";
 import { EyeSlashFilledIcon } from "../../../public/icons/EyeSlashFilledIcon";
 import { EyeFilledIcon } from "../../../public/icons/EyeFilledIcon";
+import PartnerViewProfile from "./PartnerViewProfile";
 
 export default function ChatSidebarComponent({
   children,
@@ -71,6 +72,12 @@ export default function ChatSidebarComponent({
     last_name: "",
     middle_name: "",
     mobile_number: "",
+    num_heads: "",
+    experience_years: "",
+    operations: "",
+    experiences: "",
+    license_number: "",
+    specialization: "",
   });
   const [tempUserInfo, setTempUserInfo] = useState(userInfo);
   const [isEditing, setIsEditing] = useState(false);
@@ -108,9 +115,15 @@ export default function ChatSidebarComponent({
         middle_name,
         mobile_number,
         user_type,
+        num_heads,
+        experience_years,
+        operations,
+        experiences,
+        license_number,
+        specialization,
       } = user.user_metadata;
 
-      setUserInfo({
+      const commonUserInfo = {
         profile_picture: profile_picture || "",
         address: address || "",
         birth_date: birth_date || "",
@@ -118,17 +131,46 @@ export default function ChatSidebarComponent({
         last_name: last_name || "",
         middle_name: middle_name || "",
         mobile_number: mobile_number || "",
-      });
+        num_heads: "",
+        experience_years: "",
+        operations: "",
+        experiences: "",
+        license_number: "",
+        specialization: "",
+      };
 
-      setTempUserInfo({
-        profile_picture: profile_picture || "",
-        address: address || "",
-        birth_date: birth_date || "",
-        first_name: first_name || "",
-        last_name: last_name || "",
-        middle_name: middle_name || "",
-        mobile_number: mobile_number || "",
-      });
+      if (user_type === "farmer") {
+        setUserInfo({
+          ...commonUserInfo,
+          num_heads: num_heads || "",
+          experience_years: experience_years || "",
+          operations: operations || "",
+        });
+
+        setTempUserInfo({
+          ...commonUserInfo,
+          num_heads: num_heads || "",
+          experience_years: experience_years || "",
+          operations: operations || "",
+        });
+      } else if (user_type === "technician") {
+        setUserInfo({
+          ...commonUserInfo,
+          experiences: experiences || "",
+          license_number: license_number || "",
+          specialization: specialization || "",
+        });
+
+        setTempUserInfo({
+          ...commonUserInfo,
+          experiences: experiences || "",
+          license_number: license_number || "",
+          specialization: specialization || "",
+        });
+      } else {
+        setUserInfo(commonUserInfo);
+        setTempUserInfo(commonUserInfo);
+      }
 
       setLoginInfo({
         email: email || user.email || "",
@@ -395,6 +437,10 @@ export default function ChatSidebarComponent({
   const isTechnicianPathBase = pathname === "/technician/chat";
   // console.log("isTechnicianPathBase", isTechnicianPathBase);
 
+  const [openPartnerInfo, setOpenPartnerInfo] = useState(false);
+  const [partnerUserInfo, setPartnerUserInfo] = useState<any[]>([]);
+  const [verticalSidePopoverOpen, setVerticalSidePopoverOpen] = useState(false);
+
   return (
     <>
       <Modal
@@ -507,6 +553,69 @@ export default function ChatSidebarComponent({
                     onChange={handleInputChange}
                     readOnly={!isEditing}
                   />
+
+                  <hr className="col-span-3" />
+                  {/* technician specific */}
+                  {userType === "technician" && (
+                    <>
+                      <Input
+                        label="License Number"
+                        name="license_number"
+                        value={tempUserInfo.license_number}
+                        onChange={handleInputChange}
+                        className="col-span-3"
+                        readOnly={!isEditing}
+                      />
+
+                      <Input
+                        label="Specialization"
+                        name="specialization"
+                        value={tempUserInfo.specialization}
+                        onChange={handleInputChange}
+                        className="col-span-3"
+                        readOnly={!isEditing}
+                      />
+
+                      <Input
+                        label="Experiences"
+                        name="experiences"
+                        value={tempUserInfo.experiences}
+                        onChange={handleInputChange}
+                        className="col-span-3"
+                        readOnly={!isEditing}
+                      />
+                    </>
+                  )}
+
+                  {/* pig farmer specific */}
+                  {userType === "farmer" && (
+                    <>
+                      <Input
+                        label="Number of Heads"
+                        name="num_heads"
+                        value={tempUserInfo.num_heads}
+                        onChange={handleInputChange}
+                        readOnly={!isEditing}
+                      />
+                      <Input
+                        label="Experience Years"
+                        name="experience_years"
+                        value={tempUserInfo.experience_years}
+                        onChange={handleInputChange}
+                        className="col-span-2"
+                        readOnly={!isEditing}
+                      />
+                      <Input
+                        label="Operations"
+                        name="operations"
+                        value={tempUserInfo.operations}
+                        onChange={handleInputChange}
+                        className="col-span-3"
+                        readOnly={!isEditing}
+                      />
+                    </>
+                  )}
+
                   <hr className="col-span-3" />
                   <h1 className="text-sm font-semibold col-span-3">
                     Account Login Information
@@ -622,6 +731,15 @@ export default function ChatSidebarComponent({
           )}
         </ModalContent>
       </Modal>
+
+      <PartnerViewProfile
+        openPartnerInfo={openPartnerInfo}
+        setOpenPartnerInfo={setOpenPartnerInfo}
+        partnerUserInfo={partnerUserInfo}
+        setPartnerUserInfo={setPartnerUserInfo}
+        userId={user.id}
+      />
+
       {isLoading && (
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
           <Spinner color="success" />
@@ -723,19 +841,38 @@ export default function ChatSidebarComponent({
                             </span>
                           </div>
                         </span>
-                        <Popover showArrow placement="bottom">
+                        <Popover
+                          showArrow
+                          isOpen={verticalSidePopoverOpen}
+                          onOpenChange={(open) =>
+                            setVerticalSidePopoverOpen(open)
+                          }
+                          placement="bottom"
+                        >
                           <PopoverTrigger>
-                            <div
-                              className={`${
-                                userType === "technician" && "hidden"
-                              } absolute top-1/2 right-3 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full p-2 hover:bg-green-900`}
-                            >
+                            <div className="absolute top-1/2 right-3 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full p-2 hover:bg-green-900">
                               <BsThreeDotsVertical />
                             </div>
                           </PopoverTrigger>
-                          <PopoverContent className="p-1">
+                          <PopoverContent className="flex gap-2 p-2">
                             <Button
+                              fullWidth
                               size="sm"
+                              startContent={<FaUserCircle />}
+                              onClick={() => {
+                                setOpenPartnerInfo(true);
+                                setPartnerUserInfo(message);
+                                setVerticalSidePopoverOpen(false);
+                              }}
+                            >
+                              View
+                            </Button>
+                            <Button
+                              fullWidth
+                              size="sm"
+                              className={` ${
+                                userType === "technician" && "hidden"
+                              }`}
                               startContent={<IoMdTrash />}
                               onClick={() => {
                                 deleteChatMessage(

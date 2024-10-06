@@ -1,5 +1,4 @@
-create view
-  "ViewLatestChatHeaders" as
+create view "ViewLatestChatHeaders" as
 select
   cm.chat_message_id,
   cm.message,
@@ -18,15 +17,18 @@ from
   join auth.users receiver_user on cm.receiver_id = receiver_user.id
 where
   cm.created_at = (
-    (
-      select
-        max(subquery.created_at) as max
-      from
-        "ChatMessages" subquery
-      where
-        subquery.sender_id = cm.sender_id
-        and subquery.receiver_id = cm.receiver_id
-        or subquery.sender_id = cm.receiver_id
-        and subquery.receiver_id = cm.sender_id
-    )
+    -- Subquery to get the latest message where is_active = true
+    select
+      subquery.created_at
+    from
+      "ChatMessages" subquery
+    where
+      (
+        (subquery.sender_id = cm.sender_id and subquery.receiver_id = cm.receiver_id)
+        or (subquery.sender_id = cm.receiver_id and subquery.receiver_id = cm.sender_id)
+      )
+      and subquery.is_active = true
+    order by
+      subquery.created_at desc
+    limit 1
   );
