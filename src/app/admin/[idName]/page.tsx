@@ -1,6 +1,7 @@
 "use client";
 
 import AdminDashboard from "@/components/adminComponents/Dashboard";
+import AdminReportsComponent from "@/components/adminComponents/Reports";
 import AdminSettings from "@/components/adminComponents/Settings";
 import UserComponent from "@/components/adminComponents/Users";
 import { usePathname } from "next/navigation";
@@ -19,6 +20,8 @@ export default function AdminSlugPage() {
       setDisplay(<UserComponent />);
     } else if (pathname.startsWith("/admin/settings")) {
       setDisplay(<AdminSettings />);
+    } else if (pathname.startsWith("/admin/report")) {
+      setDisplay(<AdminReportsComponent />);
     } else {
       setDisplay("No page found");
     }

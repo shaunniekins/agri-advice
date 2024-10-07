@@ -738,6 +738,7 @@ export default function ChatSidebarComponent({
         partnerUserInfo={partnerUserInfo}
         setPartnerUserInfo={setPartnerUserInfo}
         userId={user.id}
+        userType={userType}
       />
 
       {isLoading && (
@@ -875,15 +876,19 @@ export default function ChatSidebarComponent({
                               }`}
                               startContent={<IoMdTrash />}
                               onClick={() => {
-                                deleteChatMessage(
-                                  message.sender_id,
-                                  message.receiver_id
+                                const confirmed = window.confirm(
+                                  "Are you sure you want to delete this message?"
                                 );
-
-                                deleteChatConnection(
-                                  message.sender_id,
-                                  message.receiver_id
-                                );
+                                if (confirmed) {
+                                  deleteChatMessage(
+                                    message.sender_id,
+                                    message.receiver_id
+                                  );
+                                  deleteChatConnection(
+                                    message.sender_id,
+                                    message.receiver_id
+                                  );
+                                }
                               }}
                             >
                               Delete

@@ -79,7 +79,7 @@ const useUsers = (
       )
       .subscribe((status: any) => {
         if (status !== "SUBSCRIBED") {
-          console.error("Error subscribing to channel:", status);
+          // console.error("Error subscribing to channel:", status);
         }
       });
 

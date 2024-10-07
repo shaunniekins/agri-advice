@@ -1,0 +1,246 @@
+"use client";
+
+import useFeedback from "@/hooks/useFeedback";
+import React from "react";
+import { useState } from "react";
+import {
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  Table,
+  TableHeader,
+  TableColumn,
+  TableBody,
+  TableRow,
+  TableCell,
+  Pagination,
+  Button,
+  Spinner,
+  Textarea,
+  Input,
+} from "@nextui-org/react";
+import { StarRating } from "../chatComponents/PartnerViewProfile";
+import { MdClose } from "react-icons/md";
+
+const AdminReportsComponent = () => {
+  const rowsPerPage = 16;
+  const [page, setPage] = useState(1);
+  const [openModal, setOpenModal] = useState(false);
+  const [selectedFeedback, setSelectedFeedback] = useState<any>({});
+
+  const { feedbackData, isLoadingFeedback, totalFeedbackEntries } = useFeedback(
+    rowsPerPage,
+    page
+  );
+
+  const totalPages = Math.ceil(totalFeedbackEntries / rowsPerPage);
+
+  if (isLoadingFeedback) {
+    return (
+      <div className="h-full w-full flex justify-center items-center">
+        Loading...
+      </div>
+    );
+  }
+
+  const columns = [
+    { key: "farmer_name", label: "Farmer Name" },
+    { key: "technician_name", label: "Technician Name" },
+    { key: "feedback_message", label: "Feedback" },
+    { key: "ratings", label: "Rating" },
+    { key: "created_at", label: "Date" },
+    { key: "option", label: "Option" },
+  ];
+
+  const truncateText = (text: string, wordLimit: number) => {
+    const words = text.split(" ");
+    if (words.length <= wordLimit) {
+      return text;
+    }
+    return words.slice(0, wordLimit).join(" ") + "...";
+  };
+
+  return (
+    <>
+      <Modal
+        size="lg"
+        backdrop="blur"
+        isOpen={openModal}
+        hideCloseButton={true}
+        onOpenChange={setOpenModal}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                Feedback
+              </ModalHeader>
+              <ModalBody>
+                <div className="w-full flex gap-3">
+                  <Input
+                    label="From"
+                    value={`${selectedFeedback.farmer_raw_user_meta_data.first_name} ${selectedFeedback.farmer_raw_user_meta_data.last_name}`}
+                    readOnly
+                    fullWidth
+                  />
+                  <Input
+                    label="To"
+                    value={`${selectedFeedback.technician_raw_user_meta_data.first_name} ${selectedFeedback.technician_raw_user_meta_data.last_name}`}
+                    readOnly
+                    fullWidth
+                  />
+                </div>
+                <div className="w-full my-3">
+                  <StarRating rating={selectedFeedback.ratings} isReadOnly />
+                </div>
+                <Textarea
+                  label="Feedback Message"
+                  placeholder="Enter your feedback here..."
+                  value={selectedFeedback.feedback_message}
+                  readOnly
+                  fullWidth
+                />
+              </ModalBody>
+              <ModalFooter>
+                <Button
+                  startContent={<MdClose />}
+                  className="bg-[#007057] text-white self-center"
+                  onClick={() => setOpenModal(false)}
+                >
+                  Close
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      <div className="h-full w-full flex flex-col gap-2 overflow-hidden">
+        <div className="w-full flex justify-start gap-2">
+          <Pagination
+            isCompact
+            showControls
+            showShadow
+            color="success"
+            page={page}
+            total={totalPages}
+            onChange={(newPage) => setPage(newPage)}
+          />
+        </div>
+        <div className="h-full w-full flex flex-grow overflow-x-auto">
+          <Table
+            fullWidth
+            layout="auto"
+            isHeaderSticky={true}
+            aria-label="Users Table with Pagination"
+            classNames={{
+              wrapper: "w-full h-full",
+            }}
+            className="h-full w-full flex items-center justify-center overflow-x-auto"
+          >
+            <TableHeader columns={columns}>
+              {(column) => (
+                <TableColumn
+                  key={column.key}
+                  className="bg-[#007057] text-white text-center whitespace-nowrap flex-nowrap"
+                  // style={{ maxWidth: "200px" }}
+                >
+                  {column.label}
+                </TableColumn>
+              )}
+            </TableHeader>
+            <TableBody
+              items={feedbackData}
+              emptyContent={"No rows to display."}
+              loadingContent={<Spinner color="success" />}
+            >
+              {(item) => (
+                <TableRow key={item.feedback_id} className="text-center">
+                  {(columnKey) => {
+                    if (columnKey === "farmer_name") {
+                      return (
+                        <TableCell className="text-center">
+                          {item.farmer_raw_user_meta_data.first_name}{" "}
+                          {item.farmer_raw_user_meta_data.last_name}
+                        </TableCell>
+                      );
+                    }
+
+                    if (columnKey === "technician_name") {
+                      return (
+                        <TableCell className="text-center">
+                          {item.technician_raw_user_meta_data.first_name}{" "}
+                          {item.technician_raw_user_meta_data.last_name}
+                        </TableCell>
+                      );
+                    }
+
+                    if (columnKey === "feedback_message") {
+                      return (
+                        <TableCell className="text-center truncate">
+                          {truncateText(item.feedback_message, 8)}
+                        </TableCell>
+                      );
+                    }
+
+                    if (columnKey === "ratings") {
+                      return (
+                        <TableCell className="text-center">
+                          <StarRating rating={item.ratings} isReadOnly />
+                        </TableCell>
+                      );
+                    }
+
+                    if (columnKey === "created_at") {
+                      return (
+                        <TableCell className="text-center">
+                          {new Date(item.created_at).toLocaleDateString(
+                            "en-GB",
+                            {
+                              day: "numeric",
+                              month: "short",
+                              year: "numeric",
+                            }
+                          )}
+                        </TableCell>
+                      );
+                    }
+
+                    if (columnKey === "option") {
+                      return (
+                        <TableCell>
+                          <div className="flex gap-2 justify-center">
+                            <Button
+                              color="success"
+                              className="text-white"
+                              onClick={() => {
+                                setSelectedFeedback(item);
+                                setOpenModal(true);
+                              }}
+                            >
+                              Show
+                            </Button>
+                          </div>
+                        </TableCell>
+                      );
+                    }
+
+                    return (
+                      <TableCell className="text-center">
+                        {item[columnKey as keyof typeof item]}
+                      </TableCell>
+                    );
+                  }}
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </div>
+      </div>
+    </>
+  );
+};
+
+export default AdminReportsComponent;
