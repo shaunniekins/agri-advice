@@ -43,16 +43,30 @@ export const updateChatMessage = async (
 };
 
 // Delete a chat message
-export const deleteChatMessage = async (
-  user1Id: string,
-  user2Id: string
-) => {
+export const deleteChatMessage = async (user1Id: string, user2Id: string) => {
   try {
     const response = await supabase
       .from("ChatMessages")
       .delete()
       .or(`sender_id.eq.${user1Id},receiver_id.eq.${user1Id}`)
       .or(`sender_id.eq.${user2Id},receiver_id.eq.${user2Id}`);
+
+    if (response.error) {
+      throw response.error;
+    }
+    return response.data;
+  } catch (error: any) {
+    console.error("Error deleting chat message:", error);
+    return null;
+  }
+};
+
+export const deleteSpecificChatMessage = async (chatMessageId: number) => {
+  try {
+    const response = await supabase
+      .from("ChatMessages")
+      .delete()
+      .eq("chat_message_id", chatMessageId);
 
     if (response.error) {
       throw response.error;

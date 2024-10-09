@@ -2,32 +2,44 @@ import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/utils/supabase";
 import { PostgrestResponse } from "@supabase/supabase-js";
 
-const useChatHeaders = (userId: string) => {
+const useChatHeaders = (
+  rowsPerPage: number,
+  currentPage: number,
+  userId: string
+) => {
   const [chatHeaders, setChatHeaders] = useState<any[]>([]);
   const [loadingChatHeaders, setLoadingChatHeaders] = useState(true);
   const [errorChatHeaders, setErrorChatHeaders] = useState<string | null>(null);
+  const [totalChatHeaders, setTotalChatHeaders] = useState(0);
 
   // Fetch the latest chat headers for the user
   const fetchChatHeaders = useCallback(async () => {
     if (!userId) return;
 
+    const offset = (currentPage - 1) * rowsPerPage;
+
     setLoadingChatHeaders(true);
     setErrorChatHeaders(null);
-    
 
     try {
       // Query from the new view that returns the latest conversation for each partner
-      const { data, error }: PostgrestResponse<any> = await supabase
+      const query = supabase
         .from("ViewLatestChatHeaders")
         .select("*")
         .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
         .order("created_at", { ascending: false });
 
-      if (error) {
-        throw error;
+      const response: PostgrestResponse<any> = await query.range(
+        offset,
+        offset + rowsPerPage - 1
+      );
+
+      if (response.error) {
+        throw response.error;
       }
 
-      setChatHeaders(data || []);
+      setChatHeaders(response.data || []);
+      setTotalChatHeaders(response.count || 0);
     } catch (err) {
       if (err instanceof Error) {
         setErrorChatHeaders(err.message || "Error fetching chat headers");
@@ -37,7 +49,7 @@ const useChatHeaders = (userId: string) => {
     } finally {
       setLoadingChatHeaders(false);
     }
-  }, [userId]);
+  }, [rowsPerPage, currentPage, userId]);
 
   useEffect(() => {
     fetchChatHeaders(); // Fetch initial chat headers
@@ -65,6 +77,7 @@ const useChatHeaders = (userId: string) => {
 
   return {
     chatHeaders,
+    totalChatHeaders,
     loadingChatHeaders,
     errorChatHeaders,
   };

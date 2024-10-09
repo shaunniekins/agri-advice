@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  deleteSpecificChatMessage,
   insertChatMessage,
   updateChatMessage,
 } from "@/app/api/chatMessagesIUD";
@@ -9,9 +10,9 @@ import useChatMessages from "@/hooks/useChatMessages";
 import { getIdFromPathname } from "@/utils/compUtils";
 import { Avatar, Button, Spinner, Textarea } from "@nextui-org/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import React from "react";
+import React, { use } from "react";
 import { useEffect, useState } from "react";
-import { IoSendOutline } from "react-icons/io5";
+import { IoImage, IoImageOutline, IoSendOutline } from "react-icons/io5";
 import { useSelector } from "react-redux";
 import ReactMarkdown from "react-markdown";
 
@@ -21,6 +22,8 @@ export default function ChatDisplayComponent() {
   const router = useRouter();
   const [messageInput, setMessageInput] = useState("");
   const [isTextareaDisabled, setIsTextareaDisabled] = useState(false);
+  const [isLastMessageFromTechnician, setIsLastMessageFromTechnician] =
+    useState(false);
 
   const [userType, setUserType] = useState("");
   const partnerId = getIdFromPathname(pathname);
@@ -31,6 +34,8 @@ export default function ChatDisplayComponent() {
 
   const searchParams = useSearchParams();
 
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+
   useEffect(() => {
     setSenderId(searchParams.get("sender") || "");
     setReceiverId(searchParams.get("receiver") || "");
@@ -40,12 +45,19 @@ export default function ChatDisplayComponent() {
     useChatMessages(rowsPerPage, currentPage, senderId || "", receiverId || "");
 
   useEffect(() => {
+    if (chatMessages.length > 0) {
+      const lastMessage = chatMessages[chatMessages.length - 1];
+      setIsLastMessageFromTechnician(lastMessage.sender_id === user?.id);
+    }
+  }, [chatMessages]);
+
+  useEffect(() => {
     if (user && user.user_metadata) {
       setUserType(user.user_metadata.user_type);
     }
   }, [user]);
 
-  const handleSubmit = async (message: string) => {
+  const handleSubmit = async (message: string, isActive: boolean) => {
     if (!message) return;
     if (!user) return;
 
@@ -60,7 +72,7 @@ export default function ChatDisplayComponent() {
       sender_id: user.id,
       receiver_id: partnerId,
       message: message,
-      is_active: userType === "technician" ? false : true,
+      is_active: isActive,
     });
     setMessageInput("");
   };
@@ -92,15 +104,20 @@ export default function ChatDisplayComponent() {
       });
 
       if (!response.ok) {
+        const errorBody = await response.text();
+        console.log("Response status:", response.status);
+        console.log("Response status text:", response.statusText);
+        console.log("Response headers:", response.headers);
+        console.log("Response body:", errorBody);
         throw new Error("Failed to generate draft reply");
       }
 
       const data = await response.json();
       const draftReply = data.draftReply;
-      console.log("Draft reply:", draftReply);
+      // console.log("Draft reply:", draftReply);
 
       // Automatically send the draft reply
-      await handleSubmit(draftReply);
+      await handleSubmit(draftReply, false);
     } catch (error) {
       console.error("Error generating draft reply:", error);
     } finally {
@@ -131,6 +148,21 @@ export default function ChatDisplayComponent() {
     }
   };
 
+  const handleDeleteMessage = async (messageId: number) => {
+    const isConfirmed = window.confirm(
+      "Are you sure you want to delete this message?"
+    );
+    if (!isConfirmed) {
+      return;
+    }
+
+    const result = await deleteSpecificChatMessage(messageId);
+    if (result) {
+      setEditMessageId(null);
+      setEditMessageInput("");
+    }
+  };
+
   const handleSendMessage = async (messageId: number) => {
     const updatedMessage = {
       is_active: true,
@@ -140,6 +172,12 @@ export default function ChatDisplayComponent() {
     if (result) {
       setEditMessageId(null);
       setEditMessageInput("");
+    }
+  };
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedImage(e.target.files[0]);
     }
   };
 
@@ -247,6 +285,16 @@ export default function ChatDisplayComponent() {
                                     Edit
                                   </button>
                                   <button
+                                    className="text-red-500 text-xs"
+                                    onClick={() =>
+                                      handleDeleteMessage(
+                                        message.chat_message_id
+                                      )
+                                    }
+                                  >
+                                    Delete
+                                  </button>
+                                  <button
                                     className="text-green-500 text-xs"
                                     onClick={() =>
                                       handleSendMessage(message.chat_message_id)
@@ -302,34 +350,58 @@ export default function ChatDisplayComponent() {
               <Button
                 color="primary"
                 onClick={handleGenerateDraftReply}
-                disabled={isGeneratingDraft}
+                isDisabled={isGeneratingDraft || isLastMessageFromTechnician}
               >
                 {isGeneratingDraft ? "Generating..." : "Generate AI Draft"}
               </Button>
             </div>
           )}
-          <Textarea
-            size="lg"
-            radius="lg"
-            maxRows={3}
-            minRows={1}
-            color="success"
-            endContent={
-              <div className="flex gap-4 text-2xl">
-                <button
-                  className={`${!messageInput && "hidden"}`}
-                  onClick={() => handleSubmit(messageInput)}
-                  disabled={isTextareaDisabled}
-                >
-                  <IoSendOutline />
-                </button>
+          <div className="flex gap-3">
+            <Textarea
+              size="lg"
+              radius="lg"
+              maxRows={3}
+              minRows={1}
+              color="success"
+              endContent={
+                <div className="flex gap-4 text-2xl">
+                  {/* <button
+                    // className={`${!messageInput && "hidden"}`}
+                    // onClick={() => handleSubmit(messageInput, true)}
+                    disabled={isTextareaDisabled}
+                  >
+                    <IoImageOutline />
+                  </button> */}
+                  <button
+                    className={`${!messageInput && "hidden"}`}
+                    onClick={() => handleSubmit(messageInput, true)}
+                    disabled={isTextareaDisabled}
+                  >
+                    <IoSendOutline />
+                  </button>
+                </div>
+              }
+              placeholder="Enter message here"
+              value={messageInput}
+              onChange={(e) => setMessageInput(e.target.value)}
+              isDisabled={isTextareaDisabled}
+            />
+            {/* <input
+              type="file"
+              accept="image/*"
+              onChange={handleImageChange}
+              disabled={isTextareaDisabled}
+            />
+            {selectedImage && (
+              <div>
+                <img
+                  src={URL.createObjectURL(selectedImage)}
+                  alt="Selected"
+                  style={{ maxWidth: "10px", maxHeight: "10px" }}
+                />
               </div>
-            }
-            placeholder="Enter message here"
-            value={messageInput}
-            onChange={(e) => setMessageInput(e.target.value)}
-            isDisabled={isTextareaDisabled}
-          />
+            )} */}
+          </div>
         </div>
       </div>
     </>

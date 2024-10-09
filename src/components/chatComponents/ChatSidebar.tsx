@@ -10,6 +10,7 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
+  Pagination,
   Popover,
   PopoverContent,
   PopoverTrigger,
@@ -41,6 +42,7 @@ import { setUser } from "@/app/reduxUtils/userSlice";
 import { EyeSlashFilledIcon } from "../../../public/icons/EyeSlashFilledIcon";
 import { EyeFilledIcon } from "../../../public/icons/EyeFilledIcon";
 import PartnerViewProfile from "./PartnerViewProfile";
+import { FiHelpCircle } from "react-icons/fi";
 
 export default function ChatSidebarComponent({
   children,
@@ -51,7 +53,7 @@ export default function ChatSidebarComponent({
   const [childrenIsLoading, setChildrenIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [page, setPage] = useState(1);
-  const rowsPerPage = 20;
+  const rowsPerPage = 9;
   const router = useRouter();
   const pathname = usePathname();
   const user = useSelector((state: RootState) => state.user.user);
@@ -192,9 +194,14 @@ export default function ChatSidebarComponent({
     }
   }, [user]);
 
-  const { chatHeaders, loadingChatHeaders, errorChatHeaders } = useChatHeaders(
-    user ? user.id : ""
-  );
+  const {
+    chatHeaders,
+    totalChatHeaders,
+    loadingChatHeaders,
+    errorChatHeaders,
+  } = useChatHeaders(rowsPerPage, page, user ? user.id : "");
+
+  const totalPages = Math.ceil(totalChatHeaders / rowsPerPage);
 
   // Handle sidebar open/close on small screens
   const handleContentClick = () => {
@@ -737,7 +744,7 @@ export default function ChatSidebarComponent({
         setOpenPartnerInfo={setOpenPartnerInfo}
         partnerUserInfo={partnerUserInfo}
         setPartnerUserInfo={setPartnerUserInfo}
-        userId={user.id}
+        userId={user?.id}
         userType={userType}
       />
 
@@ -759,11 +766,11 @@ export default function ChatSidebarComponent({
               isSidebarOpen ? "z-10 flex lg:block" : "hidden lg:hidden"
             } fixed inset-y-0 left-0 w-4/5 lg:relative lg:w-auto lg:bg-transparent`}
           >
-            <div className="bg-[#007057] text-white h-full w-80 flex flex-col justify-center select-none relative">
+            <div className="bg-[#007057] text-white h-full w-80 flex flex-col justify-start select-none relative">
               <button
                 className={`${
                   !isSidebarOpen && "hidden"
-                } absolute flex items-center top-3 right-5 text-xl cursor-pointer`}
+                } flex self-end items-center py-3 pr-5 text-xl cursor-pointer`}
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               >
                 <FaBars />
@@ -789,9 +796,9 @@ export default function ChatSidebarComponent({
                   {userType === "farmer" ? "New Chat" : "Main"}
                 </Button>
               </div>
-              <ul className="h-full mt-2 mb-20 flex flex-col pt-3 pb-5">
+              <ul className="h-full w-full self-start mt-2 mb-20 flex flex-col pt-3 pb-5">
                 {chatHeaders.length === 0 ? (
-                  <li className="flex justify-center items-center h-full">
+                  <li className="flex justify-center items-center h-full w-full">
                     No chat history
                   </li>
                 ) : (
@@ -900,14 +907,42 @@ export default function ChatSidebarComponent({
                   })
                 )}
               </ul>
-              <Button
-                color={"danger"}
-                startContent={<FaSignOutAlt />}
-                className="absolute bottom-6 left-1/2 transform -translate-x-1/2"
-                onClick={onLogoutClick}
+              <div
+                className={`
+                ${totalPages <= 1 && "hidden"}
+                w-full flex justify-center my-2`}
               >
-                Logout
-              </Button>
+                <Pagination
+                  isCompact
+                  showControls
+                  showShadow
+                  color="success"
+                  page={page}
+                  total={totalPages}
+                  onChange={(newPage) => setPage(newPage)}
+                />
+              </div>
+              <div className="px-20 w-full flex flex-col items-center justify-center gap-4 mt-2 mb-4">
+                <Button
+                  fullWidth
+                  // size="sm"
+                  color={"secondary"}
+                  startContent={<FiHelpCircle />}
+                  className={`${userType === "technician" && "hidden"}`}
+                  // onClick={onLogoutClick}
+                >
+                  Help
+                </Button>
+                <Button
+                  fullWidth
+                  // size="sm"
+                  color={"danger"}
+                  startContent={<FaSignOutAlt />}
+                  onClick={onLogoutClick}
+                >
+                  Logout
+                </Button>
+              </div>
             </div>
           </div>
           {/* HEADER */}

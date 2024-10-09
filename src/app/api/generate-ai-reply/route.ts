@@ -24,19 +24,19 @@ async function runChat(
   const safetySettings = [
     {
       category: HarmCategory.HARM_CATEGORY_HARASSMENT,
-      threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+      threshold: HarmBlockThreshold.BLOCK_NONE,
     },
     {
       category: HarmCategory.HARM_CATEGORY_HATE_SPEECH,
-      threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+      threshold: HarmBlockThreshold.BLOCK_NONE,
     },
     {
       category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
-      threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+      threshold: HarmBlockThreshold.BLOCK_NONE,
     },
     {
       category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
-      threshold: HarmBlockThreshold.BLOCK_MEDIUM_AND_ABOVE,
+      threshold: HarmBlockThreshold.BLOCK_NONE,
     },
   ];
 
@@ -55,10 +55,10 @@ async function runChat(
 
 export async function POST(request: NextRequest) {
   try {
-    const { conversationHistory } = await request.json(); // Accept the conversation history
+    const { conversationHistory } = await request.json();
 
     const prompt = {
-      role: "system",
+      role: "user",
       parts: [
         {
           text: "Based on the following conversation between a farmer and a technician, generate a draft reply for a technician responding to a farmer's query in the Bisaya/Cebuano dialect. Do not provide or suggest any links.",
