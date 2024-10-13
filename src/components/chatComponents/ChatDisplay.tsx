@@ -10,11 +10,19 @@ import useChatMessages from "@/hooks/useChatMessages";
 import { getIdFromPathname } from "@/utils/compUtils";
 import { Avatar, Button, Spinner, Textarea } from "@nextui-org/react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import React, { use } from "react";
+import React, { use, useRef } from "react";
 import { useEffect, useState } from "react";
-import { IoImage, IoImageOutline, IoSendOutline } from "react-icons/io5";
+import {
+  IoCloseCircleOutline,
+  IoCloseOutline,
+  IoCloseSharp,
+  IoImage,
+  IoImageOutline,
+  IoSendOutline,
+} from "react-icons/io5";
 import { useSelector } from "react-redux";
 import ReactMarkdown from "react-markdown";
+import { supabase } from "@/utils/supabase";
 
 export default function ChatDisplayComponent() {
   const user = useSelector((state: RootState) => state.user.user);
@@ -57,8 +65,12 @@ export default function ChatDisplayComponent() {
     }
   }, [user]);
 
+  const BUCKET_NAME = "chat-images";
+  const imageUrlPattern =
+    /"https:\/\/vgckngozsjzlzkrntaoq\.supabase\.co\/storage\/v1\/object\/public\/chat-images\/[^"]+"/;
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   const handleSubmit = async (message: string, isActive: boolean) => {
-    if (!message) return;
     if (!user) return;
 
     let partnerId;
@@ -68,13 +80,47 @@ export default function ChatDisplayComponent() {
       partnerId = senderId;
     }
 
-    await insertChatMessage({
-      sender_id: user.id,
-      receiver_id: partnerId,
-      message: message,
-      is_active: isActive,
-    });
-    setMessageInput("");
+    const file = selectedImage;
+
+    if (file) {
+      const filePath =
+        userType === "farmer"
+          ? `public/${user.id}/${partnerId}/${file.name}`
+          : `public/${partnerId}/${user.id}/${file.name}`;
+
+      const { data, error } = await supabase.storage
+        .from(BUCKET_NAME)
+        .upload(filePath, file);
+
+      if (data && !error) {
+        const { publicUrl } = supabase.storage
+          .from(BUCKET_NAME)
+          .getPublicUrl(data.path).data;
+
+        message = `"${publicUrl}"`;
+
+        await insertChatMessage({
+          sender_id: user.id,
+          receiver_id: partnerId,
+          message: message,
+          is_active: isActive,
+        });
+
+        setMessageInput("");
+        setSelectedImage(null);
+      } else {
+        console.error("Error uploading image:", error);
+      }
+    } else {
+      await insertChatMessage({
+        sender_id: user.id,
+        receiver_id: partnerId,
+        message: message,
+        is_active: isActive,
+      });
+
+      setMessageInput("");
+    }
   };
 
   const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
@@ -87,13 +133,15 @@ export default function ChatDisplayComponent() {
       // Limit to the last 30 messages or fewer
       const limitedMessages = chatMessages.slice(-30);
 
-      // Map messages to "user" (farmer) and "model" (technician/AI)
-      const conversationHistory = limitedMessages.map((msg) => {
-        return {
-          role: msg.sender_id === user.id ? "model" : "user",
-          parts: [{ text: msg.message }],
-        };
-      });
+      // Map messages to "user" (farmer) and "model" (technician/AI), excluding URLs
+      const conversationHistory = limitedMessages
+        .filter((msg) => !imageUrlPattern.test(msg.message))
+        .map((msg) => {
+          return {
+            role: msg.sender_id === user.id ? "model" : "user",
+            parts: [{ text: msg.message }],
+          };
+        });
 
       const response = await fetch("/api/generate-ai-reply", {
         method: "POST",
@@ -105,16 +153,11 @@ export default function ChatDisplayComponent() {
 
       if (!response.ok) {
         const errorBody = await response.text();
-        console.log("Response status:", response.status);
-        console.log("Response status text:", response.statusText);
-        console.log("Response headers:", response.headers);
-        console.log("Response body:", errorBody);
         throw new Error("Failed to generate draft reply");
       }
 
       const data = await response.json();
       const draftReply = data.draftReply;
-      // console.log("Draft reply:", draftReply);
 
       // Automatically send the draft reply
       await handleSubmit(draftReply, false);
@@ -181,6 +224,28 @@ export default function ChatDisplayComponent() {
     }
   };
 
+  // to display as an image or plain text
+  const renderMessage = (message: string) => {
+    if (imageUrlPattern.test(message)) {
+      const imageUrl = message.slice(1, -1); // Remove the surrounding quotation marks
+      return (
+        <img
+          src={imageUrl}
+          alt="Message Image"
+          style={{ maxWidth: "100%", maxHeight: "200px" }}
+        />
+      );
+    }
+    return <ReactMarkdown>{message}</ReactMarkdown>;
+  };
+
+  const bottomRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (bottomRef.current) {
+      bottomRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [chatMessages, chatMessages]);
+
   if (loadingChatMessages) {
     return (
       <div className="h-full flex justify-center items-center">
@@ -231,7 +296,7 @@ export default function ChatDisplayComponent() {
                     return (
                       <div
                         key={message.chat_message_id}
-                        className={`w-full flex gap-4 py-2 ${
+                        className={`w-full flex flex-col md:flex-row md:gap-4 py-2 ${
                           !isSender ? "justify-start" : "justify-end"
                         }`}
                       >
@@ -334,7 +399,10 @@ export default function ChatDisplayComponent() {
                               </div>
                             </div>
                           ) : (
-                            <ReactMarkdown>{message.message}</ReactMarkdown>
+                            <>
+                              {renderMessage(message.message)}
+                              <div ref={bottomRef} />
+                            </>
                           )}
                         </div>
                       </div>
@@ -364,14 +432,7 @@ export default function ChatDisplayComponent() {
               minRows={1}
               color="success"
               endContent={
-                <div className="flex gap-4 text-2xl">
-                  {/* <button
-                    // className={`${!messageInput && "hidden"}`}
-                    // onClick={() => handleSubmit(messageInput, true)}
-                    disabled={isTextareaDisabled}
-                  >
-                    <IoImageOutline />
-                  </button> */}
+                <div className="flex gap-3 text-2xl">
                   <button
                     className={`${!messageInput && "hidden"}`}
                     onClick={() => handleSubmit(messageInput, true)}
@@ -379,12 +440,50 @@ export default function ChatDisplayComponent() {
                   >
                     <IoSendOutline />
                   </button>
+
+                  <button
+                    className={`${messageInput && "hidden"}`}
+                    onClick={() => fileInputRef.current?.click()}
+                    // disabled={isTextareaDisabled}
+                  >
+                    <IoImageOutline />
+                  </button>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    ref={fileInputRef}
+                    style={{ display: "none" }}
+                    onChange={handleImageChange}
+                  />
+                  {selectedImage && (
+                    <>
+                      <button
+                        onClick={() => setSelectedImage(null)}
+                        // disabled={isTextareaDisabled}
+                      >
+                        <IoCloseCircleOutline />
+                      </button>
+                      <button
+                        onClick={() => handleSubmit("", true)}
+                        // disabled={isTextareaDisabled}
+                      >
+                        <IoSendOutline />
+                      </button>
+                    </>
+                  )}
                 </div>
               }
-              placeholder="Enter message here"
+              placeholder={`${
+                !selectedImage
+                  ? "Enter message here"
+                  : "You have selected an image"
+              }`}
               value={messageInput}
-              onChange={(e) => setMessageInput(e.target.value)}
-              isDisabled={isTextareaDisabled}
+              onChange={(e) => {
+                if (selectedImage) return;
+                setMessageInput(e.target.value);
+              }}
+              isDisabled={isTextareaDisabled || isGeneratingDraft}
             />
             {/* <input
               type="file"

@@ -262,6 +262,26 @@ export default function ChatSidebarComponent({
         if (error) throw error;
       }
 
+      if (userType === "farmer") {
+        const filePath = `public/${user.id}`;
+
+        const { data: list } = await supabase.storage
+          .from("chat-images")
+          .list(filePath);
+        const filesToRemove = list?.map((x) => `${filePath}/${x.name}`);
+
+        if (filesToRemove && filesToRemove.length > 0) {
+          const { error } = await supabase.storage
+            .from("chat-images")
+            .remove(filesToRemove);
+
+          if (error) {
+            console.error("Error deleting image:", error.message);
+            return;
+          }
+        }
+      }
+
       setIsLoading(true);
       handleLogout();
     } catch (error) {
@@ -451,11 +471,12 @@ export default function ChatSidebarComponent({
   return (
     <>
       <Modal
-        size="xl"
+        // size="xl"
         backdrop="blur"
         isOpen={openUserInfo}
         hideCloseButton={true}
         onOpenChange={setOpenUserInfo}
+        className="h-full lg:h-auto"
       >
         <ModalContent>
           {(onClose) => (
@@ -463,9 +484,9 @@ export default function ChatSidebarComponent({
               <ModalHeader className="flex flex-col gap-1">
                 Personal Information
               </ModalHeader>
-              <ModalBody>
-                <div className="w-full grid grid-cols-3 gap-4">
-                  <div className="col-span-3 flex flex-col items-center">
+              <ModalBody className="h-full overflow-y-auto">
+                <div className="w-full h-full flex flex-col lg:grid lg:grid-cols-3 gap-4 overflow-y-auto">
+                  <div className="lg:col-span-3 flex flex-col items-center">
                     <Popover
                       showArrow
                       placement="right"
@@ -561,7 +582,7 @@ export default function ChatSidebarComponent({
                     readOnly={!isEditing}
                   />
 
-                  <hr className="col-span-3" />
+                  <hr className="lg:col-span-3" />
                   {/* technician specific */}
                   {userType === "technician" && (
                     <>
@@ -570,7 +591,7 @@ export default function ChatSidebarComponent({
                         name="license_number"
                         value={tempUserInfo.license_number}
                         onChange={handleInputChange}
-                        className="col-span-3"
+                        className="lg:col-span-3"
                         readOnly={!isEditing}
                       />
 
@@ -579,7 +600,7 @@ export default function ChatSidebarComponent({
                         name="specialization"
                         value={tempUserInfo.specialization}
                         onChange={handleInputChange}
-                        className="col-span-3"
+                        className="lg:col-span-3"
                         readOnly={!isEditing}
                       />
 
@@ -588,7 +609,7 @@ export default function ChatSidebarComponent({
                         name="experiences"
                         value={tempUserInfo.experiences}
                         onChange={handleInputChange}
-                        className="col-span-3"
+                        className="lg:col-span-3"
                         readOnly={!isEditing}
                       />
                     </>
@@ -617,14 +638,14 @@ export default function ChatSidebarComponent({
                         name="operations"
                         value={tempUserInfo.operations}
                         onChange={handleInputChange}
-                        className="col-span-3"
+                        className="lg:col-span-3"
                         readOnly={!isEditing}
                       />
                     </>
                   )}
 
-                  <hr className="col-span-3" />
-                  <h1 className="text-sm font-semibold col-span-3">
+                  <hr className="lg:col-span-3" />
+                  <h1 className="text-sm font-semibold lg:col-span-3">
                     Account Login Information
                   </h1>
                   <Input
@@ -693,7 +714,7 @@ export default function ChatSidebarComponent({
                 </div>
               </ModalBody>
               <ModalFooter>
-                <div className="w-full flex justify-between">
+                <div className="w-full flex justify-between gap-2">
                   <Button
                     startContent={<MdDeleteOutline />}
                     color="danger"
@@ -702,7 +723,7 @@ export default function ChatSidebarComponent({
                   >
                     Delete Account
                   </Button>
-                  <div className="flex justify-end items-center gap-3">
+                  <div className="flex justify-end items-center gap-2">
                     <Button
                       startContent={
                         isEditing ? <MdCancel /> : <MdModeEditOutline />
@@ -890,19 +911,52 @@ export default function ChatSidebarComponent({
                                 userType === "technician" && "hidden"
                               }`}
                               startContent={<IoMdTrash />}
-                              onClick={() => {
+                              onClick={async () => {
                                 const confirmed = window.confirm(
                                   "Are you sure you want to delete this message?"
                                 );
                                 if (confirmed) {
-                                  deleteChatMessage(
-                                    message.sender_id,
-                                    message.receiver_id
-                                  );
-                                  deleteChatConnection(
-                                    message.sender_id,
-                                    message.receiver_id
-                                  );
+                                  // deleteChatMessage(
+                                  //   message.sender_id,
+                                  //   message.receiver_id
+                                  // );
+                                  // deleteChatConnection(
+                                  //   message.sender_id,
+                                  //   message.receiver_id
+                                  // );
+
+                                  if (userType === "farmer") {
+                                    const partnerId =
+                                      user.id === message.sender_id
+                                        ? message.receiver_id
+                                        : message.sender_id;
+                                    const filePath = `public/${user.id}/${partnerId}`;
+
+                                    const { data: list } =
+                                      await supabase.storage
+                                        .from("chat-images")
+                                        .list(filePath);
+                                    const filesToRemove = list?.map(
+                                      (x) => `${filePath}/${x.name}`
+                                    );
+
+                                    if (
+                                      filesToRemove &&
+                                      filesToRemove.length > 0
+                                    ) {
+                                      const { error } = await supabase.storage
+                                        .from("chat-images")
+                                        .remove(filesToRemove);
+
+                                      if (error) {
+                                        console.error(
+                                          "Error deleting image:",
+                                          error.message
+                                        );
+                                        return;
+                                      }
+                                    }
+                                  }
 
                                   setOpenPopoverId(null);
                                 }
