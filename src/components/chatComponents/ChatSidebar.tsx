@@ -993,7 +993,7 @@ export default function ChatSidebarComponent({
                   color={"secondary"}
                   startContent={<FiHelpCircle />}
                   className={`${userType === "technician" && "hidden"}`}
-                  // onClick={onLogoutClick}
+                  onClick={() => router.push("/farmer/chat/help")}
                 >
                   Help
                 </Button>

@@ -25,8 +25,65 @@ import {
   insertReadingList,
   updateReadingList,
 } from "@/app/api/readingListsIUD";
+import useSuggestedLinks from "@/hooks/useSuggestedLinks";
+import {
+  deleteSuggestedLink,
+  insertSuggestedLink,
+  updateSuggestedLink,
+} from "@/app/api/suggestedLinkIUD";
 
 const AdminSettings = () => {
+  // suggested URL structure
+  const { suggestedLinks, isLoadingLinks, lastLinkOrderValue } =
+    useSuggestedLinks();
+  const [isModalSuggestedLinkOpen, setIsModalSuggestedLinkOpen] =
+    useState(false);
+  const [isSuggestedLinkEditMode, setIsSuggestedLinkEditMode] = useState(false);
+  const [newLinkName, setNewLinkName] = useState("");
+  const [newLinkUrl, setNewLinkUrl] = useState("");
+  const [selectedSuggestedLink, setSelectedSuggestedLink] = useState<any>(null);
+
+  const handleCloseLinkModal = () => {
+    setIsModalSuggestedLinkOpen(false);
+    setIsSuggestedLinkEditMode(false);
+    setSelectedSuggestedLink(null);
+    setNewLinkName("");
+    setNewLinkUrl("");
+  };
+
+  const handleAddLink = async () => {
+    const newLink = {
+      link_name: newLinkName,
+      link_url: newLinkUrl,
+      link_order: lastLinkOrderValue ? lastLinkOrderValue + 1 : 1,
+    };
+
+    await insertSuggestedLink(newLink);
+
+    handleCloseLinkModal();
+  };
+
+  const handleEditLink = async () => {
+    if (!selectedSuggestedLink) return;
+
+    const updatedLink = {
+      link_name: newLinkName,
+      link_url: newLinkUrl,
+    };
+
+    await updateSuggestedLink(selectedSuggestedLink.link_id, updatedLink);
+
+    handleCloseLinkModal();
+  };
+
+  const handleDeleteLink = async () => {
+    if (!selectedSuggestedLink) return;
+
+    await deleteSuggestedLink(selectedSuggestedLink.link_id);
+
+    handleCloseLinkModal();
+  };
+
   // suggested prompt structure
   const { premadePrompts, isLoadingPrompts, lastOrderValue } =
     usePremadePrompts();
@@ -107,20 +164,18 @@ const AdminSettings = () => {
   const handleAddReadingList = async () => {
     if (!newFile) return;
 
-    handleCloseReadingListModal();
-
     await insertReadingList(
       newFileName,
       BUCKET_NAME,
       lastListOrderValue ? lastListOrderValue + 1 : 1,
       newFile
     );
+
+    handleCloseReadingListModal();
   };
 
   const handleEditReadingList = async () => {
     if (!selectedSuggestedList) return;
-
-    handleCloseReadingListModal();
 
     await updateReadingList(
       selectedSuggestedList.list_id,
@@ -128,22 +183,92 @@ const AdminSettings = () => {
       BUCKET_NAME,
       selectedSuggestedList.list_id
     );
+
+    handleCloseReadingListModal();
   };
 
   const handleDeleteReadingList = async () => {
     if (!selectedSuggestedList) return;
-
-    handleCloseReadingListModal();
 
     await deleteReadingList(
       selectedSuggestedList.file_name,
       BUCKET_NAME,
       selectedSuggestedList.list_id
     );
+
+    handleCloseReadingListModal();
   };
 
   return (
     <>
+      <Modal
+        isOpen={isModalSuggestedLinkOpen}
+        onOpenChange={setIsModalSuggestedLinkOpen}
+        onClose={handleCloseLinkModal}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader>
+                {isSuggestedLinkEditMode ? "Edit URL" : "Add New URL"}
+              </ModalHeader>
+              <ModalBody className="flex flex-col gap-2">
+                <Input
+                  fullWidth
+                  label="Name"
+                  value={newLinkName}
+                  onChange={(e) => setNewLinkName(e.target.value)}
+                />
+                <Input
+                  fullWidth
+                  label="URL"
+                  value={newLinkUrl}
+                  onChange={(e) => setNewLinkUrl(e.target.value)}
+                />
+              </ModalBody>
+              <ModalFooter
+                className={`flex ${
+                  isSuggestedLinkEditMode ? "justify-between" : "justify-end"
+                }`}
+              >
+                <Button
+                  color="danger"
+                  variant="flat"
+                  className={`${
+                    isSuggestedLinkEditMode && selectedSuggestedLink
+                      ? "block"
+                      : "hidden"
+                  }`}
+                  onClick={handleDeleteLink}
+                >
+                  Delete
+                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    color="warning"
+                    variant="flat"
+                    onClick={handleCloseLinkModal}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    color="primary"
+                    variant="flat"
+                    onClick={() =>
+                      isSuggestedLinkEditMode && selectedSuggestedLink
+                        ? handleEditLink()
+                        : handleAddLink()
+                    }
+                  >
+                    {isSuggestedLinkEditMode ? "Save" : "Add"}
+                  </Button>
+                </div>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
       <Modal
         isOpen={isModalSuggestedPromptOpen}
         onOpenChange={setIsModalSuggestedPromptOpen}
@@ -401,6 +526,61 @@ const AdminSettings = () => {
                   >
                     <FaPiggyBank className="text-2xl flex-shrink-0" />
                     <div className="truncate flex-grow">{list.file_name}</div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col gap-2">
+          {/* 3.1 suggested URL header */}
+          <div className="flex justify-between gap-2">
+            <h2 className="text-lg font-semibold">Suggested URLs</h2>
+            <Button
+              color="success"
+              className="text-white"
+              startContent={<IoAdd />}
+              onClick={() => setIsModalSuggestedLinkOpen(true)}
+            >
+              Add New URL
+            </Button>
+          </div>
+
+          {/* 3.2 suggested URL data */}
+          <div className="w-full flex overflow-x-auto custom-scrollbar">
+            <div
+              className={`${
+                (isLoadingLinks ||
+                  (!isLoadingLinks && suggestedLinks.length === 0)) &&
+                "w-full"
+              } flex flex-nowrap gap-2`}
+            >
+              {isLoadingLinks && (
+                <div className="h-52 w-full flex justify-center items-center">
+                  <Spinner color="success" />
+                </div>
+              )}
+              {!isLoadingLinks && suggestedLinks.length === 0 && (
+                <div className="h-52 w-full flex justify-center items-center text-gray-500">
+                  No links yet
+                </div>
+              )}
+              {!isLoadingLinks &&
+                suggestedLinks.length > 0 &&
+                suggestedLinks.map((list, index) => (
+                  <div
+                    key={index}
+                    className="w-72 border border-[#007057] text-[#007057] text-start p-4 rounded-xl flex items-start justify-start gap-2"
+                    onClick={() => {
+                      setIsSuggestedLinkEditMode(true);
+                      setSelectedSuggestedLink(list);
+                      setNewLinkName(list.link_name);
+                      setNewLinkUrl(list.link_url);
+                      setIsModalSuggestedLinkOpen(true);
+                    }}
+                  >
+                    <FaPiggyBank className="text-2xl flex-shrink-0" />
+                    <div className="truncate flex-grow">{list.link_name}</div>
                   </div>
                 ))}
             </div>

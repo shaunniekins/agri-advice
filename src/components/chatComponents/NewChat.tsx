@@ -3,13 +3,9 @@
 import { insertChatConnection } from "@/app/api/chatConnectionsIUD";
 import { insertChatMessage } from "@/app/api/chatMessagesIUD";
 import { RootState } from "@/app/reduxUtils/store";
-import useChatConnections from "@/hooks/useChatConnections";
 import {
   Avatar,
   Button,
-  Card,
-  CardBody,
-  Input,
   Modal,
   ModalBody,
   ModalContent,
@@ -20,23 +16,19 @@ import {
   PopoverContent,
   PopoverTrigger,
   Spinner,
-  Tab,
-  Tabs,
   Textarea,
 } from "@nextui-org/react";
-import axios from "axios";
 import { useRouter } from "next/navigation";
 import React from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { BsThreeDotsVertical } from "react-icons/bs";
 import { FaPiggyBank } from "react-icons/fa";
 import { GiChoice } from "react-icons/gi";
-import { IoAddSharp, IoSendOutline } from "react-icons/io5";
+import { IoSendOutline } from "react-icons/io5";
 import { useSelector } from "react-redux";
-import WeatherWidget from "../WeatherWidget";
 import useUsers from "@/hooks/useUsers";
 import usePremadePrompts from "@/hooks/usePremadePrompts";
-import useReadingLists from "@/hooks/useReadingLists";
+import HelpComponent from "./Help";
 
 const ChatPageComponent = () => {
   const user = useSelector((state: RootState) => state.user.user);
@@ -45,7 +37,6 @@ const ChatPageComponent = () => {
   const rowsPerPage = 9;
 
   const [messageInput, setMessageInput] = useState("");
-  const [suggestedPrompts, setSuggestedPrompts] = useState<string[]>([]);
   const [chosenTechnicianId, setChosenTechnicianId] = useState<string | null>(
     null
   );
@@ -54,12 +45,12 @@ const ChatPageComponent = () => {
 
   const router = useRouter();
 
-  const {
-    usersData,
-    isLoadingUsers,
-    totalUserEntries,
-    fetchAndSubscribeUsers,
-  } = useUsers(rowsPerPage, page, "technician", "active");
+  const { usersData, isLoadingUsers, totalUserEntries } = useUsers(
+    rowsPerPage,
+    page,
+    "technician",
+    "active"
+  );
 
   const totalPages = Math.ceil(totalUserEntries / rowsPerPage);
 
@@ -107,106 +98,8 @@ const ChatPageComponent = () => {
     }
   }, [user]);
 
-  //   technician
-  const { readingLists, isLoadingLists, lastListOrderValue } =
-    useReadingLists();
-
-  const [weather, setWeather] = useState<any | null>(null);
-
-  useEffect(() => {
-    if (userType !== "technician") return;
-
-    const fetchWeather = async (latitude: number, longitude: number) => {
-      try {
-        const apiKey = process.env.NEXT_PUBLIC_OPEN_WEATHER_API_KEY;
-
-        const response = await axios.get(
-          `https://api.openweathermap.org/data/2.5/weather?lat=${latitude}&lon=${longitude}&appid=${apiKey}&units=metric`
-        );
-        setWeather(response.data);
-        setIsLoading(false);
-      } catch (err: any) {
-        console.error(err);
-        setIsLoading(false);
-      }
-    };
-
-    const getLocation = () => {
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const { latitude, longitude } = position.coords;
-            fetchWeather(latitude, longitude);
-            // Set up polling to fetch weather data every 10 minutes
-            const intervalId = setInterval(() => {
-              fetchWeather(latitude, longitude);
-            }, 600000); // 600000 ms = 10 minutes
-
-            // Clear interval on component unmount
-            return () => clearInterval(intervalId);
-          },
-          (error) => {
-            console.error(error);
-            // Use default coordinates for Bunawan City if location access is denied
-            const defaultLatitude = 8.1575;
-            const defaultLongitude = 125.9938;
-            fetchWeather(defaultLatitude, defaultLongitude);
-            // Set up polling to fetch weather data every 10 minutes
-            const intervalId = setInterval(() => {
-              fetchWeather(defaultLatitude, defaultLongitude);
-            }, 600000); // 600000 ms = 10 minutes
-
-            // Clear interval on component unmount
-            return () => clearInterval(intervalId);
-          }
-        );
-      } else {
-        // Use default coordinates for Bunawan City if geolocation is not supported
-        const defaultLatitude = 8.1575;
-        const defaultLongitude = 125.9938;
-        fetchWeather(defaultLatitude, defaultLongitude);
-        // Set up polling to fetch weather data every 10 minutes
-        const intervalId = setInterval(() => {
-          fetchWeather(defaultLatitude, defaultLongitude);
-        }, 600000); // 600000 ms = 10 minutes
-
-        // Clear interval on component unmount
-        return () => clearInterval(intervalId);
-      }
-    };
-
-    getLocation();
-  }, [userType]);
-
   if (userType === "technician") {
-    return (
-      <div className="h-full w-full grid grid-cols-1 lg:grid-cols-[1fr,2fr] gap-5 overflow-auto relative">
-        <div>{weather && <WeatherWidget weather={weather} />}</div>
-        <div className="h-full w-full flex flex-col gap-2 overflow-x-auto">
-          <h2 className="text-2xl font-bold text-gray-800">Reading List</h2>
-          <Tabs
-            aria-label="Dynamic tabs"
-            color="default"
-            radius="full"
-            items={readingLists}
-          >
-            {(item) => (
-              <Tab key={item.list_id} title={item.file_name} className="h-full">
-                <Card className="h-full">
-                  <CardBody className="p-0 m-0">
-                    <iframe
-                      src={item.file_url}
-                      className="w-full h-full"
-                      title={item.file_name}
-                    />
-                  </CardBody>
-                </Card>
-              </Tab>
-            )}
-          </Tabs>
-        </div>
-      </div>
-    );
+    <HelpComponent setIsLoading={setIsLoading} />;
   }
 
   if (userType === "farmer") {
