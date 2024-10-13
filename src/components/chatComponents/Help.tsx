@@ -103,7 +103,7 @@ const HelpComponent = ({ setIsLoading }: Readonly<{ setIsLoading: any }>) => {
             ))}
         </div>
       </div>
-      <div className="h-full w-full flex flex-col gap-2 overflow-x-auto">
+      <div className="h-[80svh] lg:h-full w-full flex flex-col gap-2 overflow-x-auto">
         <h2 className="text-2xl font-bold text-gray-800">Reading List</h2>
         <Tabs
           aria-label="Dynamic tabs"

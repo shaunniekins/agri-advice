@@ -124,70 +124,71 @@ const UserComponent = () => {
 
   return (
     <div className="h-full w-full flex flex-col gap-2">
-      <div className="flex justify-end gap-2">
-        {/* Status filter shown only for technician */}
-        <Select
-          label="Filter by Status"
-          disallowEmptySelection={true}
-          size="sm"
-          className={`${userType !== "technician" && "hidden"} max-w-48`}
-          defaultSelectedKeys={["pending"]}
-          value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value)}
-        >
-          <SelectItem key="pending" value="pending">
-            Pending
-          </SelectItem>
-          <SelectItem key="active" value="active">
-            Accepted
-          </SelectItem>
-          <SelectItem key="rejected" value="rejected">
-            Rejected
-          </SelectItem>
-        </Select>
+      <div className="flex flex-col lg:flex-row justify-between gap-2">
+        {/* Pagination of the table */}
+        <div className="w-full flex justify-start">
+          <Pagination
+            isCompact
+            showControls
+            showShadow
+            color="success"
+            page={page}
+            total={totalPages}
+            onChange={(newPage) => setPage(newPage)}
+          />
+        </div>
+        <div className="w-full flex justify-end gap-2">
+          {/* Status filter shown only for technician */}
+          <Select
+            label="Filter by Status"
+            disallowEmptySelection={true}
+            size="sm"
+            className={`${userType !== "technician" && "hidden"} max-w-48`}
+            defaultSelectedKeys={["pending"]}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <SelectItem key="pending" value="pending">
+              Pending
+            </SelectItem>
+            <SelectItem key="active" value="active">
+              Accepted
+            </SelectItem>
+            <SelectItem key="rejected" value="rejected">
+              Rejected
+            </SelectItem>
+          </Select>
 
-        {/* User type switch */}
-        <Select
-          label="User Type"
-          disallowEmptySelection={true}
-          size="sm"
-          className="max-w-48"
-          defaultSelectedKeys={["technician"]}
-          value={userType}
-          onChange={(e) => setUserType(e.target.value)}
-        >
-          <SelectItem key="technician" value="technician">
-            Technician
-          </SelectItem>
-          <SelectItem key="farmer" value="farmer">
-            Farmer
-          </SelectItem>
-        </Select>
+          {/* User type switch */}
+          <Select
+            label="User Type"
+            disallowEmptySelection={true}
+            size="sm"
+            className="max-w-48"
+            defaultSelectedKeys={["technician"]}
+            value={userType}
+            onChange={(e) => setUserType(e.target.value)}
+          >
+            <SelectItem key="technician" value="technician">
+              Technician
+            </SelectItem>
+            <SelectItem key="farmer" value="farmer">
+              Farmer
+            </SelectItem>
+          </Select>
+        </div>
       </div>
 
       {/* Table to display users */}
       <Table
         fullWidth
-        layout="fixed"
+        layout="auto"
         isHeaderSticky={true}
         aria-label="Users Table with Pagination"
-        bottomContent={
-          <div className="flex w-full justify-center">
-            <Pagination
-              isCompact
-              showControls
-              showShadow
-              color="success"
-              page={page}
-              total={totalPages}
-              onChange={(newPage) => setPage(newPage)}
-            />
-          </div>
-        }
         classNames={{
-          wrapper: "min-h-[222px] h-full",
+          wrapper: "w-full h-full",
         }}
-        className="h-full w-full flex items-center justify-center"
+        className="h-full w-full flex items-center justify-center overflow-x-auto"
       >
         <TableHeader columns={columns}>
           {(column) => (

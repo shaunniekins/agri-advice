@@ -26,7 +26,7 @@ export default function Home() {
 
   return (
     <>
-      <div className="bg-[#F4FFFC] h-[100svh] w-screen flex justify-center items-center">
+      <div className="bg-[#F4FFFC] h-[100svh] w-screen flex justify-center items-center overflow-y-auto">
         <Card className="w-80 h-80 mx-3">
           <CardHeader className="bg-[#007057] flex justify-center items-center">
             <p className="text-center text-white text-lg font-semibold">

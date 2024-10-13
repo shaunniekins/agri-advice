@@ -1,19 +1,24 @@
 "use client";
 
+import React, { useEffect, useState } from "react";
 import useTotalUsers from "@/hooks/useTotalUsers";
-import React from "react";
+import useTotalConnections from "@/hooks/useTotalConnections";
+import useUsersPerMonth from "@/hooks/useUsersPerMonth";
 import { GiFarmer } from "react-icons/gi";
 import { FaUserTie } from "react-icons/fa";
-import useTotalConnections from "@/hooks/useTotalConnections";
 import { IoLinkSharp } from "react-icons/io5";
+import UsersPerMonthChart from "./UsersPerMonthChart";
+import { Select, SelectItem } from "@nextui-org/react";
 
 const AdminDashboard = () => {
   const { totalFarmers, totalTechnicians } = useTotalUsers();
   const { totalConnections } = useTotalConnections();
+  const [userType, setUserType] = useState("all");
+  const { usersPerMonth, loading, error } = useUsersPerMonth(userType);
+
   return (
-    <div className="flex flex-col gap-5">
-      {/* <h1 className="mb-10 font-bold text-3xl">Dashboard</h1> */}
-      <div className="grid md:grid-cols-3 gap-3 md:gap-5">
+    <div className="h-full w-full flex flex-col gap-5 overflow-x-hidden overflow-y-auto lg:overflow-hidden">
+      <div className="h-full grid md:grid-cols-3 gap-3 md:gap-5">
         <CardStats
           title="Total Farmers"
           subtitle="Total number of farmers"
@@ -28,11 +33,41 @@ const AdminDashboard = () => {
         />
         <CardStats
           title="Total Connections"
-            subtitle="Total number of links"
-        //   subtitle="Farmers connected to technicians"
+          subtitle="Total number of links"
           value={totalConnections.toString()}
           icon={<IoLinkSharp size={80} />}
         />
+      </div>
+      <div className="h-full w-full mt-10 pb-20">
+        <div className="flex justify-between items-center mb-5">
+          <h2 className="text-xl font-semibold">Users Per Month</h2>
+          <Select
+            label="User Type"
+            disallowEmptySelection={true}
+            size="sm"
+            className="max-w-48"
+            defaultSelectedKeys={["all"]}
+            value={userType}
+            onChange={(e) => setUserType(e.target.value)}
+          >
+            <SelectItem key="all" value="all">
+              All
+            </SelectItem>
+            <SelectItem key="technician" value="technician">
+              Technician
+            </SelectItem>
+            <SelectItem key="farmer" value="farmer">
+              Farmer
+            </SelectItem>
+          </Select>
+        </div>
+        {loading ? (
+          <p>Loading...</p>
+        ) : error ? (
+          <p>Error loading data</p>
+        ) : (
+          <UsersPerMonthChart data={usersPerMonth} />
+        )}
       </div>
     </div>
   );
