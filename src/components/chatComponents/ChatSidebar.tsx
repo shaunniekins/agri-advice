@@ -446,7 +446,7 @@ export default function ChatSidebarComponent({
 
   const [openPartnerInfo, setOpenPartnerInfo] = useState(false);
   const [partnerUserInfo, setPartnerUserInfo] = useState<any[]>([]);
-  const [verticalSidePopoverOpen, setVerticalSidePopoverOpen] = useState(false);
+  const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
 
   return (
     <>
@@ -802,7 +802,7 @@ export default function ChatSidebarComponent({
                     No chat history
                   </li>
                 ) : (
-                  chatHeaders.map((message, index) => {
+                  chatHeaders.map((message) => {
                     const displayName =
                       message.sender_id !== user.id
                         ? `${message.sender_raw_user_meta_data.first_name} ${message.sender_raw_user_meta_data.last_name}`
@@ -824,12 +824,10 @@ export default function ChatSidebarComponent({
                         } flex items-center py-2 px-3 text-sm rounded-md hover:bg-[#005c4d] cursor-pointer w-full relative group`}
                         onClick={() => {
                           if (user.id === message.sender_id) {
-                            // alert("You are the sender");
                             router.push(
                               `/${userType}/chat/id?sender=${message.sender_id}&receiver=${message.receiver_id}`
                             );
                           } else {
-                            // alert("You are the receiver");
                             router.push(
                               `/${userType}/chat/id?sender=${message.sender_id}&receiver=${message.receiver_id}`
                             );
@@ -851,14 +849,24 @@ export default function ChatSidebarComponent({
                         </span>
                         <Popover
                           showArrow
-                          isOpen={verticalSidePopoverOpen}
-                          onOpenChange={(open) =>
-                            setVerticalSidePopoverOpen(open)
-                          }
+                          isOpen={openPopoverId === message.chat_message_id}
+                          onOpenChange={(open) => {
+                            if (open) {
+                              setOpenPopoverId(message.chat_message_id);
+                            } else {
+                              setOpenPopoverId(null);
+                            }
+                          }}
                           placement="bottom"
                         >
                           <PopoverTrigger>
-                            <div className="absolute top-1/2 right-3 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full p-2 hover:bg-green-900">
+                            <div
+                              className="absolute top-1/2 right-3 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full p-2 hover:bg-green-900"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenPopoverId(message.chat_message_id);
+                              }}
+                            >
                               <BsThreeDotsVertical />
                             </div>
                           </PopoverTrigger>
@@ -870,7 +878,7 @@ export default function ChatSidebarComponent({
                               onClick={() => {
                                 setOpenPartnerInfo(true);
                                 setPartnerUserInfo(message);
-                                setVerticalSidePopoverOpen(false);
+                                setOpenPopoverId(null);
                               }}
                             >
                               View
@@ -895,6 +903,8 @@ export default function ChatSidebarComponent({
                                     message.sender_id,
                                     message.receiver_id
                                   );
+
+                                  setOpenPopoverId(null);
                                 }
                               }}
                             >
