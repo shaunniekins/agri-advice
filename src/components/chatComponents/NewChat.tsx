@@ -99,7 +99,7 @@ const ChatPageComponent = () => {
   }, [user]);
 
   if (userType === "technician") {
-    <HelpComponent setIsLoading={setIsLoading} />;
+    return <HelpComponent setIsLoading={setIsLoading} />;
   }
 
   if (userType === "farmer") {
