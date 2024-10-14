@@ -82,7 +82,7 @@ const HelpComponent = ({ setIsLoading }: Readonly<{ setIsLoading: any }>) => {
   }, []);
 
   return (
-    <div className="h-full w-full grid grid-cols-1 lg:grid-cols-[1fr,2fr] gap-5 overflow-auto relative">
+    <div className="h-full w-full grid grid-cols-1 lg:grid-cols-[1fr,3fr] gap-5 overflow-auto relative">
       <div className="flex flex-col gap-6">
         {weather && <WeatherWidget weather={weather} />}
 
@@ -94,7 +94,7 @@ const HelpComponent = ({ setIsLoading }: Readonly<{ setIsLoading: any }>) => {
             suggestedLinks.map((list, index) => (
               <div
                 key={index}
-                className="w-full border border-[#007057] text-[#007057] text-start p-4 rounded-xl flex items-start justify-start gap-2 cursor-pointer"
+                className="w-full lg:w-96 border border-[#007057] text-[#007057] text-start p-4 rounded-xl flex items-start justify-start gap-2 cursor-pointer"
                 onClick={() => window.open(list.link_url, "_blank")}
               >
                 <FaPiggyBank className="text-2xl flex-shrink-0" />
@@ -103,7 +103,7 @@ const HelpComponent = ({ setIsLoading }: Readonly<{ setIsLoading: any }>) => {
             ))}
         </div>
       </div>
-      <div className="h-[80svh] lg:h-full w-full flex flex-col gap-2 overflow-x-auto">
+      <div className="h-[80svh] lg:h-full flex flex-col gap-2 overflow-x-auto">
         <h2 className="text-2xl font-bold text-gray-800">Reading List</h2>
         <Tabs
           aria-label="Dynamic tabs"

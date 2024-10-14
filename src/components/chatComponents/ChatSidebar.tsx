@@ -1070,7 +1070,9 @@ export default function ChatSidebarComponent({
             <div className="flex-1 overflow-hidden">
               <div
                 className={`${
-                  isTechnicianPathBase && userType === "technician"
+                  pathname === "/farmer/chat/help"
+                    ? "lg:px-32"
+                    : isTechnicianPathBase && userType === "technician"
                     ? "lg:px-10"
                     : "lg:px-72"
                 } h-full w-full flex flex-col bg-[#F4FFFC] px-4 pt-5 lg:pt-10`}
