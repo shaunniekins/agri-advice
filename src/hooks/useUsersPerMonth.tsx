@@ -9,7 +9,7 @@ interface UsersPerMonth {
   count: number;
 }
 
-const useUsersPerMonth = (userType: string) => {
+const useUsersPerMonth = (userType: string, yearFilter: string) => {
   const [usersPerMonth, setUsersPerMonth] = useState<UsersPerMonth[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -28,6 +28,12 @@ const useUsersPerMonth = (userType: string) => {
             "technician",
             "farmer",
           ]);
+        }
+
+        if (yearFilter && yearFilter !== "all") {
+          query = query
+            .gte("created_at", `${yearFilter}-01-01T00:00:00.000Z`)
+            .lte("created_at", `${yearFilter}-12-31T23:59:59.999Z`);
         }
 
         const { data, error } = await query;

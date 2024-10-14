@@ -9,12 +9,34 @@ import { FaUserTie } from "react-icons/fa";
 import { IoLinkSharp } from "react-icons/io5";
 import UsersPerMonthChart from "./UsersPerMonthChart";
 import { Select, SelectItem } from "@nextui-org/react";
+import useUserCreationYears from "@/hooks/useUserCreationYears";
 
 const AdminDashboard = () => {
   const { totalFarmers, totalTechnicians } = useTotalUsers();
   const { totalConnections } = useTotalConnections();
   const [userType, setUserType] = useState("all");
-  const { usersPerMonth, loading, error } = useUsersPerMonth(userType);
+  const { creationYears } = useUserCreationYears();
+  const [creationYearsFormatted, setCreationYearsFormatted] = useState<any[]>(
+    []
+  );
+  const [selectedYear, setSelectedYear] = useState("all");
+  const { usersPerMonth, loading, error } = useUsersPerMonth(
+    userType,
+    selectedYear
+  );
+
+  useEffect(() => {
+    // Transform the creationYears data
+    const formattedData = creationYears.map((item: any) => ({
+      key: item.year.toString(),
+      label: item.year.toString(),
+    }));
+
+    // Append the "all" option
+    formattedData.unshift({ key: "all", label: "All" });
+
+    setCreationYearsFormatted(formattedData);
+  }, [creationYears]);
 
   return (
     <div className="h-full w-full flex flex-col gap-5 overflow-x-hidden overflow-y-auto lg:overflow-hidden">
@@ -39,27 +61,42 @@ const AdminDashboard = () => {
         />
       </div>
       <div className="h-full w-full mt-10 pb-20">
-        <div className="flex justify-between items-center mb-5">
-          <h2 className="text-xl font-semibold">Users Per Month</h2>
-          <Select
-            label="User Type"
-            disallowEmptySelection={true}
-            size="sm"
-            className="max-w-48"
-            defaultSelectedKeys={["all"]}
-            value={userType}
-            onChange={(e) => setUserType(e.target.value)}
-          >
-            <SelectItem key="all" value="all">
-              All
-            </SelectItem>
-            <SelectItem key="technician" value="technician">
-              Technician
-            </SelectItem>
-            <SelectItem key="farmer" value="farmer">
-              Farmer
-            </SelectItem>
-          </Select>
+        <div className="w-full flex justify-between items-center mb-5">
+          <h2 className="w-full text-xl font-semibold">Users Per Month</h2>
+          <div className="w-full flex justify-end gap-3">
+            <Select
+              items={creationYearsFormatted}
+              label="Year"
+              disallowEmptySelection={true}
+              size="sm"
+              className="max-w-48"
+              defaultSelectedKeys={["all"]}
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+            >
+              {(item) => <SelectItem key={item.key}>{item.label}</SelectItem>}
+            </Select>
+
+            <Select
+              label="User Type"
+              disallowEmptySelection={true}
+              size="sm"
+              className="max-w-48"
+              defaultSelectedKeys={["all"]}
+              value={userType}
+              onChange={(e) => setUserType(e.target.value)}
+            >
+              <SelectItem key="all" value="all">
+                All
+              </SelectItem>
+              <SelectItem key="technician" value="technician">
+                Technician
+              </SelectItem>
+              <SelectItem key="farmer" value="farmer">
+                Farmer
+              </SelectItem>
+            </Select>
+          </div>
         </div>
         {loading ? (
           <p>Loading...</p>

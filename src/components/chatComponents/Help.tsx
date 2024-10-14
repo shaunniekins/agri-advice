@@ -1,12 +1,24 @@
 "use client";
 
-import { Card, CardBody, Tab, Tabs } from "@nextui-org/react";
+import {
+  Card,
+  CardBody,
+  Select,
+  SelectItem,
+  Tab,
+  Tabs,
+} from "@nextui-org/react";
 import WeatherWidget from "../WeatherWidget";
 import useReadingLists from "@/hooks/useReadingLists";
 import { useEffect, useState } from "react";
 import axios from "axios";
 import useSuggestedLinks from "@/hooks/useSuggestedLinks";
 import { FaPiggyBank } from "react-icons/fa";
+import useRequestsPerMonth from "@/hooks/useRequestsPerMonth";
+import { useSelector } from "react-redux";
+import { RootState } from "@/app/reduxUtils/store";
+import UsersPerMonthChart from "../adminComponents/UsersPerMonthChart";
+import useRequestYears from "@/hooks/useRequestYears";
 
 const HelpComponent = ({ setIsLoading }: Readonly<{ setIsLoading: any }>) => {
   const { readingLists, isLoadingLists, lastListOrderValue } =
@@ -81,6 +93,33 @@ const HelpComponent = ({ setIsLoading }: Readonly<{ setIsLoading: any }>) => {
     };
   }, []);
 
+  const user = useSelector((state: RootState) => state.user.user);
+  const [userType, setUserType] = useState<string | null>(null);
+  const [selectedYear, setSelectedYear] = useState("all");
+  const { requestYears } = useRequestYears();
+  const [requestYearFormatted, setRequestYearFormatted] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (user && user.user_metadata) {
+      setUserType(user.user_metadata.user_type);
+    }
+  }, [user]);
+
+  const { requestsPerMonth } = useRequestsPerMonth(user?.id, selectedYear);
+
+  useEffect(() => {
+    // Transform the creationYears data
+    const formattedData = requestYears.map((item: any) => ({
+      key: item.year.toString(),
+      label: item.year.toString(),
+    }));
+
+    // Append the "all" option
+    formattedData.unshift({ key: "all", label: "All" });
+
+    setRequestYearFormatted(formattedData);
+  }, [requestYears]);
+
   return (
     <div className="h-full w-full grid grid-cols-1 lg:grid-cols-[1fr,3fr] gap-5 overflow-auto relative">
       <div className="flex flex-col gap-6">
@@ -103,15 +142,37 @@ const HelpComponent = ({ setIsLoading }: Readonly<{ setIsLoading: any }>) => {
             ))}
         </div>
       </div>
+
       <div className="h-[80svh] lg:h-full flex flex-col gap-2 overflow-x-auto">
         <h2 className="text-2xl font-bold text-gray-800">Reading List</h2>
-        <Tabs
-          aria-label="Dynamic tabs"
-          color="default"
-          radius="full"
-          items={readingLists}
-        >
-          {(item) => (
+        <Tabs aria-label="Dynamic tabs" color="default" radius="full">
+          {userType === "technician" && (
+            <Tab key="stats" title="Stats" className="h-full">
+              <div className="w-full flex justify-between items-center mb-5">
+                <h2 className="w-full text-2xl font-bold text-gray-800">
+                  Inquiries
+                </h2>
+                <div className="w-full flex justify-end gap-3">
+                  <Select
+                    items={requestYearFormatted}
+                    label="Year"
+                    disallowEmptySelection={true}
+                    size="sm"
+                    className="max-w-48"
+                    defaultSelectedKeys={["all"]}
+                    value={selectedYear}
+                    onChange={(e) => setSelectedYear(e.target.value)}
+                  >
+                    {requestYearFormatted.map((item) => (
+                      <SelectItem key={item.key}>{item.label}</SelectItem>
+                    ))}
+                  </Select>
+                </div>
+              </div>
+              <UsersPerMonthChart data={requestsPerMonth} />
+            </Tab>
+          )}
+          {readingLists.map((item) => (
             <Tab key={item.list_id} title={item.file_name} className="h-full">
               <Card className="h-full">
                 <CardBody className="p-0 m-0">
@@ -123,7 +184,7 @@ const HelpComponent = ({ setIsLoading }: Readonly<{ setIsLoading: any }>) => {
                 </CardBody>
               </Card>
             </Tab>
-          )}
+          ))}
         </Tabs>
       </div>
     </div>
