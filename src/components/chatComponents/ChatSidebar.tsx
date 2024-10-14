@@ -916,14 +916,14 @@ export default function ChatSidebarComponent({
                                   "Are you sure you want to delete this message?"
                                 );
                                 if (confirmed) {
-                                  // deleteChatMessage(
-                                  //   message.sender_id,
-                                  //   message.receiver_id
-                                  // );
-                                  // deleteChatConnection(
-                                  //   message.sender_id,
-                                  //   message.receiver_id
-                                  // );
+                                  deleteChatMessage(
+                                    message.sender_id,
+                                    message.receiver_id
+                                  );
+                                  deleteChatConnection(
+                                    message.sender_id,
+                                    message.receiver_id
+                                  );
 
                                   if (userType === "farmer") {
                                     const partnerId =
