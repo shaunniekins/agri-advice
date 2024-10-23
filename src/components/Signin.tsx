@@ -115,16 +115,18 @@ const SigninComponent = ({ userType }: SigninComponentProps) => {
           <Button
             type="submit"
             variant="ghost"
-            isDisabled={userType === "administrator"}
+            isDisabled={
+              userType === "administrator" || userType === "technician"
+            }
             color="success"
             onClick={() => {
               return router.push(`/ident/signup?usertype=${userType}`);
             }}
             className="absolute bottom-5"
           >
-            {userType !== "administrator"
+            {userType !== "administrator" && userType !== "technician"
               ? "Create New Account"
-              : "administrator"}
+              : userType.toUpperCase()}
           </Button>
         </>
       )}

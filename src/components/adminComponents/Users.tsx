@@ -12,10 +12,20 @@ import {
   Select,
   Button,
   Spinner,
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  Input,
+  ModalFooter,
 } from "@nextui-org/react";
 import useUsers from "@/hooks/useUsers";
 import { useState, useEffect } from "react";
 import { supabaseAdmin } from "@/utils/supabase";
+import { FaTrash } from "react-icons/fa";
+import { IoAddOutline } from "react-icons/io5";
+import { EyeSlashFilledIcon } from "../../../public/icons/EyeSlashFilledIcon";
+import { EyeFilledIcon } from "../../../public/icons/EyeFilledIcon";
 
 const UserComponent = () => {
   const [page, setPage] = useState(1);
@@ -23,17 +33,28 @@ const UserComponent = () => {
   const [userType, setUserType] = useState("technician");
   const rowsPerPage = 10;
 
+  const [isAddNewTechnicianModalOpen, setIsAddNewTechnicianModalOpen] =
+    useState(false);
+
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [middleName, setMiddleName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isInputUserPasswordVisible, setIsInputUserPasswordVisible] =
+    useState(false);
+  const [mobileNumber, setMobileNumber] = useState("");
+  const [birthDate, setBirthDate] = useState("");
+  const [address, setAddress] = useState("");
+  const [licenseNumber, setLicenseNumber] = useState("");
+  const [specialization, setSpecialization] = useState("");
+
   const {
     usersData,
     isLoadingUsers,
     totalUserEntries,
     fetchAndSubscribeUsers,
-  } = useUsers(
-    rowsPerPage,
-    page,
-    userType,
-    userType === "technician" ? statusFilter : undefined
-  );
+  } = useUsers(rowsPerPage, page, userType, undefined);
 
   useEffect(() => {
     setPage(1); // Reset the page when userType changes
@@ -49,58 +70,58 @@ const UserComponent = () => {
     );
   }
 
-  const handleAction = async (
-    user_id: string,
-    action: string,
-    item_data: any
-  ) => {
-    try {
-      const { data: user, error } =
-        await supabaseAdmin.auth.admin.updateUserById(user_id, {
-          user_metadata: { account_status: action },
-        });
+  // const handleAction = async (
+  //   user_id: string,
+  //   action: string,
+  //   item_data: any
+  // ) => {
+  //   try {
+  //     const { data: user, error } =
+  //       await supabaseAdmin.auth.admin.updateUserById(user_id, {
+  //         user_metadata: { account_status: action },
+  //       });
 
-      if (error) throw error;
+  //     if (error) throw error;
 
-      //       if (action === "active" && user) {
-      //         const emailData = {
-      //           email: item_data.email,
-      //           recipient_name: `${item_data.first_name} ${item_data.last_name}`,
-      //           subject: "Account Approved",
-      //           message: `
-      // Greetings!
-      // We are pleased to inform you that your account associated with the email ${item_data.email} has been approved. You can now sign in and access your account.
-      // Thank you!
-      // Best regards,
-      // Agri Advice Team`,
-      //         };
+  //     //       if (action === "active" && user) {
+  //     //         const emailData = {
+  //     //           email: item_data.email,
+  //     //           recipient_name: `${item_data.first_name} ${item_data.last_name}`,
+  //     //           subject: "Account Approved",
+  //     //           message: `
+  //     // Greetings!
+  //     // We are pleased to inform you that your account associated with the email ${item_data.email} has been approved. You can now sign in and access your account.
+  //     // Thank you!
+  //     // Best regards,
+  //     // Agri Advice Team`,
+  //     //         };
 
-      //         try {
-      //           const response = await fetch("/api/send-email", {
-      //             method: "POST",
-      //             headers: { "Content-Type": "application/json" },
-      //             body: JSON.stringify(emailData),
-      //           });
+  //     //         try {
+  //     //           const response = await fetch("/api/send-email", {
+  //     //             method: "POST",
+  //     //             headers: { "Content-Type": "application/json" },
+  //     //             body: JSON.stringify(emailData),
+  //     //           });
 
-      //           const data = await response.json();
+  //     //           const data = await response.json();
 
-      //           if (response.ok) {
-      //             console.log("Email sent successfully!");
-      //           } else {
-      //             console.log(
-      //               `Failed to send email: ${data?.error || "Unknown error"}`
-      //             );
-      //           }
-      //         } catch (error) {
-      //           console.error("Error sending email:", error);
-      //         }
-      //       }
+  //     //           if (response.ok) {
+  //     //             console.log("Email sent successfully!");
+  //     //           } else {
+  //     //             console.log(
+  //     //               `Failed to send email: ${data?.error || "Unknown error"}`
+  //     //             );
+  //     //           }
+  //     //         } catch (error) {
+  //     //           console.error("Error sending email:", error);
+  //     //         }
+  //     //       }
 
-      fetchAndSubscribeUsers();
-    } catch (error) {
-      console.error("Error updating user:", error);
-    }
-  };
+  //     fetchAndSubscribeUsers();
+  //   } catch (error) {
+  //     console.error("Error updating user:", error);
+  //   }
+  // };
 
   const TechnicianColumns = [
     { key: "first_name", label: "FIRST NAME" },
@@ -117,13 +138,203 @@ const UserComponent = () => {
     { key: "last_name", label: "LAST NAME" },
     { key: "mobile_number", label: "MOBILE" },
     { key: "email", label: "EMAIL" },
+    { key: "actions", label: "ACTIONS" },
   ];
 
   const columns = userType === "technician" ? TechnicianColumns : FarmerColumns;
   const data = usersData;
 
+  const handleMobileNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Allow only digits and limit to 11 characters
+    if (/^\d{0,11}$/.test(value)) {
+      setMobileNumber(value);
+    }
+  };
+
   return (
     <div className="h-full w-full flex flex-col gap-2">
+      <Modal
+        size="xl"
+        isOpen={isAddNewTechnicianModalOpen}
+        onOpenChange={setIsAddNewTechnicianModalOpen}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader>New Technician</ModalHeader>
+              <ModalBody className="grid grid-cols-2">
+                <Input
+                  label="First Name"
+                  variant="bordered"
+                  color="success"
+                  isRequired
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                />
+                <Input
+                  label="Middle Name"
+                  variant="bordered"
+                  color="success"
+                  value={middleName}
+                  onChange={(e) => setMiddleName(e.target.value)}
+                />
+                <Input
+                  label="Last Name"
+                  variant="bordered"
+                  color="success"
+                  isRequired
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                />
+                <Input
+                  type="email"
+                  label="Email"
+                  variant="bordered"
+                  color="success"
+                  isRequired
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                />
+                <Input
+                  type={isInputUserPasswordVisible ? "text" : "password"}
+                  label="Password"
+                  variant="bordered"
+                  color="success"
+                  isRequired
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  endContent={
+                    <button
+                      className="focus:outline-none"
+                      type="button"
+                      onClick={() =>
+                        setIsInputUserPasswordVisible(
+                          !isInputUserPasswordVisible
+                        )
+                      }
+                    >
+                      {isInputUserPasswordVisible ? (
+                        <EyeSlashFilledIcon className="text-2xl text-default-400 pointer-events-none" />
+                      ) : (
+                        <EyeFilledIcon className="text-2xl text-default-400 pointer-events-none" />
+                      )}
+                    </button>
+                  }
+                />
+                <Input
+                  type="text"
+                  label="Mobile Number"
+                  variant="bordered"
+                  color="success"
+                  isRequired
+                  value={mobileNumber}
+                  onChange={handleMobileNumberChange}
+                />
+                <Input
+                  type="text"
+                  label="Birth Date"
+                  placeholder="YYYY-MM-DD"
+                  variant="bordered"
+                  color="success"
+                  isRequired
+                  value={birthDate}
+                  onChange={(e) => setBirthDate(e.target.value)}
+                />
+                <Select
+                  label="Area Assigned"
+                  color="success"
+                  variant="bordered"
+                  isRequired
+                  defaultSelectedKeys={[address]}
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                >
+                  <SelectItem key={"Bunawan Brook"}>Bunawan Brook</SelectItem>
+                  <SelectItem key={"Consuelo"}>Consuelo</SelectItem>
+                  <SelectItem key={"Imelda"}>Imelda</SelectItem>
+                  <SelectItem key={"Libertad"}>Libertad</SelectItem>
+                  <SelectItem key={"Mambalili"}>Mambalili</SelectItem>
+                  <SelectItem key={"Nueva Era"}>Nueva Era</SelectItem>
+                  <SelectItem key={"Poblacion"}>Poblacion</SelectItem>
+                  <SelectItem key={"San Andres"}>San Andres</SelectItem>
+                  <SelectItem key={"San Marcos"}>San Marcos</SelectItem>
+                  <SelectItem key={"San Teodoro"}>San Teodoro</SelectItem>
+                </Select>
+                <Input
+                  type="text"
+                  label="License Number"
+                  variant="bordered"
+                  color="success"
+                  value={licenseNumber}
+                  onChange={(e) => setLicenseNumber(e.target.value)}
+                />
+                <Input
+                  type="text"
+                  label="Specialization"
+                  variant="bordered"
+                  color="success"
+                  isRequired
+                  value={specialization}
+                  onChange={(e) => setSpecialization(e.target.value)}
+                />
+              </ModalBody>
+              <ModalFooter>
+                <Button
+                  color="success"
+                  className="text-white"
+                  onClick={async () => {
+                    const { error } = await supabaseAdmin.auth.admin.createUser(
+                      {
+                        email,
+                        password,
+                        email_confirm: true,
+                        user_metadata: {
+                          account_status: "active",
+                          profile_picture: "",
+                          email: email,
+                          password: password,
+                          first_name: firstName,
+                          last_name: lastName,
+                          middle_name: middleName,
+                          mobile_number: mobileNumber,
+                          birth_date: birthDate,
+                          address: address,
+                          license_number: licenseNumber,
+                          specialization: specialization,
+                          experiences: "",
+                          user_type: "technician",
+                        },
+                      }
+                    );
+                    if (error) {
+                      alert(error.message);
+                      return;
+                    }
+                    setIsAddNewTechnicianModalOpen(false);
+                    fetchAndSubscribeUsers();
+                  }}
+                  isDisabled={
+                    !email ||
+                    !password ||
+                    !firstName ||
+                    !lastName ||
+                    !mobileNumber ||
+                    !birthDate ||
+                    !address ||
+                    !specialization
+                  }
+                >
+                  Add
+                </Button>
+                <Button color="warning" onClick={onClose}>
+                  Cancel
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
       <div className="flex flex-col lg:flex-row justify-between gap-2">
         {/* Pagination of the table */}
         <div className="w-full flex justify-start">
@@ -137,9 +348,17 @@ const UserComponent = () => {
             onChange={(newPage) => setPage(newPage)}
           />
         </div>
-        <div className="w-full flex justify-end gap-2">
+        <div className="w-full flex justify-end items-center gap-2">
+          <Button
+            color="success"
+            startContent={<IoAddOutline />}
+            className={`${userType !== "technician" && "hidden"} text-white`}
+            onClick={() => setIsAddNewTechnicianModalOpen(true)}
+          >
+            Add New
+          </Button>
           {/* Status filter shown only for technician */}
-          <Select
+          {/* <Select
             label="Filter by Status"
             disallowEmptySelection={true}
             size="sm"
@@ -157,7 +376,7 @@ const UserComponent = () => {
             <SelectItem key="rejected" value="rejected">
               Rejected
             </SelectItem>
-          </Select>
+          </Select> */}
 
           {/* User type switch */}
           <Select
@@ -208,11 +427,11 @@ const UserComponent = () => {
           {(item) => (
             <TableRow key={item.user_id} className="text-center">
               {(columnKey) => {
-                if (columnKey === "actions" && userType === "technician") {
+                if (columnKey === "actions") {
                   return (
                     <TableCell>
                       <div className="flex gap-2 justify-center">
-                        <Button
+                        {/* <Button
                           color="success"
                           isDisabled={item.account_status === "active"}
                           className="text-white"
@@ -232,6 +451,24 @@ const UserComponent = () => {
                           }
                         >
                           Reject
+                        </Button> */}
+                        <Button
+                          color="danger"
+                          size="sm"
+                          startContent=<FaTrash />
+                          onClick={async () => {
+                            const confirmed = window.confirm(
+                              "Are you sure you want to delete this user?"
+                            );
+                            if (confirmed) {
+                              await supabaseAdmin.auth.admin.deleteUser(
+                                item.id
+                              );
+                            }
+                            fetchAndSubscribeUsers();
+                          }}
+                        >
+                          Delete
                         </Button>
                       </div>
                     </TableCell>

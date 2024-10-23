@@ -21,7 +21,7 @@ const AdminDashboard = () => {
   );
   const [selectedYear, setSelectedYear] = useState("all");
   const { usersPerMonth, loading, error } = useUsersPerMonth(
-    userType,
+    "farmer",
     selectedYear
   );
 
@@ -54,15 +54,15 @@ const AdminDashboard = () => {
           icon={<FaUserTie size={80} />}
         />
         <CardStats
-          title="Total Connections"
-          subtitle="Total number of links"
+          title="Reading List"
+          subtitle="Total number of lists"
           value={totalConnections.toString()}
           icon={<IoLinkSharp size={80} />}
         />
       </div>
       <div className="h-full w-full mt-10 pb-20">
         <div className="w-full flex justify-between items-center mb-5">
-          <h2 className="w-full text-xl font-semibold">Users Per Month</h2>
+          <h2 className="w-full text-xl font-semibold">Pig Farmers Per Month</h2>
           <div className="w-full flex justify-end gap-3">
             <Select
               items={creationYearsFormatted}
@@ -77,7 +77,7 @@ const AdminDashboard = () => {
               {(item) => <SelectItem key={item.key}>{item.label}</SelectItem>}
             </Select>
 
-            <Select
+            {/* <Select
               label="User Type"
               disallowEmptySelection={true}
               size="sm"
@@ -95,7 +95,7 @@ const AdminDashboard = () => {
               <SelectItem key="farmer" value="farmer">
                 Farmer
               </SelectItem>
-            </Select>
+            </Select> */}
           </div>
         </div>
         {loading ? (

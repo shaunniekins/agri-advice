@@ -14,6 +14,8 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
+  Select,
+  SelectItem,
   Spinner,
 } from "@nextui-org/react";
 import { EyeSlashFilledIcon } from "../../public/icons/EyeSlashFilledIcon";
@@ -96,35 +98,36 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
 
         // Redirect farmers to the sign-in page
         router.push(`/ident/signin?usertype=${userType}`);
-      } else if (userType === "technician") {
-        ({ data, error } = await supabaseAdmin.auth.admin.createUser({
-          email: email,
-          password: password,
-          email_confirm: true,
-          user_metadata: {
-            email: email,
-            password: password,
-            user_type: userType.toLowerCase(),
-            first_name: firstName,
-            last_name: lastName,
-            middle_name: middleName,
-            mobile_number: mobileNumber,
-            birth_date: birthDate,
-            address: address,
-            license_number: licenseNumber,
-            specialization: specialization,
-            experiences: "",
-            account_status: "pending",
-          },
-        }));
-
-        if (error) {
-          throw error;
-        }
-
-        // Open the signup confirmation modal for technicians
-        setIsSignupConfirmationModalOpen(true);
       }
+      // else if (userType === "technician") {
+      //   ({ data, error } = await supabaseAdmin.auth.admin.createUser({
+      //     email: email,
+      //     password: password,
+      //     email_confirm: true,
+      //     user_metadata: {
+      //       email: email,
+      //       password: password,
+      //       user_type: userType.toLowerCase(),
+      //       first_name: firstName,
+      //       last_name: lastName,
+      //       middle_name: middleName,
+      //       mobile_number: mobileNumber,
+      //       birth_date: birthDate,
+      //       address: address,
+      //       license_number: licenseNumber,
+      //       specialization: specialization,
+      //       experiences: "",
+      //       account_status: "pending",
+      //     },
+      //   }));
+
+      //   if (error) {
+      //     throw error;
+      //   }
+
+      //   // Open the signup confirmation modal for technicians
+      //   setIsSignupConfirmationModalOpen(true);
+      // }
 
       // Successful signup
     } catch (error) {
@@ -137,6 +140,14 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
       }
     } finally {
       setSignUpPending(false);
+    }
+  };
+
+  const handleMobileNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Allow only digits and limit to 11 characters
+    if (/^\d{0,11}$/.test(value)) {
+      setMobileNumber(value);
     }
   };
 
@@ -280,7 +291,7 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
                         color="success"
                         isRequired
                         value={mobileNumber}
-                        onChange={(e) => setMobileNumber(e.target.value)}
+                        onChange={handleMobileNumberChange}
                       />
                       <Input
                         type="text"
@@ -292,19 +303,32 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
                         value={birthDate}
                         onChange={(e) => setBirthDate(e.target.value)}
                       />
-                      <Input
-                        type="text"
-                        label="Address"
-                        variant="bordered"
+                      <Select
+                        label="Area Assigned"
                         color="success"
+                        variant="bordered"
                         isRequired
+                        defaultSelectedKeys={[address]}
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
-                      />
+                      >
+                        <SelectItem key={"Bunawan Brook"}>
+                          Bunawan Brook
+                        </SelectItem>
+                        <SelectItem key={"Consuelo"}>Consuelo</SelectItem>
+                        <SelectItem key={"Imelda"}>Imelda</SelectItem>
+                        <SelectItem key={"Libertad"}>Libertad</SelectItem>
+                        <SelectItem key={"Mambalili"}>Mambalili</SelectItem>
+                        <SelectItem key={"Nueva Era"}>Nueva Era</SelectItem>
+                        <SelectItem key={"Poblacion"}>Poblacion</SelectItem>
+                        <SelectItem key={"San Andres"}>San Andres</SelectItem>
+                        <SelectItem key={"San Marcos"}>San Marcos</SelectItem>
+                        <SelectItem key={"San Teodoro"}>San Teodoro</SelectItem>
+                      </Select>
                     </div>
                   </>
                 )}
-                {userType === "technician" && currentViewInput === 2 && (
+                {/* {userType === "technician" && currentViewInput === 2 && (
                   <div className="w-full flex flex-col lg:flex-row gap-2">
                     <Input
                       type="text"
@@ -325,7 +349,7 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
                       onChange={(e) => setSpecialization(e.target.value)}
                     />
                   </div>
-                )}
+                )} */}
 
                 <div className="w-full flex gap-2">
                   <Button

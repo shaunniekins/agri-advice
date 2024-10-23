@@ -7,18 +7,38 @@ const useTotalConnections = () => {
 
   const fetchAndSubscribeConnections = useCallback(async () => {
     try {
-      // Fetch total connections
-      let farmerQuery = supabase
-        .from("ChatConnections")
+      // Fetch total connections from ReadingLists
+      let readingListsQuery = supabase
+        .from("ReadingLists")
         .select("*", { count: "exact" });
 
-      const response: PostgrestResponse<any> = await farmerQuery;
+      const readingListsResponse: PostgrestResponse<any> =
+        await readingListsQuery;
 
-      if (response.error) {
-        throw response.error;
+      if (readingListsResponse.error) {
+        throw readingListsResponse.error;
       }
 
-      setTotalConnections(response.count || 0);
+      const readingListsCount = readingListsResponse.count || 0;
+
+      // Fetch total connections from SuggestedLinks
+      let suggestedLinksQuery = supabase
+        .from("SuggestedLinks")
+        .select("*", { count: "exact" });
+
+      const suggestedLinksResponse: PostgrestResponse<any> =
+        await suggestedLinksQuery;
+
+      if (suggestedLinksResponse.error) {
+        throw suggestedLinksResponse.error;
+      }
+
+      const suggestedLinksCount = suggestedLinksResponse.count || 0;
+
+      // Sum the counts from both tables
+      const totalConnectionsCount = readingListsCount + suggestedLinksCount;
+
+      setTotalConnections(totalConnectionsCount);
     } catch (err) {
       if (err instanceof Error) {
         console.error("Error fetching connections:", err.message);
