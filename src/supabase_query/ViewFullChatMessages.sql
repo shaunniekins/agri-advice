@@ -4,7 +4,7 @@ select
   cm.chat_message_id,
   cm.message,
   cm.sender_id,
-  cm.is_active,
+  cm.is_ai,
   cm.last_accessed_at,
   cm.created_at,
   coalesce(

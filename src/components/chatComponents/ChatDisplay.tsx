@@ -7,84 +7,96 @@ import {
 } from "@/app/api/chatMessagesIUD";
 import { RootState } from "@/app/reduxUtils/store";
 import useChatMessages from "@/hooks/useChatMessages";
-import { getIdFromPathname } from "@/utils/compUtils";
 import { Avatar, Button, Spinner, Textarea } from "@nextui-org/react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import React, { use, useRef } from "react";
+import { useSearchParams } from "next/navigation";
+import React, { useRef } from "react";
 import { useEffect, useState } from "react";
 import {
   IoCloseCircleOutline,
-  IoCloseOutline,
-  IoCloseSharp,
-  IoImage,
   IoImageOutline,
+  IoRefreshOutline,
   IoSendOutline,
 } from "react-icons/io5";
 import { useSelector } from "react-redux";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/utils/supabase";
+import { GrRefresh } from "react-icons/gr";
 
 export default function ChatDisplayComponent() {
   const user = useSelector((state: RootState) => state.user.user);
-  const pathname = usePathname();
-  const router = useRouter();
   const [messageInput, setMessageInput] = useState("");
   const [isTextareaDisabled, setIsTextareaDisabled] = useState(false);
-  const [isLastMessageFromTechnician, setIsLastMessageFromTechnician] =
-    useState(false);
 
-  const [userType, setUserType] = useState("");
-  const partnerId = getIdFromPathname(pathname);
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [currentUserType, setCurrentUserType] = useState("");
   const rowsPerPage = 1000;
   const [currentPage, setCurrentPage] = useState(1);
-  const [senderId, setSenderId] = useState("");
-  const [receiverId, setReceiverId] = useState("");
+
+  // this is the conversation session (url)
+  const [sessionFarmerId, setSessionFarmerId] = useState("");
+  const [sessionTechnicianId, setSessionTechnicianId] = useState("");
+  const [aiIsGenerating, setAiIsGenerating] = useState(false);
 
   const searchParams = useSearchParams();
 
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
 
   useEffect(() => {
-    setSenderId(searchParams.get("sender") || "");
-    setReceiverId(searchParams.get("receiver") || "");
+    if (user && user.user_metadata) {
+      setCurrentUserId(user.id);
+      setCurrentUserType(user.user_metadata.user_type);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    // senderId = sessionFarmerId
+    // receiverId = sessionTechnicianId
+    setSessionFarmerId(searchParams.get("sender") || "");
+    setSessionTechnicianId(searchParams.get("receiver") || "");
   }, [searchParams]);
 
   const { chatMessages, loadingChatMessages, errorChatMessages } =
-    useChatMessages(rowsPerPage, currentPage, senderId || "", receiverId || "");
+    useChatMessages(
+      rowsPerPage,
+      currentPage,
+      sessionFarmerId || "",
+      sessionTechnicianId || ""
+    );
 
   useEffect(() => {
-    if (chatMessages.length > 0) {
+    if (chatMessages.length > 0 && currentUserId && currentUserType) {
       const lastMessage = chatMessages[chatMessages.length - 1];
-      setIsLastMessageFromTechnician(lastMessage.sender_id === user?.id);
-    }
-  }, [chatMessages]);
 
-  useEffect(() => {
-    if (user && user.user_metadata) {
-      setUserType(user.user_metadata.user_type);
+      const isLastMessageFromCurrentUser =
+        lastMessage.sender_id === currentUserId;
+      const isCurrentUserTechnician = currentUserType === "technician";
+
+      if (isLastMessageFromCurrentUser && !isCurrentUserTechnician) {
+        handleGenerateAiReply();
+      }
     }
-  }, [user]);
+  }, [chatMessages, currentUserId, currentUserType]);
 
   const BUCKET_NAME = "chat-images";
   const imageUrlPattern =
     /"https:\/\/vgckngozsjzlzkrntaoq\.supabase\.co\/storage\/v1\/object\/public\/chat-images\/[^"]+"/;
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleSubmit = async (message: string, isActive: boolean) => {
+  const handleSubmit = async (message: string) => {
     if (!user) return;
 
     let partnerId;
-    if (user.id === senderId) {
-      partnerId = receiverId;
+    if (user.id === sessionFarmerId) {
+      partnerId = sessionTechnicianId;
     } else {
-      partnerId = senderId;
+      partnerId = sessionFarmerId;
     }
 
     const file = selectedImage;
 
     if (file) {
       const filePath =
-        userType === "farmer"
+        currentUserType === "farmer"
           ? `public/${user.id}/${partnerId}/${file.name}`
           : `public/${partnerId}/${user.id}/${file.name}`;
 
@@ -103,7 +115,6 @@ export default function ChatDisplayComponent() {
           sender_id: user.id,
           receiver_id: partnerId,
           message: message,
-          is_active: isActive,
         });
 
         setMessageInput("");
@@ -116,19 +127,20 @@ export default function ChatDisplayComponent() {
         sender_id: user.id,
         receiver_id: partnerId,
         message: message,
-        is_active: isActive,
       });
 
       setMessageInput("");
     }
   };
 
-  const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
+  const handleGenerateAiReply = async (chatMessageId?: number) => {
+    if (chatMessages.length === 0) return;
 
-  const handleGenerateDraftReply = async () => {
-    if (userType !== "technician" || chatMessages.length === 0) return;
+    setAiIsGenerating(true);
+    if (chatMessageId) {
+      await updateChatMessage(chatMessageId, { message: "" });
+    }
 
-    setIsGeneratingDraft(true);
     try {
       // Limit to the last 30 messages or fewer
       const limitedMessages = chatMessages.slice(-30);
@@ -152,19 +164,30 @@ export default function ChatDisplayComponent() {
       });
 
       if (!response.ok) {
-        const errorBody = await response.text();
-        throw new Error("Failed to generate draft reply");
+        throw new Error("Failed to generate ai reply");
       }
 
       const data = await response.json();
-      const draftReply = data.draftReply;
+      const aiReply = data.aiReply;
 
-      // Automatically send the draft reply
-      await handleSubmit(draftReply, false);
+      if (chatMessageId) {
+        // Update the existing chat message
+        await updateChatMessage(chatMessageId, { message: aiReply });
+      } else {
+        // Insert a new chat message
+        await insertChatMessage({
+          sender_id: sessionTechnicianId,
+          receiver_id: sessionFarmerId,
+          is_ai: true,
+          message: aiReply,
+        });
+      }
+
+      setMessageInput("");
     } catch (error) {
-      console.error("Error generating draft reply:", error);
+      console.error("Error generating ai reply:", error);
     } finally {
-      setIsGeneratingDraft(false);
+      setAiIsGenerating(false);
     }
   };
 
@@ -181,37 +204,9 @@ export default function ChatDisplayComponent() {
 
     const updatedMessage = {
       message: editMessageInput,
-      is_active: userType === "technician" ? false : true,
     };
 
     const result = await updateChatMessage(editMessageId, updatedMessage);
-    if (result) {
-      setEditMessageId(null);
-      setEditMessageInput("");
-    }
-  };
-
-  const handleDeleteMessage = async (messageId: number) => {
-    const isConfirmed = window.confirm(
-      "Are you sure you want to delete this message?"
-    );
-    if (!isConfirmed) {
-      return;
-    }
-
-    const result = await deleteSpecificChatMessage(messageId);
-    if (result) {
-      setEditMessageId(null);
-      setEditMessageInput("");
-    }
-  };
-
-  const handleSendMessage = async (messageId: number) => {
-    const updatedMessage = {
-      is_active: true,
-    };
-
-    const result = await updateChatMessage(messageId, updatedMessage);
     if (result) {
       setEditMessageId(null);
       setEditMessageInput("");
@@ -269,159 +264,89 @@ export default function ChatDisplayComponent() {
           <div className="h-full w-full flex flex-col">
             <div className="flex-grow">
               <div className="flex flex-col gap-3">
-                {chatMessages
-                  .filter((message) => {
-                    // Filter out messages if userType is "farmer" and message.is_active is FALSE
-                    if (userType === "farmer" && !message.is_active) {
-                      return false;
-                    }
-                    return true;
-                  })
-                  .map((message) => {
-                    const isSender =
-                      (message.sender_id || message.receiver_id) === user.id;
+                {chatMessages.map((message) => {
+                  const isSender =
+                    (message.sender_id || message.receiver_id) === user.id;
 
-                    const senderFirstName = message.sender_first_name;
-                    const senderLastName = message.sender_last_name;
-                    const senderProfilePicture = message.sender_profile_picture;
+                  const senderFirstName = message.sender_first_name;
+                  const senderLastName = message.sender_last_name;
+                  const senderProfilePicture = message.sender_profile_picture;
 
-                    const initials = `${(senderFirstName
-                      ? senderFirstName[0]
-                      : "A"
-                    ).toUpperCase()}${(senderLastName
-                      ? senderLastName[0]
-                      : "A"
-                    ).toUpperCase()}`;
+                  const initials = `${(senderFirstName
+                    ? senderFirstName[0]
+                    : "A"
+                  ).toUpperCase()}${(senderLastName
+                    ? senderLastName[0]
+                    : "A"
+                  ).toUpperCase()}`;
 
-                    return (
-                      <div
-                        key={message.chat_message_id}
-                        className={`w-full flex flex-col md:flex-row md:gap-4 py-2 ${
-                          !isSender ? "justify-start" : "justify-end"
-                        }`}
-                      >
-                        <div className="flex">
-                          {!isSender &&
-                            (!senderProfilePicture ? (
-                              <Avatar size="sm" name={initials} showFallback />
-                            ) : (
-                              <Avatar
-                                size="sm"
-                                src={senderProfilePicture}
-                                alt="Profile"
-                                showFallback
-                                className="rounded-full object-cover cursor-pointer"
-                              />
-                            ))}
-                        </div>
-                        <div
-                          className={`message text-sm py-2 max-w-full whitespace-pre-wrap flex-wrap text-wrap break-words ${
-                            isSender ? "px-3 rounded-2xl bg-green-200" : ""
-                          } ${
-                            userType === "technician" &&
-                            isSender &&
-                            !message.is_active
-                              ? "w-full"
-                              : ""
-                          }`}
-                          style={{
-                            overflowWrap: "break-word",
-                            wordBreak: "break-word",
-                            maxWidth: "100%",
-                          }}
-                        >
-                          {message.is_active === false && (
-                            <div className="text-gray-500 text-xs flex justify-between items-center">
-                              <span>[Draft]</span>
-                              {userType === "technician" && (
-                                <div className="flex gap-3">
-                                  <button
-                                    className={`${
-                                      editMessageId ===
-                                        message.chat_message_id && "hidden"
-                                    } text-blue-500 text-xs`}
-                                    onClick={() =>
-                                      handleEditClick(
-                                        message.chat_message_id,
-                                        message.message
-                                      )
-                                    }
-                                  >
-                                    Edit
-                                  </button>
-                                  <button
-                                    className="text-red-500 text-xs"
-                                    onClick={() =>
-                                      handleDeleteMessage(
-                                        message.chat_message_id
-                                      )
-                                    }
-                                  >
-                                    Delete
-                                  </button>
-                                  <button
-                                    className="text-green-500 text-xs"
-                                    onClick={() =>
-                                      handleSendMessage(message.chat_message_id)
-                                    }
-                                  >
-                                    Send
-                                  </button>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                          {editMessageId === message.chat_message_id ? (
-                            <div className="w-full">
-                              <Textarea
-                                fullWidth
-                                height={100}
-                                maxRows={15}
-                                value={editMessageInput}
-                                onChange={(e) =>
-                                  setEditMessageInput(e.target.value)
-                                }
-                              />
-                              <div className="flex gap-2 mt-2">
-                                <Button size="sm" onClick={handleUpdateMessage}>
-                                  Save
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  color="secondary"
-                                  onClick={() => {
-                                    setEditMessageId(null);
-                                    setEditMessageInput("");
-                                  }}
-                                >
-                                  Cancel
-                                </Button>
-                              </div>
-                            </div>
+                  return (
+                    <div
+                      key={message.chat_message_id}
+                      className={`w-full flex flex-col md:flex-row md:gap-4 py-2 ${
+                        !isSender ? "justify-start" : "justify-end"
+                      }`}
+                    >
+                      <div className="flex">
+                        {!isSender &&
+                          (!senderProfilePicture ? (
+                            <Avatar size="sm" name={initials} showFallback />
                           ) : (
-                            <>
-                              {renderMessage(message.message)}
-                              <div ref={bottomRef} />
-                            </>
-                          )}
-                        </div>
+                            <Avatar
+                              size="sm"
+                              src={senderProfilePicture}
+                              alt="Profile"
+                              showFallback
+                              className="rounded-full object-cover cursor-pointer"
+                            />
+                          ))}
                       </div>
-                    );
-                  })}
+                      <div
+                        className={`message text-sm py-2 max-w-full whitespace-pre-wrap flex-wrap text-wrap break-words ${
+                          isSender ? "px-3 rounded-2xl bg-green-200" : ""
+                        } 
+                            `}
+                        style={{
+                          overflowWrap: "break-word",
+                          wordBreak: "break-word",
+                          maxWidth: "100%",
+                        }}
+                      >
+                        {renderMessage(message.message)}
+                        {currentUserType === "farmer" &&
+                          message.is_ai &&
+                          !aiIsGenerating && (
+                            <div className="text-gray-500 text-xs flex justify-between items-center">
+                              <Button
+                                // size="sm"
+                                color="success"
+                                variant="light"
+                                isIconOnly
+                                className="-ml-3"
+                                onPress={() =>
+                                  handleGenerateAiReply(message.chat_message_id)
+                                }
+                              >
+                                <GrRefresh />
+                              </Button>
+                            </div>
+                          )}
+                        <div ref={bottomRef} />
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
         </div>
         <div className="flex-none w-full pb-6">
-          {userType === "technician" && (
-            <div className="mb-2">
-              <Button
-                color="primary"
-                onClick={handleGenerateDraftReply}
-                isDisabled={isGeneratingDraft || isLastMessageFromTechnician}
-              >
-                {isGeneratingDraft ? "Generating..." : "Generate AI Draft"}
-              </Button>
+          {aiIsGenerating && (
+            <div className="flex items-center gap-2 py-2">
+              <Spinner size="sm" color="success" />
+              <span className="text-xs text-gray-500">
+                Generating AI response...
+              </span>
             </div>
           )}
           <div className="flex gap-3">
@@ -435,7 +360,9 @@ export default function ChatDisplayComponent() {
                 <div className="flex gap-3 text-2xl">
                   <button
                     className={`${!messageInput && "hidden"}`}
-                    onClick={() => handleSubmit(messageInput, true)}
+                    onClick={async () => {
+                      await handleSubmit(messageInput);
+                    }}
                     disabled={isTextareaDisabled}
                   >
                     <IoSendOutline />
@@ -444,7 +371,6 @@ export default function ChatDisplayComponent() {
                   <button
                     className={`${messageInput && "hidden"}`}
                     onClick={() => fileInputRef.current?.click()}
-                    // disabled={isTextareaDisabled}
                   >
                     <IoImageOutline />
                   </button>
@@ -457,16 +383,10 @@ export default function ChatDisplayComponent() {
                   />
                   {selectedImage && (
                     <>
-                      <button
-                        onClick={() => setSelectedImage(null)}
-                        // disabled={isTextareaDisabled}
-                      >
+                      <button onClick={() => setSelectedImage(null)}>
                         <IoCloseCircleOutline />
                       </button>
-                      <button
-                        onClick={() => handleSubmit("", true)}
-                        // disabled={isTextareaDisabled}
-                      >
+                      <button onClick={() => handleSubmit("")}>
                         <IoSendOutline />
                       </button>
                     </>
@@ -483,23 +403,8 @@ export default function ChatDisplayComponent() {
                 if (selectedImage) return;
                 setMessageInput(e.target.value);
               }}
-              isDisabled={isTextareaDisabled || isGeneratingDraft}
+              isDisabled={isTextareaDisabled || aiIsGenerating}
             />
-            {/* <input
-              type="file"
-              accept="image/*"
-              onChange={handleImageChange}
-              disabled={isTextareaDisabled}
-            />
-            {selectedImage && (
-              <div>
-                <img
-                  src={URL.createObjectURL(selectedImage)}
-                  alt="Selected"
-                  style={{ maxWidth: "10px", maxHeight: "10px" }}
-                />
-              </div>
-            )} */}
           </div>
         </div>
       </div>

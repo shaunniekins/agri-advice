@@ -4,7 +4,7 @@ create table
     sender_id uuid not null,
     receiver_id uuid not null,
     message text not null,
-    is_active boolean not null default true,
+    is_ai boolean null default false,
     last_accessed_at timestamp with time zone not null default now(),
     created_at timestamp with time zone not null default now(),
     constraint chatmessages_pkey primary key (chat_message_id),

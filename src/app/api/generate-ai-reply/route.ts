@@ -47,7 +47,7 @@ async function runChat(
   });
 
   const result = await chat.sendMessage(
-    "Generate a draft reply based on the conversation"
+    "Generate a reply based on the conversation"
   );
   const response = result.response;
   return response.text();
@@ -61,20 +61,20 @@ export async function POST(request: NextRequest) {
       role: "user",
       parts: [
         {
-          text: "Based on the following conversation between a farmer and a technician, generate a draft reply for a technician responding to a farmer's query in the Bisaya/Cebuano dialect. Do not provide or suggest any links.",
+          text: "Based on the following conversation between a farmer and a technician, generate a reply for a technician responding to a farmer's query in the Bisaya/Cebuano dialect. Do not provide or suggest any links. Make it short and concise.",
         },
       ],
     };
 
     const updatedConversationHistory = [prompt, ...conversationHistory]; // Prepend the prompt to the conversation history
 
-    const draftReply = await runChat(updatedConversationHistory); // Pass updated conversation history
+    const aiReply = await runChat(updatedConversationHistory); // Pass updated conversation history
 
-    return NextResponse.json({ draftReply });
+    return NextResponse.json({ aiReply });
   } catch (error) {
-    console.error("Error generating draft reply:", error);
+    console.error("Error generating reply:", error);
     return NextResponse.json(
-      { error: "Failed to generate draft reply" },
+      { error: "Failed to generate reply" },
       { status: 500 }
     );
   }

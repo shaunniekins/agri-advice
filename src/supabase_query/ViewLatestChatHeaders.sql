@@ -3,7 +3,7 @@ select
   cm.chat_message_id,
   cm.message,
   cm.sender_id,
-  cm.is_active,
+  cm.is_ai,
   cm.receiver_id,
   cm.last_accessed_at,
   cm.created_at,
@@ -17,7 +17,7 @@ from
   join auth.users receiver_user on cm.receiver_id = receiver_user.id
 where
   cm.created_at = (
-    -- Subquery to get the latest message where is_active = true
+    -- Subquery to get the latest message
     select
       subquery.created_at
     from
@@ -27,7 +27,6 @@ where
         (subquery.sender_id = cm.sender_id and subquery.receiver_id = cm.receiver_id)
         or (subquery.sender_id = cm.receiver_id and subquery.receiver_id = cm.sender_id)
       )
-      and subquery.is_active = true
     order by
       subquery.created_at desc
     limit 1
