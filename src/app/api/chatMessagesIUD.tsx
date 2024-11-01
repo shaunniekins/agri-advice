@@ -77,3 +77,23 @@ export const deleteSpecificChatMessage = async (chatMessageId: number) => {
     return null;
   }
 };
+
+export const deleteSpecificChatMessagesBasedOnSenderIdAndNonAiChat = async (
+  technicianSenderId: string
+) => {
+  try {
+    const response = await supabase
+      .from("ChatMessages")
+      .delete()
+      .eq("sender_id", technicianSenderId)
+      .eq("is_ai", false);
+
+    if (response.error) {
+      throw response.error;
+    }
+    return response.data;
+  } catch (error: any) {
+    console.error("Error deleting chat message:", error);
+    return null;
+  }
+};

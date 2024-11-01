@@ -41,7 +41,6 @@ import { supabase, supabaseAdmin } from "@/utils/supabase";
 import { setUser } from "@/app/reduxUtils/userSlice";
 import { EyeSlashFilledIcon } from "../../../public/icons/EyeSlashFilledIcon";
 import { EyeFilledIcon } from "../../../public/icons/EyeFilledIcon";
-import PartnerViewProfile from "./PartnerViewProfile";
 import { FiHelpCircle } from "react-icons/fi";
 
 export default function ChatSidebarComponent({
@@ -194,18 +193,17 @@ export default function ChatSidebarComponent({
     }
   }, [user]);
 
-  const {
-    chatHeaders,
-    totalChatHeaders,
-    loadingChatHeaders,
-    errorChatHeaders,
-  } = useChatHeaders(rowsPerPage, page, user ? user.id : "");
+  const { chatHeaders, totalChatHeaders } = useChatHeaders(
+    rowsPerPage,
+    page,
+    user ? user.id : ""
+  );
 
   const totalPages = Math.ceil(totalChatHeaders / rowsPerPage);
 
   // Handle sidebar open/close on small screens
   const handleContentClick = () => {
-    if (window.innerWidth < 1024) {
+    if (window.innerWidth < 1280) {
       setIsSidebarOpen(false);
     }
   };
@@ -213,7 +211,7 @@ export default function ChatSidebarComponent({
   // Handle resizing behavior for sidebar
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 1024) {
+      if (window.innerWidth < 1280) {
         setIsSidebarOpen(false);
       } else {
         setIsSidebarOpen(true);
@@ -464,8 +462,6 @@ export default function ChatSidebarComponent({
   const isTechnicianPathBase = pathname === "/technician/chat";
   // console.log("isTechnicianPathBase", isTechnicianPathBase);
 
-  const [openPartnerInfo, setOpenPartnerInfo] = useState(false);
-  const [partnerUserInfo, setPartnerUserInfo] = useState<any[]>([]);
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
 
   return (
@@ -760,15 +756,6 @@ export default function ChatSidebarComponent({
         </ModalContent>
       </Modal>
 
-      <PartnerViewProfile
-        openPartnerInfo={openPartnerInfo}
-        setOpenPartnerInfo={setOpenPartnerInfo}
-        partnerUserInfo={partnerUserInfo}
-        setPartnerUserInfo={setPartnerUserInfo}
-        userId={user?.id}
-        userType={userType}
-      />
-
       {isLoading && (
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
           <Spinner color="success" />
@@ -834,6 +821,9 @@ export default function ChatSidebarComponent({
                     // Determine if the user is the latest messager
                     const isUserLatestMessager = message.sender_id === user.id;
 
+                    const isLatestMessagerAndAi =
+                      isUserLatestMessager && message.is_ai;
+
                     return (
                       <li
                         key={message.chat_message_id}
@@ -863,7 +853,9 @@ export default function ChatSidebarComponent({
                             </span>
                             <span className="text-xs truncate">
                               {isUserLatestMessager
-                                ? `You: ${message.message}`
+                                ? isLatestMessagerAndAi
+                                  ? `AI: ${message.message}`
+                                  : `You: ${message.message}`
                                 : message.message}
                             </span>
                           </div>
@@ -882,7 +874,9 @@ export default function ChatSidebarComponent({
                         >
                           <PopoverTrigger>
                             <div
-                              className="absolute top-1/2 right-3 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full p-2 hover:bg-green-900"
+                              className={`absolute top-1/2 right-3 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full p-2 hover:bg-green-900 ${
+                                userType === "technician" && "hidden"
+                              }`}
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setOpenPopoverId(message.chat_message_id);
@@ -895,21 +889,6 @@ export default function ChatSidebarComponent({
                             <Button
                               fullWidth
                               size="sm"
-                              startContent={<FaUserCircle />}
-                              onClick={() => {
-                                setOpenPartnerInfo(true);
-                                setPartnerUserInfo(message);
-                                setOpenPopoverId(null);
-                              }}
-                            >
-                              View
-                            </Button>
-                            <Button
-                              fullWidth
-                              size="sm"
-                              className={` ${
-                                userType === "technician" && "hidden"
-                              }`}
                               startContent={<IoMdTrash />}
                               onClick={async () => {
                                 const confirmed = window.confirm(
@@ -1067,14 +1046,17 @@ export default function ChatSidebarComponent({
               </div>
             </div>
 
+            {/* CONTENT */}
             <div className="flex-1 overflow-hidden">
               <div
                 className={`${
                   pathname === "/farmer/chat/help"
                     ? "lg:px-32"
+                    : pathname === "/farmer/chat"
+                    ? "lg:px-72"
                     : isTechnicianPathBase && userType === "technician"
                     ? "lg:px-10"
-                    : "lg:px-72"
+                    : "xl:pl-32 xl:pr-32"
                 } h-full w-full flex flex-col bg-[#F4FFFC] px-4 pt-5 lg:pt-10`}
                 onClick={handleContentClick}
               >
