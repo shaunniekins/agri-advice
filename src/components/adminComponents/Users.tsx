@@ -22,14 +22,14 @@ import {
 import useUsers from "@/hooks/useUsers";
 import { useState, useEffect } from "react";
 import { supabaseAdmin } from "@/utils/supabase";
-import { FaTrash } from "react-icons/fa";
+import { FaEllipsisH, FaTrash } from "react-icons/fa";
 import { IoAddOutline } from "react-icons/io5";
 import { EyeSlashFilledIcon } from "../../../public/icons/EyeSlashFilledIcon";
 import { EyeFilledIcon } from "../../../public/icons/EyeFilledIcon";
+import UserProfile from "../chatComponents/UserProfile";
 
 const UserComponent = () => {
   const [page, setPage] = useState(1);
-  const [statusFilter, setStatusFilter] = useState("pending");
   const [userType, setUserType] = useState("technician");
   const rowsPerPage = 10;
 
@@ -48,6 +48,11 @@ const UserComponent = () => {
   const [address, setAddress] = useState("");
   const [licenseNumber, setLicenseNumber] = useState("");
   const [specialization, setSpecialization] = useState("");
+
+  const [openUserInfo, setOpenUserInfo] = useState(false);
+  const [currentUserInfo, setCurrentUserInfo] = useState<any>({});
+  const [currentUserId, setCurrentUserId] = useState("");
+  const [currentUserType, setCurrentUserType] = useState("");
 
   const {
     usersData,
@@ -123,25 +128,15 @@ const UserComponent = () => {
   //   }
   // };
 
-  const TechnicianColumns = [
+  const columns = [
     { key: "first_name", label: "FIRST NAME" },
     { key: "last_name", label: "LAST NAME" },
-    { key: "mobile_number", label: "MOBILE" },
-    { key: "email", label: "EMAIL" },
-    { key: "license_number", label: "LICENSE NUMBER" },
-    { key: "specialization", label: "SPECIALIZATION" },
-    { key: "actions", label: "ACTIONS" },
-  ];
-
-  const FarmerColumns = [
-    { key: "first_name", label: "FIRST NAME" },
-    { key: "last_name", label: "LAST NAME" },
+    { key: "address", label: "ADDRESS" },
     { key: "mobile_number", label: "MOBILE" },
     { key: "email", label: "EMAIL" },
     { key: "actions", label: "ACTIONS" },
   ];
 
-  const columns = userType === "technician" ? TechnicianColumns : FarmerColumns;
   const data = usersData;
 
   const handleMobileNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -335,6 +330,14 @@ const UserComponent = () => {
           )}
         </ModalContent>
       </Modal>
+      <UserProfile
+        openUserInfo={openUserInfo}
+        setOpenUserInfo={setOpenUserInfo}
+        currentUserInfo={currentUserInfo}
+        setCurrentUserInfo={setCurrentUserInfo}
+        userId={currentUserId}
+        userType={currentUserType}
+      />
       <div className="flex flex-col lg:flex-row justify-between gap-2">
         {/* Pagination of the table */}
         <div className="w-full flex justify-start">
@@ -452,6 +455,20 @@ const UserComponent = () => {
                         >
                           Reject
                         </Button> */}
+                        <Button
+                          color="success"
+                          size="sm"
+                          startContent=<FaEllipsisH />
+                          className="text-white"
+                          onClick={() => {
+                            setCurrentUserId(item.id);
+                            setCurrentUserType(item.user_type);
+                            setCurrentUserInfo(item);
+                            setOpenUserInfo(true);
+                          }}
+                        >
+                          View
+                        </Button>
                         <Button
                           color="danger"
                           size="sm"
