@@ -2,12 +2,7 @@ import { useEffect, useCallback, useState } from "react";
 import { supabase } from "@/utils/supabase";
 import { PostgrestResponse } from "@supabase/supabase-js";
 
-const useFeedback = (
-  rowsPerPage?: number,
-  currentPage?: number,
-  farmerId?: string,
-  technicianId?: string
-) => {
+const useFeedback = (rowsPerPage: number, currentPage: number) => {
   const [feedbackData, setFeedbackData] = useState<any[]>([]);
   const [isLoadingFeedback, setIsLoadingFeedback] = useState<boolean>(true);
   const [totalFeedbackEntries, setTotalFeedbackEntries] = useState<number>(0);
@@ -17,16 +12,7 @@ const useFeedback = (
       let query = supabase
         .from("ViewFullFeedback")
         .select("*", { count: "exact" })
-        .order("created_at", { ascending: false });
-
-      if (farmerId && technicianId) {
-        query = query
-          .eq("farmer_id", farmerId)
-          .eq("technician_id", technicianId);
-      } else if (rowsPerPage && currentPage) {
-        const offset = (currentPage - 1) * rowsPerPage;
-        query = query.range(offset, offset + rowsPerPage - 1);
-      }
+        .order("feedback_created_at", { ascending: false });
 
       const response: PostgrestResponse<any> = await query;
 
@@ -46,7 +32,7 @@ const useFeedback = (
     } finally {
       setIsLoadingFeedback(false);
     }
-  }, [rowsPerPage, currentPage, farmerId, technicianId]);
+  }, [rowsPerPage, currentPage]);
 
   const subscribeToChanges = useCallback(() => {
     const channel = supabase
@@ -59,15 +45,6 @@ const useFeedback = (
           table: "Feedback",
         },
         (payload: { eventType: string; new: any; old: any }) => {
-          if (farmerId && technicianId) {
-            if (
-              payload.new.farmer_id !== farmerId ||
-              payload.new.technician_id !== technicianId
-            ) {
-              return;
-            }
-          }
-
           if (payload.eventType === "INSERT") {
             setFeedbackData((prev) => {
               const newData = [...prev, payload.new].sort(
@@ -103,7 +80,7 @@ const useFeedback = (
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [rowsPerPage, currentPage, farmerId, technicianId]);
+  }, [rowsPerPage, currentPage]);
 
   useEffect(() => {
     fetchAndSubscribeFeedback();

@@ -13,6 +13,11 @@ import {
   Card,
   CardBody,
   CardHeader,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
   Spinner,
   Textarea,
 } from "@nextui-org/react";
@@ -38,6 +43,14 @@ import { supabase } from "@/utils/supabase";
 import { GrRefresh } from "react-icons/gr";
 import usePartnerInfo from "@/hooks/usePartnerInfo";
 import { FaBars } from "react-icons/fa";
+import { MdClose, MdOutlineChat, MdOutlineStarRate } from "react-icons/md";
+import {
+  fetchFeedback,
+  insertFeedback,
+  updateFeedback,
+} from "@/app/api/feedbackIUD";
+import useFeedback from "@/hooks/useFeedback";
+import StarRating from "./StarRating";
 
 export default function ChatDisplayComponent() {
   const user = useSelector((state: RootState) => state.user.user);
@@ -59,6 +72,13 @@ export default function ChatDisplayComponent() {
 
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [selectedMessageId, setSelectedMessageId] = useState(null);
+  const [openFeedback, setOpenFeedback] = useState(false);
+  const [chatMessageIdFeedback, setChatMessageIdFeedback] = useState<
+    number | undefined
+  >(undefined);
+  const [currentFeedbackId, setCurrentFeedbackId] = useState("");
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [ratings, setRatings] = useState(0);
 
   const [otherPanelOpen, setOtherPanelOpen] = useState(false);
 
@@ -334,6 +354,53 @@ export default function ChatDisplayComponent() {
     return differenceInYears(currentDate, birthDateObj);
   };
 
+  const handleFeedbackSubmit = async () => {
+    try {
+      if (ratings && feedbackMessage) {
+        if (currentFeedbackId) {
+          // Update existing feedback
+          await updateFeedback(currentFeedbackId, {
+            feedback_message: feedbackMessage,
+            ratings,
+          });
+        } else {
+          // Insert new feedback
+          await insertFeedback({
+            chat_message_id: chatMessageIdFeedback,
+            feedback_message: feedbackMessage,
+            ratings,
+          });
+        }
+      }
+    } catch (error) {
+      console.error("Error submitting feedback:", error);
+    } finally {
+      // Reset and close modal after submission
+      setChatMessageIdFeedback(undefined);
+      setCurrentFeedbackId("");
+      setRatings(0);
+      setFeedbackMessage("");
+      setOpenFeedback(false);
+    }
+  };
+
+  const [feedbackMessages, setFeedbackMessages] = useState(new Set());
+
+  // Function to check and add feedback message IDs
+  const checkFeedback = async (chatMessageId: number) => {
+    const response = await fetchFeedback(chatMessageId);
+    if (response) {
+      setFeedbackMessages((prev) => new Set(prev).add(chatMessageId));
+    }
+  };
+
+  useEffect(() => {
+    // Fetch feedback for each message on initial render or when chatMessages change
+    chatMessages.forEach((message) => {
+      checkFeedback(message.chat_message_id);
+    });
+  }, [chatMessages]);
+
   if (loadingChatMessages) {
     return (
       <div className="h-full flex justify-center items-center">
@@ -352,6 +419,75 @@ export default function ChatDisplayComponent() {
 
   return (
     <>
+      <Modal
+        size="lg"
+        backdrop="blur"
+        isOpen={openFeedback}
+        hideCloseButton={true}
+        onOpenChange={setOpenFeedback}
+        onClose={() => {
+          setChatMessageIdFeedback(undefined);
+          setCurrentFeedbackId("");
+          setRatings(0);
+          setFeedbackMessage("");
+          setOpenFeedback(false);
+        }}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                {currentUserType === "technician" ? (
+                  <span>View Feedback</span>
+                ) : (
+                  <span>Send Feedback</span>
+                )}
+              </ModalHeader>
+              <ModalBody>
+                <div className="w-full mb-3">
+                  {currentUserType === "technician" ? (
+                    <StarRating rating={ratings} isReadOnly />
+                  ) : (
+                    <StarRating rating={ratings} setRating={setRatings} />
+                  )}
+                </div>
+                <Textarea
+                  label="Feedback Message"
+                  color="success"
+                  placeholder="Enter your feedback here..."
+                  value={feedbackMessage}
+                  isReadOnly={currentUserType === "technician"}
+                  onChange={(e) => setFeedbackMessage(e.target.value)}
+                  fullWidth
+                />
+              </ModalBody>
+              <ModalFooter>
+                <Button
+                  startContent={<MdClose />}
+                  className="bg-[#007057] text-white self-center"
+                  onClick={() => {
+                    setChatMessageIdFeedback(undefined);
+                    setCurrentFeedbackId("");
+                    setRatings(0);
+                    setFeedbackMessage("");
+                    setOpenFeedback(false);
+                  }}
+                >
+                  Close
+                </Button>
+                <Button
+                  isDisabled={!ratings || !feedbackMessage}
+                  color="primary"
+                  className={currentUserType === "technician" ? "hidden" : ""}
+                  onClick={handleFeedbackSubmit}
+                >
+                  Submit Feedback
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
       <div className="h-full flex flex-col overflow-hidden">
         <div className="h-full overflow-y-auto grid grid-cols-1 md:grid-cols-[2fr_1fr] md:gap-10">
           {/* Chat view */}
@@ -361,7 +497,7 @@ export default function ChatDisplayComponent() {
           >
             <div className="h-full w-full">
               <div className="flex flex-col gap-3">
-                {chatMessages.map((message) => {
+                {chatMessages.map((message: any) => {
                   const isSender =
                     (message.sender_id || message.receiver_id) === user.id;
                   const senderFirstName = message.sender_first_name;
@@ -454,11 +590,55 @@ export default function ChatDisplayComponent() {
                           }}
                         >
                           <div
-                            className={`max-w-full text-sm py-2 
-                          ${isSender && "px-3 rounded-2xl bg-green-200"}`}
+                            className={`max-w-full text-sm py-2 relative ${
+                              isSender && "px-3 rounded-2xl bg-green-200"
+                            }`}
                           >
                             {renderMessage(message.message)}
+
+                            {currentUserType === "technician" &&
+                              message.is_ai &&
+                              feedbackMessages.has(message.chat_message_id) && (
+                                <div className="absolute -bottom-5 left-0 flex justify-start items-center p-2">
+                                  <Button
+                                    // size="sm"
+                                    color="success"
+                                    isIconOnly
+                                    className="p-1 rounded-full bg-green-400 bg-opacity-80"
+                                    style={{
+                                      minWidth: "0",
+                                      width: "auto",
+                                      height: "auto",
+                                    }}
+                                    onPress={async () => {
+                                      // Clear previous data first
+                                      setCurrentFeedbackId("");
+                                      setRatings(0);
+                                      setFeedbackMessage("");
+
+                                      const response = await fetchFeedback(
+                                        message.chat_message_id
+                                      );
+
+                                      // Update the state only if data exists
+                                      if (response) {
+                                        setCurrentFeedbackId(
+                                          response.feedback_id
+                                        );
+                                        setRatings(response.ratings);
+                                        setFeedbackMessage(
+                                          response.feedback_message
+                                        );
+                                      }
+                                      setOpenFeedback(true);
+                                    }}
+                                  >
+                                    <MdOutlineChat size={15} color="yellow" />
+                                  </Button>
+                                </div>
+                              )}
                           </div>
+
                           {selectedMessageId === message.chat_message_id && (
                             <span
                               className={`text-[0.7rem] ${
@@ -473,22 +653,58 @@ export default function ChatDisplayComponent() {
                           {currentUserType === "farmer" &&
                             message.is_ai &&
                             !aiIsGenerating && (
-                              <div className="text-gray-500 text-xs flex justify-between items-center">
+                              <div className="text-gray-500 text-xs flex justify-start items-center">
                                 <Button
+                                  size="sm"
                                   color="success"
                                   variant="light"
                                   isIconOnly
-                                  className="-ml-3"
+                                  className="md:-ml-3"
                                   onPress={() =>
                                     handleGenerateAiReply(
                                       message.chat_message_id
                                     )
                                   }
                                 >
-                                  <GrRefresh />
+                                  <GrRefresh size={15} />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  color="success"
+                                  variant="light"
+                                  isIconOnly
+                                  onPress={async () => {
+                                    // Clear previous data first
+                                    setCurrentFeedbackId("");
+                                    setRatings(0);
+                                    setFeedbackMessage("");
+
+                                    // Fetch new feedback
+                                    setChatMessageIdFeedback(
+                                      message.chat_message_id
+                                    );
+                                    const response = await fetchFeedback(
+                                      message.chat_message_id
+                                    );
+
+                                    // Update the state only if data exists
+                                    if (response) {
+                                      setCurrentFeedbackId(
+                                        response.feedback_id
+                                      );
+                                      setRatings(response.ratings);
+                                      setFeedbackMessage(
+                                        response.feedback_message
+                                      );
+                                    }
+                                    setOpenFeedback(true);
+                                  }}
+                                >
+                                  <MdOutlineStarRate size={17} />
                                 </Button>
                               </div>
                             )}
+
                           <div ref={bottomRef} />
                         </div>
                       </div>
@@ -626,31 +842,107 @@ export default function ChatDisplayComponent() {
                 if (!shouldShow) return null;
 
                 return (
-                  <Card key={message.chat_message_id} className="shadow-none">
-                    <CardHeader className="flex flex-col justify-center">
-                      <h1 className="font-bold">
-                        {currentUserType === "farmer"
-                          ? "More Advice Here"
-                          : "Your Advice"}
-                      </h1>
-                      <span className="text-[0.7rem]">
-                        {formatMessageDate(message.created_at)}
-                      </span>
-                    </CardHeader>
-                    <CardBody>
-                      <div
-                        className="w-full text-sm break-words"
-                        style={{
-                          overflowWrap: "break-word",
-                          wordBreak: "break-word",
-                          maxWidth: "100%",
-                        }}
-                      >
-                        {renderMessage(message.message)}
-                        <div ref={bottomRef} />
+                  <div key={message.chat_message_id} className="relative">
+                    <Card className="shadow-none">
+                      <CardHeader className="flex flex-col justify-center">
+                        <h1 className="font-bold">
+                          {currentUserType === "farmer"
+                            ? "More Advice Here"
+                            : "Your Advice"}
+                        </h1>
+                        <span className="text-[0.7rem]">
+                          {formatMessageDate(message.created_at)}
+                        </span>
+                      </CardHeader>
+                      <CardBody>
+                        <div
+                          className="w-full text-sm break-words"
+                          style={{
+                            overflowWrap: "break-word",
+                            wordBreak: "break-word",
+                            maxWidth: "100%",
+                          }}
+                        >
+                          {renderMessage(message.message)}
+
+                          <div ref={bottomRef} />
+                        </div>
+                      </CardBody>
+                    </Card>
+                    {currentUserType === "technician" &&
+                      !message.is_ai &&
+                      feedbackMessages.has(message.chat_message_id) && (
+                        <div className="z-10 absolute -bottom-5 left-0 flex p-2">
+                          <Button
+                            color="success"
+                            isIconOnly
+                            className="p-1 rounded-full bg-green-400 bg-opacity-80"
+                            style={{
+                              minWidth: "0",
+                              width: "auto",
+                              height: "auto",
+                            }}
+                            onPress={async () => {
+                              // Clear previous data first
+                              setCurrentFeedbackId("");
+                              setRatings(0);
+                              setFeedbackMessage("");
+
+                              const response = await fetchFeedback(
+                                message.chat_message_id
+                              );
+
+                              // Update the state only if data exists
+                              if (response) {
+                                setCurrentFeedbackId(response.feedback_id);
+                                setRatings(response.ratings);
+                                setFeedbackMessage(response.feedback_message);
+                              }
+                              setOpenFeedback(true);
+                            }}
+                          >
+                            <MdOutlineChat size={15} color="yellow" />
+                          </Button>
+                        </div>
+                      )}
+
+                    {currentUserType === "farmer" && !message.is_ai && (
+                      <div className="z-10 absolute -bottom-5 left-0 flex justify-start items-center p-2">
+                        <Button
+                          color="success"
+                          isIconOnly
+                          className="p-1 rounded-full bg-green-400 bg-opacity-80"
+                          style={{
+                            minWidth: "0",
+                            width: "auto",
+                            height: "auto",
+                          }}
+                          onPress={async () => {
+                            // Clear previous data first
+                            setCurrentFeedbackId("");
+                            setRatings(0);
+                            setFeedbackMessage("");
+
+                            // Fetch new feedback
+                            setChatMessageIdFeedback(message.chat_message_id);
+                            const response = await fetchFeedback(
+                              message.chat_message_id
+                            );
+
+                            // Update the state only if data exists
+                            if (response) {
+                              setCurrentFeedbackId(response.feedback_id);
+                              setRatings(response.ratings);
+                              setFeedbackMessage(response.feedback_message);
+                            }
+                            setOpenFeedback(true);
+                          }}
+                        >
+                          <MdOutlineStarRate size={15} color="yellow" />
+                        </Button>
                       </div>
-                    </CardBody>
-                  </Card>
+                    )}
+                  </div>
                 );
               })}
             </div>

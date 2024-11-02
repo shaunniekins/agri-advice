@@ -21,8 +21,8 @@ import {
   Textarea,
   Input,
 } from "@nextui-org/react";
-import { StarRating } from "../chatComponents/PartnerViewProfile";
 import { MdClose } from "react-icons/md";
+import StarRating from "../chatComponents/StarRating";
 
 const AdminReportsComponent = () => {
   const rowsPerPage = 16;
@@ -46,22 +46,20 @@ const AdminReportsComponent = () => {
   }
 
   const columns = [
-    { key: "farmer_name", label: "Farmer Name" },
-    { key: "technician_name", label: "Technician Name" },
+    { key: "farmer", label: "Farmer" },
+    { key: "suggestion_from", label: "Suggestion By" },
     { key: "feedback_message", label: "Feedback" },
     { key: "ratings", label: "Rating" },
-    { key: "created_at", label: "Date" },
+    { key: "feedback_created_at", label: "Date" },
     { key: "option", label: "Option" },
   ];
 
-  const truncateText = (text: string, wordLimit: number) => {
-    const words = text.split(" ");
-    if (words.length <= wordLimit) {
+  const truncateText = (text: string, charLimit: number) => {
+    if (text.length <= charLimit) {
       return text;
     }
-    return words.slice(0, wordLimit).join(" ") + "...";
+    return text.slice(0, charLimit) + "...";
   };
-
   return (
     <>
       <Modal
@@ -81,13 +79,19 @@ const AdminReportsComponent = () => {
                 <div className="w-full flex gap-3">
                   <Input
                     label="From"
+                    color="success"
                     value={`${selectedFeedback.farmer_raw_user_meta_data.first_name} ${selectedFeedback.farmer_raw_user_meta_data.last_name}`}
                     readOnly
                     fullWidth
                   />
                   <Input
-                    label="To"
-                    value={`${selectedFeedback.technician_raw_user_meta_data.first_name} ${selectedFeedback.technician_raw_user_meta_data.last_name}`}
+                    label="Suggestion By"
+                    color="success"
+                    value={`${selectedFeedback.is_ai && "(AI)"} ${
+                      selectedFeedback.technician_raw_user_meta_data.first_name
+                    } ${
+                      selectedFeedback.technician_raw_user_meta_data.last_name
+                    }`}
                     readOnly
                     fullWidth
                   />
@@ -97,6 +101,7 @@ const AdminReportsComponent = () => {
                 </div>
                 <Textarea
                   label="Feedback Message"
+                  color="success"
                   placeholder="Enter your feedback here..."
                   value={selectedFeedback.feedback_message}
                   readOnly
@@ -159,20 +164,26 @@ const AdminReportsComponent = () => {
               {(item) => (
                 <TableRow key={item.feedback_id} className="text-center">
                   {(columnKey) => {
-                    if (columnKey === "farmer_name") {
+                    if (columnKey === "farmer") {
                       return (
                         <TableCell className="text-center">
-                          {item.farmer_raw_user_meta_data.first_name}{" "}
-                          {item.farmer_raw_user_meta_data.last_name}
+                          {item?.farmer_raw_user_meta_data.first_name}{" "}
+                          {item?.farmer_raw_user_meta_data.last_name}
                         </TableCell>
                       );
                     }
 
-                    if (columnKey === "technician_name") {
+                    if (columnKey === "suggestion_from") {
                       return (
                         <TableCell className="text-center">
-                          {item.technician_raw_user_meta_data.first_name}{" "}
-                          {item.technician_raw_user_meta_data.last_name}
+                          {item?.is_ai ? (
+                            "AI"
+                          ) : (
+                            <>
+                              {item?.technician_raw_user_meta_data.first_name}{" "}
+                              {item?.technician_raw_user_meta_data.last_name}
+                            </>
+                          )}
                         </TableCell>
                       );
                     }
@@ -180,7 +191,7 @@ const AdminReportsComponent = () => {
                     if (columnKey === "feedback_message") {
                       return (
                         <TableCell className="text-center truncate">
-                          {truncateText(item.feedback_message, 8)}
+                          {truncateText(item?.feedback_message, 15)}
                         </TableCell>
                       );
                     }
@@ -188,22 +199,21 @@ const AdminReportsComponent = () => {
                     if (columnKey === "ratings") {
                       return (
                         <TableCell className="text-center">
-                          <StarRating rating={item.ratings} isReadOnly />
+                          <StarRating rating={item?.ratings} isReadOnly />
                         </TableCell>
                       );
                     }
 
-                    if (columnKey === "created_at") {
+                    if (columnKey === "feedback_created_at") {
                       return (
                         <TableCell className="text-center">
-                          {new Date(item.created_at).toLocaleDateString(
-                            "en-GB",
-                            {
-                              day: "numeric",
-                              month: "short",
-                              year: "numeric",
-                            }
-                          )}
+                          {new Date(
+                            item?.feedback_created_at
+                          ).toLocaleDateString("en-GB", {
+                            day: "numeric",
+                            month: "short",
+                            year: "numeric",
+                          })}
                         </TableCell>
                       );
                     }

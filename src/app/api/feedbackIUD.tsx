@@ -1,5 +1,23 @@
 import { supabase } from "@/utils/supabase";
 
+export const fetchFeedback = async (chatMessageId: number) => {
+  try {
+    const response = await supabase
+      .from("ViewFullFeedback")
+      .select("*")
+      .eq("chat_message_id", chatMessageId);
+
+    if (response.error) {
+      throw response.error;
+    }
+
+    return response.data[0];
+  } catch (error: any) {
+    console.error("Error fetching feedback:", error);
+    return null;
+  }
+};
+
 export const insertFeedback = async (newFeedback: any) => {
   try {
     const response = await supabase
