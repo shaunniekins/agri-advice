@@ -232,36 +232,46 @@ export default function ChatDisplayComponent() {
 
       setMessageInput("");
     }
+
+    // if (currentUserType === "farmer") await handleGenerateAiReply();
   };
 
   const handleGenerateAiReply = async (chatMessageId?: number) => {
     if (chatMessages.length === 0) return;
 
+    // Get the latest message, or the message before the specified chatMessageId if provided
+    const lastMessage = chatMessageId
+      ? (() => {
+          const messageIndex = chatMessages.findIndex(
+            (message) => message.chat_message_id === chatMessageId
+          );
+          // If the message is found and is not the first in the array, return the previous message
+          return messageIndex > 0 ? chatMessages[messageIndex - 1] : null;
+        })()
+      : chatMessages[chatMessages.length - 1];
+
+    // If the specific message isn't found, exit early
+    if (!lastMessage) return;
+
+    // console.log("lastMessage", lastMessage);
+
     setAiIsGenerating(true);
-    if (chatMessageId) {
-      await updateChatMessage(chatMessageId, { message: "" });
-    }
-
     try {
-      // Limit to the last 30 messages or fewer
-      const limitedMessages = chatMessages.slice(-30);
+      if (chatMessageId) {
+        await updateChatMessage(chatMessageId, { message: "" });
+      }
 
-      // Map messages to "user" (farmer) and "model" (technician/AI), excluding URLs
-      const conversationHistory = limitedMessages
-        .filter((msg) => !imageUrlPattern.test(msg.message))
-        .map((msg) => {
-          return {
-            role: msg.sender_id === user.id ? "model" : "user",
-            parts: [{ text: msg.message }],
-          };
-        });
+      // Filter out any images or URLs from the latest message
+      const filteredMessage = !imageUrlPattern.test(lastMessage.message)
+        ? lastMessage.message
+        : "";
 
       const response = await fetch("/api/generate-ai-reply", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ conversationHistory }), // Pass the conversation history
+        body: JSON.stringify({ filteredMessage }),
       });
 
       if (!response.ok) {

@@ -8,9 +8,7 @@ import {
 const MODEL_NAME = "gemini-1.0-pro";
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
 
-async function runChat(
-  conversationHistory: Array<{ role: string; parts: Array<{ text: string }> }>
-): Promise<string> {
+async function runChat(userInput: string): Promise<string> {
   const genAI = new GoogleGenerativeAI(API_KEY as string);
   const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
@@ -43,32 +41,22 @@ async function runChat(
   const chat = model.startChat({
     generationConfig,
     safetySettings,
-    history: conversationHistory,
+    history: [], // Empty history to ensure no context
   });
 
-  const result = await chat.sendMessage(
-    "Generate a reply based on the conversation"
-  );
+  const result = await chat.sendMessage(userInput);
   const response = result.response;
   return response.text();
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { conversationHistory } = await request.json();
+    const { filteredMessage } = await request.json();
 
-    const prompt = {
-      role: "user",
-      parts: [
-        {
-          text: "Based on the following conversation between a farmer and a technician, generate a reply for a technician responding to a farmer's query in the Bisaya/Cebuano dialect. Do not provide or suggest any links. Make it short and concise.",
-        },
-      ],
-    };
+    // Add context for AI prompt in Bisaya/Cebuano dialect
+    const prompt = `Based on the following message from a farmer, generate a concise response in Bisaya/Cebuano as if you were a technician: "${filteredMessage}"`;
 
-    const updatedConversationHistory = [prompt, ...conversationHistory]; // Prepend the prompt to the conversation history
-
-    const aiReply = await runChat(updatedConversationHistory); // Pass updated conversation history
+    const aiReply = await runChat(prompt);
 
     return NextResponse.json({ aiReply });
   } catch (error) {
