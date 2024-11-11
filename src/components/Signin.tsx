@@ -111,6 +111,14 @@ const SigninComponent = ({ userType }: SigninComponentProps) => {
                 {signInPending ? "Signing In..." : "Sign In"}
               </Button>
             </div>
+            <Button
+              size="sm"
+              variant="light"
+              color="success"
+              onClick={() => router.push("/ident/recover")}
+            >
+              Forgot Password?
+            </Button>
           </form>
           <Button
             type="submit"

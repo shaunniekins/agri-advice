@@ -32,6 +32,7 @@ export default function ConfirmationPage() {
           <Button
             color="success"
             startContent={<IoChevronBack />}
+            className="text-white"
             onPress={() => router.push("/")}
           >
             Return to Home

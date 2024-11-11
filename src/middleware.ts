@@ -116,7 +116,11 @@ export async function middleware(request: NextRequest) {
       }
     }
 
-    if (request.nextUrl.pathname.startsWith("/ident/confirmation")) {
+    if (
+      request.nextUrl.pathname.startsWith("/ident/confirmation") ||
+      request.nextUrl.pathname.startsWith("/ident/reset-password") ||
+      request.nextUrl.pathname.startsWith("/ident/recover")
+    ) {
       if (user_type === "technician" && user_status === "active") {
         return NextResponse.redirect(new URL("/technician", request.url));
       } else if (user_type === "farmer") {
