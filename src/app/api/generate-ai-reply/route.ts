@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
     const { filteredMessage } = await request.json();
 
     // Add context for AI prompt in Bisaya/Cebuano dialect
-    const prompt = `Based on the following message from a farmer, generate a concise response in Bisaya/Cebuano as if you were a technician: "${filteredMessage}"`;
+    const prompt = `Based on the following message from a farmer, generate a simple and direct response using a simple Bisaya/Cebuano dialect as if you were a friendly expert local farmer focusing on practical advice and clear instructions: "${filteredMessage}"`;
 
     const aiReply = await runChat(prompt);
 
