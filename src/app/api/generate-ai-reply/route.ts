@@ -13,7 +13,7 @@ async function runChat(userInput: string): Promise<string> {
   const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
   const generationConfig = {
-    temperature: 0.9,
+    temperature: 0.7,
     topK: 1,
     topP: 1,
     maxOutputTokens: 2048,
@@ -41,7 +41,7 @@ async function runChat(userInput: string): Promise<string> {
   const chat = model.startChat({
     generationConfig,
     safetySettings,
-    history: [], // Empty history to ensure no context
+    history: [],
   });
 
   const result = await chat.sendMessage(userInput);
@@ -53,8 +53,19 @@ export async function POST(request: NextRequest) {
   try {
     const { filteredMessage } = await request.json();
 
-    // Add context for AI prompt in Bisaya/Cebuano dialect
-    const prompt = `Based on the following message from a farmer, generate a simple and direct response using a simple Bisaya/Cebuano dialect as if you were a friendly expert local farmer focusing on practical advice and clear instructions: "${filteredMessage}"`;
+    // Updated prompt for clean, formal but accessible Bisaya
+    const prompt = `
+Directly respond in formal but commonly understood Bisaya/Cebuano without any introductory text or concluding phrases. Follow these rules:
+
+- Start your response immediately in Bisaya/Cebuano without any prefix like "Bisaya response:" or similar phrases
+- Use formal but widely understood Bisaya/Cebuano words (avoid archaic or extremely deep terms)
+- Do not include any English phrases like "Hope this helps" at the end
+- Do not wrap or mark the response with any meta-text or formatting
+- Maintain professionalism while using commonly understood terms
+- End naturally without any closing remarks or signatures
+
+Message to respond to: "${filteredMessage}"
+`;
 
     const aiReply = await runChat(prompt);
 

@@ -82,6 +82,8 @@ export default function ChatDisplayComponent() {
 
   const [otherPanelOpen, setOtherPanelOpen] = useState(false);
 
+  const hasGeneratedReplyRef = useRef(false);
+
   const handleContentClick = () => {
     if (window.innerWidth < 768) {
       setOtherPanelOpen(false);
@@ -141,17 +143,32 @@ export default function ChatDisplayComponent() {
     );
 
   useEffect(() => {
-    if (chatMessages.length > 0 && currentUserId && currentUserType) {
-      const lastMessage = chatMessages[chatMessages.length - 1];
+    const shouldGenerateReply = () => {
+      if (!chatMessages.length || !currentUserId || !currentUserType)
+        return false;
+      if (aiIsGenerating || hasGeneratedReplyRef.current) return false;
 
+      const lastMessage = chatMessages[chatMessages.length - 1];
       const isLastMessageFromCurrentUser =
         lastMessage.sender_id === currentUserId;
       const isCurrentUserTechnician = currentUserType === "technician";
 
-      if (isLastMessageFromCurrentUser && !isCurrentUserTechnician) {
-        handleGenerateAiReply();
-      }
+      return (
+        isLastMessageFromCurrentUser &&
+        !isCurrentUserTechnician &&
+        !lastMessage.is_ai
+      );
+    };
+
+    if (shouldGenerateReply()) {
+      hasGeneratedReplyRef.current = true;
+      handleGenerateAiReply();
     }
+
+    // Reset the ref when messages change
+    return () => {
+      hasGeneratedReplyRef.current = false;
+    };
   }, [chatMessages, currentUserId, currentUserType]);
 
   const BUCKET_NAME = "chat-images";
@@ -237,6 +254,7 @@ export default function ChatDisplayComponent() {
   };
 
   const handleGenerateAiReply = async (chatMessageId?: number) => {
+    if (aiIsGenerating) return;
     if (chatMessages.length === 0) return;
 
     // Get the latest message, or the message before the specified chatMessageId if provided
@@ -259,6 +277,8 @@ export default function ChatDisplayComponent() {
     try {
       if (chatMessageId) {
         await updateChatMessage(chatMessageId, { message: "" });
+        // Reset the ref when manually generating a new reply
+        hasGeneratedReplyRef.current = false;
       }
 
       // Filter out any images or URLs from the latest message
@@ -605,6 +625,7 @@ export default function ChatDisplayComponent() {
                             }`}
                           >
                             {renderMessage(message.message)}
+                            <div ref={bottomRef} />
 
                             {currentUserType === "technician" &&
                               message.is_ai &&
@@ -714,8 +735,6 @@ export default function ChatDisplayComponent() {
                                 </Button>
                               </div>
                             )}
-
-                          <div ref={bottomRef} />
                         </div>
                       </div>
                     </div>
@@ -874,8 +893,6 @@ export default function ChatDisplayComponent() {
                           }}
                         >
                           {renderMessage(message.message)}
-
-                          <div ref={bottomRef} />
                         </div>
                       </CardBody>
                     </Card>
