@@ -46,8 +46,8 @@ const AdminReportsComponent = () => {
   }
 
   const columns = [
-    { key: "farmer", label: "Farmer" },
-    { key: "suggestion_from", label: "Suggestion By" },
+    { key: "message_from", label: "Message From" },
+    { key: "suggestion_from", label: "Feedback By" },
     { key: "feedback_message", label: "Feedback" },
     { key: "ratings", label: "Rating" },
     { key: "feedback_created_at", label: "Date" },
@@ -78,20 +78,20 @@ const AdminReportsComponent = () => {
               <ModalBody>
                 <div className="w-full flex gap-3">
                   <Input
-                    label="From"
+                    label="Message From"
                     color="success"
-                    value={`${selectedFeedback.farmer_raw_user_meta_data.first_name} ${selectedFeedback.farmer_raw_user_meta_data.last_name}`}
-                    readOnly
-                    fullWidth
-                  />
-                  <Input
-                    label="Suggestion By"
-                    color="success"
-                    value={`${selectedFeedback.is_ai && "(AI)"} ${
+                    value={`${selectedFeedback.is_ai ? "(AI)" : ""} ${
                       selectedFeedback.technician_raw_user_meta_data.first_name
                     } ${
                       selectedFeedback.technician_raw_user_meta_data.last_name
                     }`}
+                    readOnly
+                    fullWidth
+                  />
+                  <Input
+                    label="Feedback By"
+                    color="success"
+                    value={`${selectedFeedback.farmer_raw_user_meta_data.first_name} ${selectedFeedback.farmer_raw_user_meta_data.last_name}`}
                     readOnly
                     fullWidth
                   />
@@ -164,11 +164,17 @@ const AdminReportsComponent = () => {
               {(item) => (
                 <TableRow key={item.feedback_id} className="text-center">
                   {(columnKey) => {
-                    if (columnKey === "farmer") {
+                    if (columnKey === "message_from") {
                       return (
                         <TableCell className="text-center">
-                          {item?.farmer_raw_user_meta_data.first_name}{" "}
-                          {item?.farmer_raw_user_meta_data.last_name}
+                          {item?.is_ai ? (
+                            "AI"
+                          ) : (
+                            <>
+                              {item?.technician_raw_user_meta_data?.first_name}{" "}
+                              {item?.technician_raw_user_meta_data?.last_name}
+                            </>
+                          )}
                         </TableCell>
                       );
                     }
@@ -176,14 +182,8 @@ const AdminReportsComponent = () => {
                     if (columnKey === "suggestion_from") {
                       return (
                         <TableCell className="text-center">
-                          {item?.is_ai ? (
-                            "AI"
-                          ) : (
-                            <>
-                              {item?.technician_raw_user_meta_data.first_name}{" "}
-                              {item?.technician_raw_user_meta_data.last_name}
-                            </>
-                          )}
+                          {item?.farmer_raw_user_meta_data?.first_name}{" "}
+                          {item?.farmer_raw_user_meta_data?.last_name}
                         </TableCell>
                       );
                     }

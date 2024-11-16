@@ -34,6 +34,29 @@ const useFeedback = (rowsPerPage: number, currentPage: number) => {
     }
   }, [rowsPerPage, currentPage]);
 
+  const fetchFullFeedback = async (feedbackId: number) => {
+    if (!feedbackId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from("ViewFullFeedback")
+        .select("*")
+        .eq("feedback_id", feedbackId);
+
+      if (error) {
+        throw error;
+      }
+
+      return data;
+    } catch (err) {
+      if (err instanceof Error) {
+        console.error("Error fetching full feedback:", err.message);
+      } else {
+        console.error("An unknown error occurred while fetching full feedback");
+      }
+    }
+  };
+
   const subscribeToChanges = useCallback(() => {
     const channel = supabase
       .channel("feedback_realtime")
@@ -44,16 +67,21 @@ const useFeedback = (rowsPerPage: number, currentPage: number) => {
           schema: "public",
           table: "Feedback",
         },
-        (payload: { eventType: string; new: any; old: any }) => {
+        async (payload: { eventType: string; new: any; old: any }) => {
           if (payload.eventType === "INSERT") {
-            setFeedbackData((prev) => {
-              const newData = [...prev, payload.new].sort(
-                (a, b) =>
-                  new Date(b.created_at).getTime() -
-                  new Date(a.created_at).getTime()
-              );
-              return rowsPerPage ? newData.slice(0, rowsPerPage) : newData;
-            });
+            const fullFeedback = await fetchFullFeedback(
+              payload.new.feedback_id
+            );
+            if (fullFeedback && fullFeedback.length > 0) {
+              setFeedbackData((prev) => {
+                const newData = [fullFeedback[0], ...prev].sort(
+                  (a, b) =>
+                    new Date(b.created_at).getTime() -
+                    new Date(a.created_at).getTime()
+                );
+                return rowsPerPage ? newData.slice(0, rowsPerPage) : newData;
+              });
+            }
           } else if (payload.eventType === "UPDATE") {
             setFeedbackData((prev) =>
               prev.map((feedback) =>

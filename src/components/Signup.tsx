@@ -304,7 +304,7 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
                         onChange={(e) => setBirthDate(e.target.value)}
                       />
                       <Select
-                        label="Area Assigned"
+                        label="Select Barangay"
                         color="success"
                         variant="bordered"
                         isRequired
