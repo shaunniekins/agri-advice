@@ -824,6 +824,17 @@ export default function ChatSidebarComponent({
                     const isLatestMessagerAndAi =
                       isUserLatestMessager && message.is_ai;
 
+                    const farmerId =
+                      message.sender_raw_user_meta_data.user_type === "farmer"
+                        ? message.sender_id
+                        : message.receiver_id;
+                    const technicianId =
+                      message.sender_raw_user_meta_data.user_type ===
+                      "technician"
+                        ? message.sender_id
+                        : message.receiver_id;
+                    // console.log('message', message);
+
                     return (
                       <li
                         key={message.chat_message_id}
@@ -834,15 +845,9 @@ export default function ChatSidebarComponent({
                             : ""
                         } flex items-center py-2 px-3 text-sm rounded-md hover:bg-[#005c4d] cursor-pointer w-full relative group`}
                         onClick={() => {
-                          if (user.id === message.sender_id) {
-                            router.push(
-                              `/${userType}/chat/id?sender=${message.sender_id}&receiver=${message.receiver_id}`
-                            );
-                          } else {
-                            router.push(
-                              `/${userType}/chat/id?sender=${message.sender_id}&receiver=${message.receiver_id}`
-                            );
-                          }
+                          router.push(
+                            `/${userType}/chat/id?sender=${farmerId}&receiver=${technicianId}`
+                          );
                         }}
                       >
                         <span className="w-full flex items-center gap-2">
