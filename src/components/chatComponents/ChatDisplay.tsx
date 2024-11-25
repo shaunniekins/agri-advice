@@ -159,7 +159,11 @@ export default function ChatDisplayComponent() {
       const lastMessage = chatMessages[chatMessages.length - 1];
 
       // Only generate reply if the last message is from the farmer and not from AI
-      return lastMessage.sender_id === sessionFarmerId && !lastMessage.is_ai;
+      return (
+        lastMessage.sender_id === sessionFarmerId &&
+        !lastMessage.is_ai &&
+        !sessionTechnicianId
+      );
     };
 
     if (shouldGenerateReply()) {
