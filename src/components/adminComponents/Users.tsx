@@ -53,13 +53,14 @@ const UserComponent = () => {
   const [currentUserInfo, setCurrentUserInfo] = useState<any>({});
   const [currentUserId, setCurrentUserId] = useState("");
   const [currentUserType, setCurrentUserType] = useState("");
+  const [statusFilter, setStatusFilter] = useState("pending");
 
   const {
     usersData,
     isLoadingUsers,
     totalUserEntries,
     fetchAndSubscribeUsers,
-  } = useUsers(rowsPerPage, page, userType, undefined);
+  } = useUsers(rowsPerPage, page, userType, statusFilter);
 
   useEffect(() => {
     setPage(1); // Reset the page when userType changes
@@ -360,12 +361,12 @@ const UserComponent = () => {
           >
             Add New
           </Button>
-          {/* Status filter shown only for technician */}
-          {/* <Select
+          {/* Status filter shown only for farmer */}
+          <Select
             label="Filter by Status"
             disallowEmptySelection={true}
             size="sm"
-            className={`${userType !== "technician" && "hidden"} max-w-48`}
+            className={`${userType !== "farmer" && "hidden"} max-w-48`}
             defaultSelectedKeys={["pending"]}
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value)}
@@ -379,7 +380,7 @@ const UserComponent = () => {
             <SelectItem key="rejected" value="rejected">
               Rejected
             </SelectItem>
-          </Select> */}
+          </Select>
 
           {/* User type switch */}
           <Select

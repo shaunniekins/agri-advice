@@ -81,7 +81,9 @@ export default function ChatDisplayComponent() {
   const [ratings, setRatings] = useState(0);
 
   const [otherPanelOpen, setOtherPanelOpen] = useState(false);
-
+  const [processingMessageId, setProcessingMessageId] = useState<number | null>(
+    null
+  );
   const hasGeneratedReplyRef = useRef(false);
 
   const handleContentClick = () => {
@@ -134,13 +136,12 @@ export default function ChatDisplayComponent() {
 
   const { partnerData } = usePartnerInfo(partnerId);
 
-  const { chatMessages, loadingChatMessages, errorChatMessages } =
-    useChatMessages(
-      rowsPerPage,
-      currentPage,
-      sessionFarmerId || "",
-      sessionTechnicianId || ""
-    );
+  const { chatMessages, loadingChatMessages } = useChatMessages(
+    rowsPerPage,
+    currentPage,
+    sessionFarmerId || "",
+    sessionTechnicianId || ""
+  );
 
   useEffect(() => {
     const shouldGenerateReply = () => {
@@ -149,15 +150,9 @@ export default function ChatDisplayComponent() {
       if (aiIsGenerating || hasGeneratedReplyRef.current) return false;
 
       const lastMessage = chatMessages[chatMessages.length - 1];
-      const isLastMessageFromCurrentUser =
-        lastMessage.sender_id === currentUserId;
-      const isCurrentUserTechnician = currentUserType === "technician";
 
-      return (
-        isLastMessageFromCurrentUser &&
-        !isCurrentUserTechnician &&
-        !lastMessage.is_ai
-      );
+      // Only generate reply if the last message is from the farmer and not from AI
+      return lastMessage.sender_id === sessionFarmerId && !lastMessage.is_ai;
     };
 
     if (shouldGenerateReply()) {
@@ -165,11 +160,10 @@ export default function ChatDisplayComponent() {
       handleGenerateAiReply();
     }
 
-    // Reset the ref when messages change
     return () => {
       hasGeneratedReplyRef.current = false;
     };
-  }, [chatMessages, currentUserId, currentUserType]);
+  }, [chatMessages, currentUserId, currentUserType, sessionFarmerId]);
 
   const BUCKET_NAME = "chat-images";
   const imageUrlPattern =
@@ -186,7 +180,7 @@ export default function ChatDisplayComponent() {
       partnerId = sessionFarmerId;
     }
 
-    if (currentUserType === "technician") {
+    if (currentUserType === "technician" && !aiIsGenerating) {
       await deleteSpecificChatMessagesBasedOnSenderIdAndNonAiChat(
         currentUserId
       );
@@ -257,33 +251,29 @@ export default function ChatDisplayComponent() {
     if (aiIsGenerating) return;
     if (chatMessages.length === 0) return;
 
-    // Get the latest message, or the message before the specified chatMessageId if provided
-    const lastMessage = chatMessageId
-      ? (() => {
-          const messageIndex = chatMessages.findIndex(
-            (message) => message.chat_message_id === chatMessageId
-          );
-          // If the message is found and is not the first in the array, return the previous message
-          return messageIndex > 0 ? chatMessages[messageIndex - 1] : null;
-        })()
-      : chatMessages[chatMessages.length - 1];
-
-    // If the specific message isn't found, exit early
-    if (!lastMessage) return;
-
-    // console.log("lastMessage", lastMessage);
-
     setAiIsGenerating(true);
+    setProcessingMessageId(chatMessageId || null);
+
     try {
+      // Get the message to respond to
+      let messageToRespondTo;
       if (chatMessageId) {
-        await updateChatMessage(chatMessageId, { message: "" });
-        // Reset the ref when manually generating a new reply
-        hasGeneratedReplyRef.current = false;
+        // If regenerating a specific message
+        const messageIndex = chatMessages.findIndex(
+          (message) => message.chat_message_id === chatMessageId
+        );
+        messageToRespondTo =
+          messageIndex > 0 ? chatMessages[messageIndex - 1] : null;
+      } else {
+        // Get the last message from the farmer
+        messageToRespondTo = chatMessages[chatMessages.length - 1];
       }
 
-      // Filter out any images or URLs from the latest message
-      const filteredMessage = !imageUrlPattern.test(lastMessage.message)
-        ? lastMessage.message
+      if (!messageToRespondTo) return;
+
+      // Filter out images from the message
+      const filteredMessage = !imageUrlPattern.test(messageToRespondTo.message)
+        ? messageToRespondTo.message
         : "";
 
       const response = await fetch("/api/generate-ai-reply", {
@@ -295,20 +285,25 @@ export default function ChatDisplayComponent() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to generate ai reply");
+        throw new Error("Failed to generate AI reply");
       }
 
       const data = await response.json();
       const aiReply = data.aiReply;
 
       if (chatMessageId) {
-        // Update the existing chat message
-        await updateChatMessage(chatMessageId, { message: aiReply });
+        // Update existing AI message
+        await updateChatMessage(chatMessageId, {
+          message: aiReply,
+          is_ai: true,
+          sender_id: sessionTechnicianId, // Ensure correct sender ID
+          receiver_id: sessionFarmerId, // Ensure correct receiver ID
+        });
       } else {
-        // Insert a new chat message
+        // Insert new AI message
         await insertChatMessage({
-          sender_id: sessionTechnicianId,
-          receiver_id: sessionFarmerId,
+          sender_id: sessionTechnicianId, // Always set as technician
+          receiver_id: sessionFarmerId, // Always set as farmer
           is_ai: true,
           message: aiReply,
         });
@@ -316,9 +311,10 @@ export default function ChatDisplayComponent() {
 
       setMessageInput("");
     } catch (error) {
-      console.error("Error generating ai reply:", error);
+      console.error("Error generating AI reply:", error);
     } finally {
       setAiIsGenerating(false);
+      setProcessingMessageId(null);
     }
   };
 

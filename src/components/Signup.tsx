@@ -85,10 +85,10 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
             mobile_number: mobileNumber,
             birth_date: birthDate,
             address: address,
-            num_heads: "",
-            experience_years: "",
+            num_heads: numHeads,
+            experience_years: experienceYears,
             operations: "",
-            account_status: "active",
+            account_status: "pending",
           },
         }));
 
@@ -97,7 +97,8 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
         }
 
         // Redirect farmers to the sign-in page
-        router.push(`/ident/signin?usertype=${userType}`);
+        // router.push(`/ident/signin?usertype=${userType}`);
+        setIsSignupConfirmationModalOpen(true);
       }
       // else if (userType === "technician") {
       //   ({ data, error } = await supabaseAdmin.auth.admin.createUser({
@@ -302,6 +303,26 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
                         isRequired
                         value={birthDate}
                         onChange={(e) => setBirthDate(e.target.value)}
+                      />
+                      <Input
+                        type="number"
+                        label="Number of Heads"
+                        variant="bordered"
+                        color="success"
+                        isRequired
+                        value={numHeads}
+                        onChange={(e) => setNumHeads(e.target.value)}
+                      />
+                    </div>
+                    <div className="w-full flex flex-col lg:flex-row gap-2">
+                      <Input
+                        type="number"
+                        label="Experience Years"
+                        variant="bordered"
+                        color="success"
+                        isRequired
+                        value={experienceYears}
+                        onChange={(e) => setExperienceYears(e.target.value)}
                       />
                       <Select
                         label="Select Barangay"

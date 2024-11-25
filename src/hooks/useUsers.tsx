@@ -26,7 +26,7 @@ const useUsers = (
       if (userType) {
         query = query.eq("user_type", userType);
 
-        if (filter) {
+        if (filter && userType === "farmer") {
           query = query.eq("account_status", filter);
         }
       }

@@ -94,6 +94,7 @@ const UserProfile: React.FC<UserProfileProps> = ({
                     readOnly
                   />
                   <hr className="col-span-3" />
+
                   {/* technician specific */}
 
                   {currentUserInfo.license_number && (
@@ -124,7 +125,7 @@ const UserProfile: React.FC<UserProfileProps> = ({
                     />
                   )}
                   {/* pig farmer specific */}
-                  {currentUserInfo.operations && (
+                  {currentUserInfo.num_heads && (
                     <Input
                       label="Number of Heads"
                       name="num_heads"
