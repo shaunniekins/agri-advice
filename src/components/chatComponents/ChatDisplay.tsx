@@ -43,7 +43,12 @@ import { supabase } from "@/utils/supabase";
 import { GrRefresh } from "react-icons/gr";
 import usePartnerInfo from "@/hooks/usePartnerInfo";
 import { FaBars } from "react-icons/fa";
-import { MdClose, MdOutlineChat, MdOutlineStarRate } from "react-icons/md";
+import {
+  MdClose,
+  MdOutlineChat,
+  MdOutlineEdit,
+  MdOutlineStarRate,
+} from "react-icons/md";
 import {
   fetchFeedback,
   insertFeedback,
@@ -67,6 +72,8 @@ export default function ChatDisplayComponent() {
   const [sessionFarmerId, setSessionFarmerId] = useState("");
   const [sessionTechnicianId, setSessionTechnicianId] = useState("");
   const [aiIsGenerating, setAiIsGenerating] = useState(false);
+
+  const [selectedMessageToEdit, setSelectedMessageToEdit] = useState("");
 
   const searchParams = useSearchParams();
 
@@ -321,6 +328,17 @@ export default function ChatDisplayComponent() {
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       setSelectedImage(e.target.files[0]);
+    }
+  };
+
+  const handleEditAIMessage = async (messageId: number) => {
+    const result = await updateChatMessage(messageId, {
+      message: messageInput,
+    });
+
+    if (result) {
+      setMessageInput("");
+      setSelectedMessageToEdit("");
     }
   };
 
@@ -608,7 +626,7 @@ export default function ChatDisplayComponent() {
                         </div>
 
                         <div
-                          className={`message flex flex-col max-w-full whitespace-pre-wrap flex-wrap text-wrap break-words `}
+                          className={`message flex flex-col max-w-full whitespace-pre-wrap flex-wrap text-wrap break-words relative`}
                           style={{
                             overflowWrap: "break-word",
                             wordBreak: "break-word",
@@ -667,14 +685,31 @@ export default function ChatDisplayComponent() {
                           </div>
 
                           {selectedMessageId === message.chat_message_id && (
-                            <span
-                              className={`text-[0.7rem] ${
-                                isSender ? "text-end" : "text-start"
-                              }`}
-                              //  ${message.is_ai && "hidden"}
-                            >
-                              {formatMessageTime(message.created_at)}
-                            </span>
+                            <>
+                              <span
+                                className={`text-[0.7rem] ${
+                                  isSender ? "text-end" : "text-start"
+                                }`}
+                                //  ${message.is_ai && "hidden"}
+                              >
+                                {formatMessageTime(message.created_at)}
+                              </span>
+                              {isSender && currentUserType === "technician" && (
+                                <div className="z-10 absolute -top-6 right-3">
+                                  <button
+                                    className="p-1 rounded-full text-xs text-green-400 hover:text-green-600"
+                                    onClick={() => {
+                                      setMessageInput(message.message);
+                                      setSelectedMessageToEdit(
+                                        message.chat_message_id
+                                      );
+                                    }}
+                                  >
+                                    Edit
+                                  </button>
+                                </div>
+                              )}
+                            </>
                           )}
 
                           {currentUserType === "farmer" &&
@@ -984,15 +1019,21 @@ export default function ChatDisplayComponent() {
             <Textarea
               size="lg"
               radius="lg"
-              maxRows={3}
+              maxRows={6}
               minRows={1}
-              color="success"
+              color={`${selectedMessageToEdit ? "secondary" : "success"}`}
               endContent={
                 <div className="flex gap-3 text-2xl">
                   <button
                     className={`${!messageInput && "hidden"}`}
                     onClick={async () => {
-                      await handleSubmit(messageInput);
+                      if (selectedMessageToEdit) {
+                        await handleEditAIMessage(
+                          parseInt(selectedMessageToEdit)
+                        );
+                      } else {
+                        await handleSubmit(messageInput);
+                      }
                     }}
                     disabled={isTextareaDisabled}
                   >
@@ -1033,6 +1074,10 @@ export default function ChatDisplayComponent() {
               onChange={(e) => {
                 if (selectedImage) return;
                 setMessageInput(e.target.value);
+
+                if (e.target.value === "") {
+                  setSelectedMessageToEdit("");
+                }
               }}
               isDisabled={isTextareaDisabled || aiIsGenerating}
             />
