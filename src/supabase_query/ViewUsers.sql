@@ -8,6 +8,7 @@ SELECT
   users.raw_user_meta_data ->> 'password' AS password,
   users.raw_user_meta_data ->> 'mobile_number' AS mobile_number,
   users.raw_user_meta_data ->> 'address' AS address,
+  users.raw_user_meta_data ->> 'complete_address' AS complete_address,
   users.raw_user_meta_data ->> 'user_type' AS user_type,
   users.raw_user_meta_data ->> 'birth_date' AS birth_date,
   users.raw_user_meta_data ->> 'account_status' AS account_status,

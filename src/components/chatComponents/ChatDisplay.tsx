@@ -145,6 +145,10 @@ export default function ChatDisplayComponent() {
 
   const { partnerData } = usePartnerInfo(partnerId);
 
+  // useEffect(() => {
+  //   console.log("partnerData", partnerData);
+  // }, [partnerData]);
+
   const { chatMessages, loadingChatMessages } = useChatMessages(
     rowsPerPage,
     currentPage,
