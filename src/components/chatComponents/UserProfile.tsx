@@ -125,6 +125,15 @@ const UserProfile: React.FC<UserProfileProps> = ({
                     />
                   )}
                   {/* pig farmer specific */}
+                  {currentUserInfo.complete_address && (
+                    <Input
+                      label="Complete Address"
+                      name="complete_address"
+                      value={currentUserInfo.complete_address}
+                      className="col-span-3"
+                      readOnly
+                    />
+                  )}
                   {currentUserInfo.num_heads && (
                     <Input
                       label="Number of Heads"

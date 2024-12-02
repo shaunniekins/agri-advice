@@ -45,6 +45,8 @@ import usePartnerInfo from "@/hooks/usePartnerInfo";
 import { FaBars } from "react-icons/fa";
 import {
   MdClose,
+  MdOutlineArrowBack,
+  MdOutlineArrowForward,
   MdOutlineChat,
   MdOutlineEdit,
   MdOutlineStarRate,
@@ -150,6 +152,39 @@ export default function ChatDisplayComponent() {
     sessionTechnicianId || ""
   );
 
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [filteredMessages, setFilteredMessages] = useState([]);
+
+  // Filter messages when chatMessages change
+  useEffect(() => {
+    const filtered = chatMessages.filter((message) => {
+      return (
+        (currentUserType === "farmer" &&
+          message.sender_id !== currentUserId &&
+          !message.is_ai) ||
+        (currentUserType === "technician" &&
+          message.sender_id === currentUserId &&
+          !message.is_ai)
+      );
+    });
+
+    setFilteredMessages(filtered as any);
+    // Set default to the latest message (last item in the filtered array)
+    setCurrentIndex(filtered.length - 1);
+  }, [chatMessages, currentUserType, currentUserId]);
+
+  const currentMessage: any = filteredMessages[currentIndex];
+
+  const handleNext = () => {
+    setCurrentIndex((prevIndex) =>
+      prevIndex < filteredMessages.length - 1 ? prevIndex + 1 : prevIndex
+    );
+  };
+
+  const handlePrev = () => {
+    setCurrentIndex((prevIndex) => (prevIndex > 0 ? prevIndex - 1 : prevIndex));
+  };
+
   useEffect(() => {
     const shouldGenerateReply = () => {
       if (!chatMessages.length || !currentUserId || !currentUserType)
@@ -187,11 +222,11 @@ export default function ChatDisplayComponent() {
       partnerId = sessionFarmerId;
     }
 
-    if (currentUserType === "technician" && !aiIsGenerating) {
-      await deleteSpecificChatMessagesBasedOnSenderIdAndNonAiChat(
-        currentUserId
-      );
-    }
+    // if (currentUserType === "technician" && !aiIsGenerating) {
+    //   await deleteSpecificChatMessagesBasedOnSenderIdAndNonAiChat(
+    //     currentUserId
+    //   );
+    // }
 
     const file = selectedImage;
 
@@ -861,6 +896,12 @@ export default function ChatDisplayComponent() {
                           <span className="font-semibold">Operations: </span>
                           {partnerData.operations || "N/A"}
                         </h2>
+                        <h2>
+                          <span className="font-semibold">
+                            Complete Address:{" "}
+                          </span>
+                          {partnerData.complete_address || "N/A"}
+                        </h2>
                       </>
                     )}
                     {currentUserType !== "technician" && (
@@ -883,89 +924,37 @@ export default function ChatDisplayComponent() {
             </div>
             {/* other chat */}
             <div className="flex flex-col gap-3 mt-5">
-              {chatMessages.map((message) => {
-                const messageDate = formatMessageDate(message.created_at);
-                const showDate = !displayedDates.has(messageDate);
+              {currentMessage ? (
+                <div className="relative">
+                  <Card className="shadow-none">
+                    <CardHeader className="flex flex-col justify-center">
+                      <h1 className="font-bold">
+                        {currentUserType === "farmer"
+                          ? "More Advice Here"
+                          : "Your Advice"}
+                      </h1>
+                      <span className="text-[0.7rem]">
+                        {formatMessageDate(currentMessage.created_at)}
+                      </span>
+                    </CardHeader>
+                    <CardBody>
+                      <div
+                        className="w-full text-sm break-words"
+                        style={{
+                          overflowWrap: "break-word",
+                          wordBreak: "break-word",
+                          maxWidth: "100%",
+                        }}
+                      >
+                        {renderMessage(currentMessage.message)}
+                      </div>
+                    </CardBody>
+                  </Card>
 
-                if (showDate) {
-                  displayedDates.add(messageDate);
-                }
-
-                const shouldShow =
-                  (currentUserType === "farmer" &&
-                    message.sender_id !== currentUserId &&
-                    !message.is_ai) ||
-                  (currentUserType === "technician" &&
-                    message.sender_id === currentUserId &&
-                    !message.is_ai);
-
-                if (!shouldShow) return null;
-
-                return (
-                  <div key={message.chat_message_id} className="relative">
-                    <Card className="shadow-none">
-                      <CardHeader className="flex flex-col justify-center">
-                        <h1 className="font-bold">
-                          {currentUserType === "farmer"
-                            ? "More Advice Here"
-                            : "Your Advice"}
-                        </h1>
-                        <span className="text-[0.7rem]">
-                          {formatMessageDate(message.created_at)}
-                        </span>
-                      </CardHeader>
-                      <CardBody>
-                        <div
-                          className="w-full text-sm break-words"
-                          style={{
-                            overflowWrap: "break-word",
-                            wordBreak: "break-word",
-                            maxWidth: "100%",
-                          }}
-                        >
-                          {renderMessage(message.message)}
-                        </div>
-                      </CardBody>
-                    </Card>
-                    {currentUserType === "technician" &&
-                      !message.is_ai &&
-                      feedbackMessages.has(message.chat_message_id) && (
-                        <div className="z-10 absolute -bottom-5 left-0 flex p-2">
-                          <Button
-                            color="success"
-                            isIconOnly
-                            className="p-1 rounded-full bg-green-400 bg-opacity-80"
-                            style={{
-                              minWidth: "0",
-                              width: "auto",
-                              height: "auto",
-                            }}
-                            onPress={async () => {
-                              // Clear previous data first
-                              setCurrentFeedbackId("");
-                              setRatings(0);
-                              setFeedbackMessage("");
-
-                              const response = await fetchFeedback(
-                                message.chat_message_id
-                              );
-
-                              // Update the state only if data exists
-                              if (response) {
-                                setCurrentFeedbackId(response.feedback_id);
-                                setRatings(response.ratings);
-                                setFeedbackMessage(response.feedback_message);
-                              }
-                              setOpenFeedback(true);
-                            }}
-                          >
-                            <MdOutlineChat size={15} color="yellow" />
-                          </Button>
-                        </div>
-                      )}
-
-                    {currentUserType === "farmer" && !message.is_ai && (
-                      <div className="z-10 absolute -bottom-5 left-0 flex justify-start items-center p-2">
+                  {currentUserType === "technician" &&
+                    !currentMessage.is_ai &&
+                    feedbackMessages.has(currentMessage.chat_message_id) && (
+                      <div className="z-10 absolute -bottom-5 left-0 flex p-2">
                         <Button
                           color="success"
                           isIconOnly
@@ -976,18 +965,14 @@ export default function ChatDisplayComponent() {
                             height: "auto",
                           }}
                           onPress={async () => {
-                            // Clear previous data first
                             setCurrentFeedbackId("");
                             setRatings(0);
                             setFeedbackMessage("");
 
-                            // Fetch new feedback
-                            setChatMessageIdFeedback(message.chat_message_id);
                             const response = await fetchFeedback(
-                              message.chat_message_id
+                              currentMessage.chat_message_id
                             );
 
-                            // Update the state only if data exists
                             if (response) {
                               setCurrentFeedbackId(response.feedback_id);
                               setRatings(response.ratings);
@@ -996,13 +981,73 @@ export default function ChatDisplayComponent() {
                             setOpenFeedback(true);
                           }}
                         >
-                          <MdOutlineStarRate size={15} color="yellow" />
+                          <MdOutlineChat size={15} color="yellow" />
                         </Button>
                       </div>
                     )}
+
+                  <div className="z-10 absolute -top-5 flex justify-between w-full mt-3">
+                    {/* <div className="z-10 absolute -bottom-5 left-0 flex justify-start items-center p-2"> */}
+
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      color="success"
+                      onPress={handlePrev}
+                      isDisabled={currentIndex === 0}
+                    >
+                      <MdOutlineArrowBack size={20} />
+                    </Button>
+                    <Button
+                      isIconOnly
+                      size="sm"
+                      color="success"
+                      onPress={handleNext}
+                      isDisabled={currentIndex === filteredMessages.length - 1}
+                    >
+                      <MdOutlineArrowForward size={20} />
+                    </Button>
                   </div>
-                );
-              })}
+
+                  {currentUserType === "farmer" && !currentMessage.is_ai && (
+                    <div className="z-10 absolute -bottom-5 left-0 flex justify-start items-center p-2">
+                      <Button
+                        color="success"
+                        isIconOnly
+                        className="p-1 rounded-full bg-green-400 bg-opacity-80"
+                        style={{
+                          minWidth: "0",
+                          width: "auto",
+                          height: "auto",
+                        }}
+                        onPress={async () => {
+                          setCurrentFeedbackId("");
+                          setRatings(0);
+                          setFeedbackMessage("");
+
+                          setChatMessageIdFeedback(
+                            currentMessage.chat_message_id
+                          );
+                          const response = await fetchFeedback(
+                            currentMessage.chat_message_id
+                          );
+
+                          if (response) {
+                            setCurrentFeedbackId(response.feedback_id);
+                            setRatings(response.ratings);
+                            setFeedbackMessage(response.feedback_message);
+                          }
+                          setOpenFeedback(true);
+                        }}
+                      >
+                        <MdOutlineStarRate size={15} color="yellow" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p>No messages to display.</p>
+              )}
             </div>
           </div>
         </div>

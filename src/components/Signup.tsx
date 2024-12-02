@@ -45,6 +45,7 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
   const [numHeads, setNumHeads] = useState("");
   const [experienceYears, setExperienceYears] = useState("");
   const [operations, setOperations] = useState("");
+  const [completeAddress, setCompleteAddress] = useState("");
 
   // exclusive for technician
   const [licenseNumber, setLicenseNumber] = useState("");
@@ -85,6 +86,7 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
             mobile_number: mobileNumber,
             birth_date: birthDate,
             address: address,
+            complete_address: completeAddress,
             num_heads: numHeads,
             experience_years: experienceYears,
             operations: "",
@@ -346,6 +348,15 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
                         <SelectItem key={"San Marcos"}>San Marcos</SelectItem>
                         <SelectItem key={"San Teodoro"}>San Teodoro</SelectItem>
                       </Select>
+                      <Input
+                        type="text"
+                        label="Complete Address"
+                        variant="bordered"
+                        color="success"
+                        isRequired
+                        value={completeAddress}
+                        onChange={(e) => setCompleteAddress(e.target.value)}
+                      />
                     </div>
                   </>
                 )}

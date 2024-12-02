@@ -22,7 +22,7 @@ import {
 import useUsers from "@/hooks/useUsers";
 import { useState, useEffect } from "react";
 import { supabaseAdmin } from "@/utils/supabase";
-import { FaEllipsisH, FaTrash } from "react-icons/fa";
+import { FaCheckCircle, FaEdit, FaEllipsisH, FaTrash } from "react-icons/fa";
 import { IoAddOutline } from "react-icons/io5";
 import { EyeSlashFilledIcon } from "../../../public/icons/EyeSlashFilledIcon";
 import { EyeFilledIcon } from "../../../public/icons/EyeFilledIcon";
@@ -470,6 +470,25 @@ const UserComponent = () => {
                         >
                           View
                         </Button>
+                        {userType === "farmer" &&
+                          statusFilter === "pending" && (
+                            <Button
+                              color="secondary"
+                              size="sm"
+                              startContent={<FaCheckCircle />}
+                              onClick={async () => {
+                                await supabaseAdmin.auth.admin.updateUserById(
+                                  item.id,
+                                  {
+                                    user_metadata: { account_status: "active" },
+                                  }
+                                );
+                                fetchAndSubscribeUsers();
+                              }}
+                            >
+                              Accept
+                            </Button>
+                          )}
                         <Button
                           color="danger"
                           size="sm"

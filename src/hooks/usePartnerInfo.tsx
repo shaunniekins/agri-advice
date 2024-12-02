@@ -21,6 +21,7 @@ interface PartnerData {
   num_heads?: string | null;
   experience_years?: string | null;
   operations?: string | null;
+  complete_address?: string | null;
 }
 
 const usePartnerInfo = (userId: string) => {

@@ -79,6 +79,7 @@ export default function ChatSidebarComponent({
     experiences: "",
     license_number: "",
     specialization: "",
+    complete_address: "",
   });
   const [tempUserInfo, setTempUserInfo] = useState(userInfo);
   const [isEditing, setIsEditing] = useState(false);
@@ -122,6 +123,7 @@ export default function ChatSidebarComponent({
         experiences,
         license_number,
         specialization,
+        complete_address,
       } = user.user_metadata;
 
       const commonUserInfo = {
@@ -138,6 +140,7 @@ export default function ChatSidebarComponent({
         experiences: "",
         license_number: "",
         specialization: "",
+        complete_address: "",
       };
 
       if (user_type === "farmer") {
@@ -146,6 +149,7 @@ export default function ChatSidebarComponent({
           num_heads: num_heads || "",
           experience_years: experience_years || "",
           operations: operations || "",
+          complete_address: complete_address || "",
         });
 
         setTempUserInfo({
@@ -153,6 +157,7 @@ export default function ChatSidebarComponent({
           num_heads: num_heads || "",
           experience_years: experience_years || "",
           operations: operations || "",
+          complete_address: complete_address || "",
         });
       } else if (user_type === "technician") {
         setUserInfo({
@@ -563,6 +568,13 @@ export default function ChatSidebarComponent({
                     // className="col-span-2"
                   />
                   <Input
+                    label="Birth Date"
+                    name="birth_date"
+                    value={tempUserInfo.birth_date}
+                    onChange={handleInputChange}
+                    readOnly={!isEditing}
+                  />
+                  <Input
                     label="Address"
                     name="address"
                     value={tempUserInfo.address}
@@ -571,11 +583,12 @@ export default function ChatSidebarComponent({
                     // className="col-span-2"
                   />
                   <Input
-                    label="Birth Date"
-                    name="birth_date"
-                    value={tempUserInfo.birth_date}
+                    label="Complete Address"
+                    name="complete_address"
+                    value={tempUserInfo.complete_address}
                     onChange={handleInputChange}
                     readOnly={!isEditing}
+                    className="col-span-3"
                   />
 
                   <hr className="lg:col-span-3" />
