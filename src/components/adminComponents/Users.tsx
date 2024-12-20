@@ -23,11 +23,12 @@ import useUsers from "@/hooks/useUsers";
 import { useState, useEffect } from "react";
 import { supabaseAdmin } from "@/utils/supabase";
 import { FaCheckCircle, FaEdit, FaEllipsisH, FaTrash } from "react-icons/fa";
-import { IoAddOutline } from "react-icons/io5";
+import { IoAdd, IoAddOutline, IoRemoveCircle } from "react-icons/io5";
 import { EyeSlashFilledIcon } from "../../../public/icons/EyeSlashFilledIcon";
 import { EyeFilledIcon } from "../../../public/icons/EyeFilledIcon";
 import UserProfile from "../chatComponents/UserProfile";
-
+import useBarangay from "@/hooks/useBarangay";
+import { deleteBarangay, insertBarangay } from "@/app/api/barangayIUD";
 const UserComponent = () => {
   const [page, setPage] = useState(1);
   const [userType, setUserType] = useState("technician");
@@ -55,6 +56,8 @@ const UserComponent = () => {
   const [currentUserType, setCurrentUserType] = useState("");
   const [statusFilter, setStatusFilter] = useState("pending");
 
+  // const [populatedBarangay, setPopulatedBarangay] = useState<any[]>([]);
+
   const {
     usersData,
     isLoadingUsers,
@@ -67,6 +70,40 @@ const UserComponent = () => {
   }, [userType]);
 
   const totalPages = Math.ceil(totalUserEntries / rowsPerPage);
+
+  const { barangay } = useBarangay();
+
+  // useEffect(() => {
+  //   if (barangay) {
+  //     setPopulatedBarangay([...barangay, { barangay_name: "Add Barangay" }]);
+  //   }
+  // }, [barangay]);
+
+  const handleDeleteBarangay = async (barangayName: string) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${barangayName}?`
+    );
+    if (confirmed) {
+      setAddress("");
+      await deleteBarangay(barangayName);
+    }
+  };
+
+  const handleBarangayChange = async (value: string) => {
+    if (value === "Add Barangay") {
+      const newBarangay = window.prompt("Enter new barangay name:");
+      if (newBarangay) {
+        const result = await insertBarangay({ barangay_name: newBarangay });
+        if (result && result.length > 0) {
+          setAddress(result[0].barangay_name);
+        }
+      } else {
+        setAddress("");
+      }
+      return;
+    }
+    setAddress(value);
+  };
 
   if (isLoadingUsers) {
     return (
@@ -237,26 +274,48 @@ const UserComponent = () => {
                   value={birthDate}
                   onChange={(e) => setBirthDate(e.target.value)}
                 />
-                <Select
-                  label="Area Assigned"
-                  color="success"
-                  variant="bordered"
-                  isRequired
-                  defaultSelectedKeys={[address]}
-                  value={address}
-                  onChange={(e) => setAddress(e.target.value)}
-                >
-                  <SelectItem key={"Bunawan Brook"}>Bunawan Brook</SelectItem>
-                  <SelectItem key={"Consuelo"}>Consuelo</SelectItem>
-                  <SelectItem key={"Imelda"}>Imelda</SelectItem>
-                  <SelectItem key={"Libertad"}>Libertad</SelectItem>
-                  <SelectItem key={"Mambalili"}>Mambalili</SelectItem>
-                  <SelectItem key={"Nueva Era"}>Nueva Era</SelectItem>
-                  <SelectItem key={"Poblacion"}>Poblacion</SelectItem>
-                  <SelectItem key={"San Andres"}>San Andres</SelectItem>
-                  <SelectItem key={"San Marcos"}>San Marcos</SelectItem>
-                  <SelectItem key={"San Teodoro"}>San Teodoro</SelectItem>
-                </Select>
+                <div className="flex gap-2 items-center">
+                  <Select
+                    label="Area Assigned"
+                    color="success"
+                    variant="bordered"
+                    isRequired
+                    defaultSelectedKeys={[address]}
+                    disabledKeys={["Add Barangay"]}
+                    value={address}
+                    onChange={(e) => handleBarangayChange(e.target.value)}
+                  >
+                    {barangay &&
+                      barangay.map((item) => (
+                        <SelectItem
+                          key={item.barangay_name}
+                          selectedIcon={
+                            item.barangay_name === "Add Barangay" ? null : (
+                              <IoRemoveCircle
+                                size={18}
+                                color="red"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  handleDeleteBarangay(item.barangay_name);
+                                }}
+                                style={{ cursor: "pointer" }}
+                              />
+                            )
+                          }
+                        >
+                          {item.barangay_name}
+                        </SelectItem>
+                      ))}
+                  </Select>
+                  <Button
+                    isIconOnly
+                    color="success"
+                    size="lg"
+                    startContent={<IoAdd />}
+                    onClick={() => handleBarangayChange("Add Barangay")}
+                  />
+                </div>
                 <Input
                   type="text"
                   label="License Number"

@@ -22,6 +22,7 @@ import { EyeSlashFilledIcon } from "../../public/icons/EyeSlashFilledIcon";
 import { EyeFilledIcon } from "../../public/icons/EyeFilledIcon";
 import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
 import { FaCheck } from "react-icons/fa";
+import useBarangay from "@/hooks/useBarangay";
 
 interface SignupComponentProps {
   userType: string;
@@ -38,7 +39,6 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
   const [lastName, setLastName] = useState("");
   const [middleName, setMiddleName] = useState("");
   const [mobileNumber, setMobileNumber] = useState("");
-  const [birthDate, setBirthDate] = useState("");
   const [address, setAddress] = useState("");
 
   // exclusive for farmer
@@ -57,6 +57,7 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
     useState(false);
 
   const router = useRouter();
+  const { barangay } = useBarangay();
 
   const handleSubmit = async (e: any) => {
     e.preventDefault();
@@ -84,7 +85,7 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
             last_name: lastName,
             middle_name: middleName,
             mobile_number: mobileNumber,
-            birth_date: birthDate,
+            birth_date: "",
             address: address,
             complete_address: completeAddress,
             num_heads: numHeads,
@@ -296,7 +297,7 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
                         value={mobileNumber}
                         onChange={handleMobileNumberChange}
                       />
-                      <Input
+                      {/* <Input
                         type="text"
                         label="Birth Date"
                         placeholder="YYYY-MM-DD"
@@ -305,7 +306,7 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
                         isRequired
                         value={birthDate}
                         onChange={(e) => setBirthDate(e.target.value)}
-                      />
+                      /> */}
                       <Input
                         type="number"
                         label="Number of Heads"
@@ -335,18 +336,12 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
                         value={address}
                         onChange={(e) => setAddress(e.target.value)}
                       >
-                        <SelectItem key={"Bunawan Brook"}>
-                          Bunawan Brook
-                        </SelectItem>
-                        <SelectItem key={"Consuelo"}>Consuelo</SelectItem>
-                        <SelectItem key={"Imelda"}>Imelda</SelectItem>
-                        <SelectItem key={"Libertad"}>Libertad</SelectItem>
-                        <SelectItem key={"Mambalili"}>Mambalili</SelectItem>
-                        <SelectItem key={"Nueva Era"}>Nueva Era</SelectItem>
-                        <SelectItem key={"Poblacion"}>Poblacion</SelectItem>
-                        <SelectItem key={"San Andres"}>San Andres</SelectItem>
-                        <SelectItem key={"San Marcos"}>San Marcos</SelectItem>
-                        <SelectItem key={"San Teodoro"}>San Teodoro</SelectItem>
+                        {barangay &&
+                          barangay.map((item) => (
+                            <SelectItem key={item.barangay_name}>
+                              {item.barangay_name}
+                            </SelectItem>
+                          ))}
                       </Select>
                       <Input
                         type="text"
@@ -420,7 +415,7 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
                             firstName &&
                             lastName &&
                             mobileNumber &&
-                            birthDate &&
+                            // birthDate &&
                             address &&
                             (userType !== "technician" ||
                               (licenseNumber && specialization))

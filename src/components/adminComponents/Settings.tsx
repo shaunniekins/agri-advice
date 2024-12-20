@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { FaPiggyBank } from "react-icons/fa";
-import { IoAdd } from "react-icons/io5";
+import { IoAdd, IoSearch } from "react-icons/io5";
 import usePremadePrompts from "@/hooks/usePremadePrompts";
 import {
   Button,
@@ -12,6 +12,8 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
+  Select,
+  SelectItem,
   Spinner,
 } from "@nextui-org/react";
 import {
@@ -31,6 +33,7 @@ import {
   insertSuggestedLink,
   updateSuggestedLink,
 } from "@/app/api/suggestedLinkIUD";
+import { prompt_categories } from "@/app/api/prompt_categories";
 
 const AdminSettings = () => {
   // suggested URL structure
@@ -91,13 +94,16 @@ const AdminSettings = () => {
     useState(false);
   const [isSuggestedPromptEditMode, setIsSuggestedPromptEditMode] =
     useState(false);
+  const [searchMsg, setSearchMsg] = useState("");
   const [newMsg, setNewMsg] = useState("");
+  const [newMsgCategory, setNewMsgCategory] = useState("");
   const [selectedSuggstedPrompt, setSelectedSuggestedPrompt] =
     useState<any>(null);
 
   const handleAddPrompt = async () => {
     const newPrompt = {
       prompt_message: newMsg,
+      category: newMsgCategory,
       prompt_order: lastOrderValue ? lastOrderValue + 1 : 1,
     };
 
@@ -105,6 +111,7 @@ const AdminSettings = () => {
     if (response) {
       setIsModalSuggestedPromptOpen(false);
       setNewMsg("");
+      setNewMsgCategory("");
     }
   };
 
@@ -113,6 +120,7 @@ const AdminSettings = () => {
 
     const updatedPrompt = {
       prompt_message: newMsg,
+      category: newMsgCategory,
     };
 
     const response = await updatePremadePrompt(
@@ -124,6 +132,7 @@ const AdminSettings = () => {
       setIsSuggestedPromptEditMode(false);
       setSelectedSuggestedPrompt(null);
       setNewMsg("");
+      setNewMsgCategory("");
     }
   };
 
@@ -138,6 +147,7 @@ const AdminSettings = () => {
       setIsSuggestedPromptEditMode(false);
       setSelectedSuggestedPrompt(null);
       setNewMsg("");
+      setNewMsgCategory("");
     }
   };
 
@@ -276,6 +286,7 @@ const AdminSettings = () => {
           setIsSuggestedPromptEditMode(false);
           setSelectedSuggestedPrompt(null);
           setNewMsg("");
+          setNewMsgCategory("");
         }}
       >
         <ModalContent>
@@ -291,6 +302,17 @@ const AdminSettings = () => {
                   value={newMsg}
                   onChange={(e) => setNewMsg(e.target.value)}
                 />
+
+                <Select
+                  label="Category"
+                  defaultSelectedKeys={[newMsgCategory]}
+                  value={newMsgCategory}
+                  onChange={(e) => setNewMsgCategory(e.target.value)}
+                >
+                  {prompt_categories.map((item: any) => (
+                    <SelectItem key={item.key}>{item.label}</SelectItem>
+                  ))}
+                </Select>
               </ModalBody>
               <ModalFooter
                 className={`flex ${
@@ -318,6 +340,7 @@ const AdminSettings = () => {
                       setIsSuggestedPromptEditMode(false);
                       setSelectedSuggestedPrompt(null);
                       setNewMsg("");
+                      setNewMsgCategory("");
                     }}
                   >
                     Cancel
@@ -325,6 +348,7 @@ const AdminSettings = () => {
                   <Button
                     color="primary"
                     variant="flat"
+                    isDisabled={!newMsg || !newMsgCategory}
                     onClick={() =>
                       isSuggestedPromptEditMode && selectedSuggstedPrompt
                         ? handleEditPrompt()
@@ -428,14 +452,29 @@ const AdminSettings = () => {
           {/* 1.1 suggested prompts header */}
           <div className="flex justify-between gap-2">
             <h2 className="text-lg font-semibold">Suggested Prompts</h2>
-            <Button
-              color="success"
-              className="text-white"
-              startContent={<IoAdd />}
-              onClick={() => setIsModalSuggestedPromptOpen(true)}
-            >
-              Add New Prompt
-            </Button>
+            <div className="flex flex-col md:flex-row items-center justify-end gap-2">
+              <Select
+                fullWidth
+                label="Filter Category"
+                color="success"
+                value={searchMsg}
+                className="min-w-52"
+                onChange={(e) => setSearchMsg(e.target.value)}
+              >
+                {prompt_categories.map((item: any) => (
+                  <SelectItem key={item.key}>{item.label}</SelectItem>
+                ))}
+              </Select>
+              <Button
+                fullWidth
+                color="success"
+                className="text-white"
+                startContent={<IoAdd />}
+                onClick={() => setIsModalSuggestedPromptOpen(true)}
+              >
+                Add New Prompt
+              </Button>
+            </div>
           </div>
 
           {/* 1.2 suggested prompts data */}
@@ -459,21 +498,29 @@ const AdminSettings = () => {
               )}
               {!isLoadingPrompts &&
                 premadePrompts.length > 0 &&
-                premadePrompts.map((prompt, index) => (
-                  <div
-                    key={index}
-                    className="relative h-52 w-52 bg-[#007057] text-white text-start p-4 rounded-xl flex items-start justify-center"
-                    onClick={() => {
-                      setIsSuggestedPromptEditMode(true);
-                      setSelectedSuggestedPrompt(prompt);
-                      setNewMsg(prompt.prompt_message);
-                      setIsModalSuggestedPromptOpen(true);
-                    }}
-                  >
-                    {prompt.prompt_message}
-                    <FaPiggyBank className="absolute bottom-4 right-4 text-white text-2xl" />
-                  </div>
-                ))}
+                premadePrompts
+                  .filter(
+                    (prompt) => !searchMsg || prompt.category === searchMsg
+                  )
+                  .map((prompt, index) => (
+                    <div
+                      key={index}
+                      className="relative h-52 w-52 bg-[#007057] text-white text-start p-4 rounded-xl flex items-start justify-center"
+                      onClick={() => {
+                        setIsSuggestedPromptEditMode(true);
+                        setSelectedSuggestedPrompt(prompt);
+                        setNewMsg(prompt.prompt_message);
+                        setNewMsgCategory(prompt.category);
+                        setIsModalSuggestedPromptOpen(true);
+                      }}
+                    >
+                      {prompt.prompt_message}
+                      <span className="absolute bottom-4 left-4 text-white text-sm">
+                        {prompt.category}
+                      </span>
+                      <FaPiggyBank className="absolute bottom-4 right-4 text-white text-2xl" />
+                    </div>
+                  ))}
             </div>
           </div>
         </div>
