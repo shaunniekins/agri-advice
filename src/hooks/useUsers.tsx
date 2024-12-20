@@ -6,7 +6,8 @@ const useUsers = (
   rowsPerPage: number,
   currentPage: number,
   userType: string,
-  filter?: string
+  filter?: string,
+  technician_support?: string
 ) => {
   const [usersData, setUsersData] = useState<any[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState<boolean>(true);
@@ -29,6 +30,13 @@ const useUsers = (
         if (filter && userType === "farmer") {
           query = query.eq("account_status", filter);
         }
+
+        if (technician_support && userType === "farmer") {
+          query = query.eq(
+            "technician_support",
+            technician_support === "true" ? true : false
+          );
+        }
       }
 
       const response: PostgrestResponse<any> = await query;
@@ -49,7 +57,7 @@ const useUsers = (
     } finally {
       setIsLoadingUsers(false);
     }
-  }, [rowsPerPage, currentPage, userType, filter]);
+  }, [rowsPerPage, currentPage, userType, filter, technician_support]);
 
   const subscribeToChanges = useCallback(() => {
     const channel = supabase

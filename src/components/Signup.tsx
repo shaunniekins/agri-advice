@@ -23,6 +23,7 @@ import { EyeFilledIcon } from "../../public/icons/EyeFilledIcon";
 import { IoIosArrowBack, IoIosArrowForward } from "react-icons/io";
 import { FaCheck } from "react-icons/fa";
 import useBarangay from "@/hooks/useBarangay";
+import { insertPfIDFiles } from "@/app/api/pf_id";
 
 interface SignupComponentProps {
   userType: string;
@@ -46,6 +47,9 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
   const [experienceYears, setExperienceYears] = useState("");
   const [operations, setOperations] = useState("");
   const [completeAddress, setCompleteAddress] = useState("");
+  const [technicianSupport, setTechnicianSupport] = useState("false");
+  // farmer & technicianSupport === "true"
+  const [pfID, setPfID] = useState<File | null>(null);
 
   // exclusive for technician
   const [licenseNumber, setLicenseNumber] = useState("");
@@ -70,10 +74,8 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
     setSignUpPending(true);
 
     try {
-      let data, error;
-
       if (userType === "farmer") {
-        ({ data, error } = await supabaseAdmin.auth.admin.createUser({
+        const { data, error } = await supabaseAdmin.auth.admin.createUser({
           email: email,
           password: password,
           email_confirm: true,
@@ -92,46 +94,36 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
             experience_years: experienceYears,
             operations: "",
             account_status: "pending",
+            technician_support: technicianSupport === "true" ? true : false,
+            pf_id: technicianSupport === "true" ? "" : null,
           },
-        }));
+        });
 
-        if (error) {
-          throw error;
+        if (error) throw error;
+
+        const userId = data?.user?.id;
+        if (!userId) throw new Error("User ID not found in the response data.");
+
+        if (pfID) {
+          // Upload MOA file and update user metadata using admin client
+          const pfIdFileUrl = await insertPfIDFiles(userId, pfID);
+          if (!pfIdFileUrl) throw new Error("Failed to upload PF ID file");
+
+          const { error: updateError } =
+            await supabaseAdmin.auth.admin.updateUserById(userId, {
+              user_metadata: {
+                pf_id: pfIdFileUrl,
+              },
+            });
+
+          if (updateError) throw updateError;
         }
 
-        // Redirect farmers to the sign-in page
-        // router.push(`/ident/signin?usertype=${userType}`);
-        setIsSignupConfirmationModalOpen(true);
+        router.push(`/ident/confirmation`);
       }
-      // else if (userType === "technician") {
-      //   ({ data, error } = await supabaseAdmin.auth.admin.createUser({
-      //     email: email,
-      //     password: password,
-      //     email_confirm: true,
-      //     user_metadata: {
-      //       email: email,
-      //       password: password,
-      //       user_type: userType.toLowerCase(),
-      //       first_name: firstName,
-      //       last_name: lastName,
-      //       middle_name: middleName,
-      //       mobile_number: mobileNumber,
-      //       birth_date: birthDate,
-      //       address: address,
-      //       license_number: licenseNumber,
-      //       specialization: specialization,
-      //       experiences: "",
-      //       account_status: "pending",
-      //     },
-      //   }));
-
-      //   if (error) {
-      //     throw error;
-      //   }
-
-      //   // Open the signup confirmation modal for technicians
-      //   setIsSignupConfirmationModalOpen(true);
-      // }
+      // Redirect farmers to the sign-in page
+      // router.push(`/ident/signin?usertype=${userType}`);
+      setIsSignupConfirmationModalOpen(true);
 
       // Successful signup
     } catch (error) {
@@ -327,6 +319,7 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
                         value={experienceYears}
                         onChange={(e) => setExperienceYears(e.target.value)}
                       />
+
                       <Select
                         label="Select Barangay"
                         color="success"
@@ -352,6 +345,37 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
                         value={completeAddress}
                         onChange={(e) => setCompleteAddress(e.target.value)}
                       />
+                    </div>
+                    <div className="w-full flex flex-col gap-2">
+                      <Select
+                        label="Technician Support"
+                        description="DO you want to be ensured in Bunawan for consultation?"
+                        disallowEmptySelection={true}
+                        color="success"
+                        variant="bordered"
+                        isRequired
+                        defaultSelectedKeys={[technicianSupport]}
+                        value={technicianSupport}
+                        onChange={(e) => setTechnicianSupport(e.target.value)}
+                      >
+                        <SelectItem key="true">Yes</SelectItem>
+                        <SelectItem key="false">No</SelectItem>
+                      </Select>
+                      {technicianSupport === "true" && (
+                        <Input
+                          type="file"
+                          label="Your ID"
+                          variant="bordered"
+                          color="success"
+                          isRequired
+                          accept="image/*"
+                          onChange={(e) => {
+                            if (e.target.files && e.target.files.length > 0) {
+                              setPfID(e.target.files[0]);
+                            }
+                          }}
+                        />
+                      )}
                     </div>
                   </>
                 )}
@@ -418,7 +442,8 @@ const SignupComponent = ({ userType }: SignupComponentProps) => {
                             // birthDate &&
                             address &&
                             (userType !== "technician" ||
-                              (licenseNumber && specialization))
+                              (licenseNumber && specialization)) &&
+                            (technicianSupport !== "true" || pfID)
                           )
                         : true
                     }

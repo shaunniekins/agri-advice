@@ -55,6 +55,9 @@ const UserComponent = () => {
   const [currentUserId, setCurrentUserId] = useState("");
   const [currentUserType, setCurrentUserType] = useState("");
   const [statusFilter, setStatusFilter] = useState("pending");
+  const [technician_support, setTechnician_support] = useState<
+    "false" | "true"
+  >("true");
 
   // const [populatedBarangay, setPopulatedBarangay] = useState<any[]>([]);
 
@@ -63,7 +66,7 @@ const UserComponent = () => {
     isLoadingUsers,
     totalUserEntries,
     fetchAndSubscribeUsers,
-  } = useUsers(rowsPerPage, page, userType, statusFilter);
+  } = useUsers(rowsPerPage, page, userType, statusFilter, technician_support);
 
   useEffect(() => {
     setPage(1); // Reset the page when userType changes
@@ -420,6 +423,26 @@ const UserComponent = () => {
           >
             Add New
           </Button>
+          {/* Technician support filter shown only for farmer */}
+          <Select
+            label="Technician Support"
+            disallowEmptySelection={true}
+            size="sm"
+            className={`${userType !== "farmer" && "hidden"} max-w-48`}
+            defaultSelectedKeys={["true"]}
+            value={technician_support.toString()}
+            onChange={(e) =>
+              setTechnician_support(e.target.value as "false" | "true")
+            }
+          >
+            <SelectItem key="true" value={"true"}>
+              Yes
+            </SelectItem>
+            <SelectItem key="false" value={"false"}>
+              No
+            </SelectItem>
+          </Select>
+
           {/* Status filter shown only for farmer */}
           <Select
             label="Filter by Status"

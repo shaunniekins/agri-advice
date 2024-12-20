@@ -4,6 +4,7 @@ import {
   Avatar,
   Button,
   Input,
+  Link,
   Modal,
   ModalBody,
   ModalContent,
@@ -130,8 +131,35 @@ const UserProfile: React.FC<UserProfileProps> = ({
                       label="Complete Address"
                       name="complete_address"
                       value={currentUserInfo.complete_address}
-                      className="col-span-3"
+                      className="col-span-2"
                       readOnly
+                    />
+                  )}
+                  {currentUserInfo.technician_support != null && (
+                    <Input
+                      label="With Technician Support"
+                      name="technician_support"
+                      value={currentUserInfo.technician_support ? "Yes" : "No"}
+                      className="col-span-1 capitalize"
+                      readOnly
+                      description={
+                        currentUserInfo.technician_support
+                          ? "*Click to view ID"
+                          : ""
+                      }
+                      onClick={() => {
+                        if (currentUserInfo.technician_support) {
+                          window.open(
+                            currentUserInfo.pf_id
+                              ? currentUserInfo.pf_id
+                              : alert(
+                                  "No ID uploaded yet (prior to this update)"
+                                ),
+                            "_blank",
+                            "noreferrer"
+                          );
+                        }
+                      }}
                     />
                   )}
                   {currentUserInfo.num_heads && (

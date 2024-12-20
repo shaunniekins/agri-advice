@@ -43,6 +43,15 @@ SELECT
   CASE
     WHEN users.raw_user_meta_data ->> 'user_type' = 'farmer' THEN users.raw_user_meta_data ->> 'operations'
     ELSE NULL
-  END AS operations
-  
+  END AS operations,
+
+  CASE
+    WHEN users.raw_user_meta_data ->> 'user_type' = 'farmer' THEN users.raw_user_meta_data ->> 'technician_support'
+    ELSE NULL
+  END AS technician_support,
+
+  CASE
+    WHEN users.raw_user_meta_data ->> 'user_type' = 'farmer' AND users.raw_user_meta_data ->> 'technician_support' = 'true' THEN users.raw_user_meta_data ->> 'pf_id'
+    ELSE NULL
+  END AS pf_id
 FROM auth.users;
