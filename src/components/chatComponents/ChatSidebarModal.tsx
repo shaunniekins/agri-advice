@@ -65,6 +65,7 @@ const ChatSidebarModal: React.FC<ChatSidebarModalProps> = ({
   const [isChanged, setIsChanged] = useState(false);
 
   const dispatch = useDispatch();
+  const handleLogout = useHandleLogout();
 
   const [userInfo, setUserInfo] = useState({
     profile_picture: "",
@@ -234,7 +235,7 @@ const ChatSidebarModal: React.FC<ChatSidebarModalProps> = ({
       }
 
       setIsLoading(true);
-      useHandleLogout();
+      handleLogout();
     } catch (error) {
       console.error("Error deleting user:", error);
     }
