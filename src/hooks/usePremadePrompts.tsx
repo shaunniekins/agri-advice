@@ -12,7 +12,7 @@ const usePremadePrompts = () => {
       const response: PostgrestResponse<any> = await supabase
         .from("PremadePrompts")
         .select("*")
-        .order("prompt_order");
+        .order("category");
 
       if (response.error) {
         throw response.error;
