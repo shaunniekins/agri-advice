@@ -4,12 +4,6 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   Avatar,
   Button,
-  Input,
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
   Pagination,
   Popover,
   PopoverContent,
@@ -18,30 +12,21 @@ import {
 } from "@nextui-org/react";
 import React from "react";
 import { useEffect, useState } from "react";
-import { FaBars, FaSignOutAlt, FaUserCircle } from "react-icons/fa";
+import { FaBars, FaSignOutAlt } from "react-icons/fa";
 import { IoAddCircleOutline, IoAddSharp } from "react-icons/io5";
 import { IoMdTrash } from "react-icons/io";
 import { useHandleLogout } from "@/utils/authUtils";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { RootState } from "@/app/reduxUtils/store";
 import useChatHeaders from "@/hooks/useChatHeaders";
 import { getIdFromPathname } from "@/utils/compUtils";
 import { BsThreeDotsVertical } from "react-icons/bs";
 import { deleteChatMessage } from "@/app/api/chatMessagesIUD";
 import { deleteChatConnection } from "@/app/api/chatConnectionsIUD";
-import {
-  MdCancel,
-  MdClose,
-  MdDeleteOutline,
-  MdModeEditOutline,
-  MdOutlineSpaceDashboard,
-  MdSave,
-} from "react-icons/md";
-import { supabase, supabaseAdmin } from "@/utils/supabase";
-import { setUser } from "@/app/reduxUtils/userSlice";
-import { EyeSlashFilledIcon } from "../../../public/icons/EyeSlashFilledIcon";
-import { EyeFilledIcon } from "../../../public/icons/EyeFilledIcon";
+import { MdOutlineSpaceDashboard } from "react-icons/md";
+import { supabase } from "@/utils/supabase";
 import { FiHelpCircle } from "react-icons/fi";
+import ChatSidebarModal from "./ChatSidebarModal";
 
 export default function ChatSidebarComponent({
   children,
@@ -56,153 +41,29 @@ export default function ChatSidebarComponent({
   const router = useRouter();
   const pathname = usePathname();
   const user = useSelector((state: RootState) => state.user.user);
-  const dispatch = useDispatch();
   const handleLogout = useHandleLogout();
 
   const chatId = getIdFromPathname(pathname);
   const [initials, setInitials] = useState("");
   const [userType, setUserType] = useState("");
   const [currentHeader, setCurrentHeader] = useState("");
+  const [chatConnectionId, setChatCoonectionId] = useState("");
 
-  const [openUserInfo, setOpenUserInfo] = useState(false);
-  const [userInfo, setUserInfo] = useState({
-    profile_picture: "",
-    address: "",
-    birth_date: "",
-    first_name: "",
-    last_name: "",
-    middle_name: "",
-    mobile_number: "",
-    num_heads: "",
-    experience_years: "",
-    operations: "",
-    experiences: "",
-    license_number: "",
-    specialization: "",
-    complete_address: "",
-  });
-  const [tempUserInfo, setTempUserInfo] = useState(userInfo);
-  const [isEditing, setIsEditing] = useState(false);
-  const [isChanged, setIsChanged] = useState(false);
-
-  // Login info state
-  const [loginInfo, setLoginInfo] = useState({
-    email: "",
-    password: "",
-  });
-
-  const [tempLoginInfo, setTempLoginInfo] = useState(loginInfo);
-  const [isLoginEditing, setIsLoginEditing] = useState(false);
-  const [isInputUserPasswordVisible, setIsInputUserPasswordVisible] =
-    useState(false);
-  const [isLoginChanged, setIsLoginChanged] = useState(false);
-
-  // Image state
   const [displayImage, setDisplayImage] = useState({
     profile_picture: "",
   });
-  const [displayImageOpen, setDisplayImageOpen] = useState(false);
-  const BUCKET_NAME = "profile-pictures";
 
-  useEffect(() => {
-    if (user && user.user_metadata) {
-      const {
-        profile_picture,
-        email,
-        password,
-        address,
-        birth_date,
-        first_name,
-        last_name,
-        middle_name,
-        mobile_number,
-        user_type,
-        num_heads,
-        experience_years,
-        operations,
-        experiences,
-        license_number,
-        specialization,
-        complete_address,
-      } = user.user_metadata;
-
-      const commonUserInfo = {
-        profile_picture: profile_picture || "",
-        address: address || "",
-        birth_date: birth_date || "",
-        first_name: first_name || "",
-        last_name: last_name || "",
-        middle_name: middle_name || "",
-        mobile_number: mobile_number || "",
-        num_heads: "",
-        experience_years: "",
-        operations: "",
-        experiences: "",
-        license_number: "",
-        specialization: "",
-        complete_address: "",
-      };
-
-      if (user_type === "farmer") {
-        setUserInfo({
-          ...commonUserInfo,
-          num_heads: num_heads || "",
-          experience_years: experience_years || "",
-          operations: operations || "",
-          complete_address: complete_address || "",
-        });
-
-        setTempUserInfo({
-          ...commonUserInfo,
-          num_heads: num_heads || "",
-          experience_years: experience_years || "",
-          operations: operations || "",
-          complete_address: complete_address || "",
-        });
-      } else if (user_type === "technician") {
-        setUserInfo({
-          ...commonUserInfo,
-          experiences: experiences || "",
-          license_number: license_number || "",
-          specialization: specialization || "",
-        });
-
-        setTempUserInfo({
-          ...commonUserInfo,
-          experiences: experiences || "",
-          license_number: license_number || "",
-          specialization: specialization || "",
-        });
-      } else {
-        setUserInfo(commonUserInfo);
-        setTempUserInfo(commonUserInfo);
-      }
-
-      setLoginInfo({
-        email: email || user.email || "",
-        password: password || "",
-      });
-
-      setTempLoginInfo({
-        email: email || user.email || "",
-        password: password || "",
-      });
-
-      setDisplayImage({
-        profile_picture: profile_picture || "",
-      });
-
-      const initials = `${first_name[0].toUpperCase()}${last_name[0].toUpperCase()}`;
-      setInitials(initials);
-      setUserType(user_type);
-    }
-  }, [user]);
+  const [openUserInfo, setOpenUserInfo] = useState(false);
 
   const { chatHeaders, totalChatHeaders } = useChatHeaders(
     rowsPerPage,
     page,
     user ? user.id : ""
   );
+
+  // useEffect(() => {
+  //   console.log("chatHeaders", chatHeaders);
+  // }, [chatHeaders]);
 
   const totalPages = Math.ceil(totalChatHeaders / rowsPerPage);
 
@@ -239,231 +100,6 @@ export default function ChatSidebarComponent({
     handleLogout();
   };
 
-  const reloadUser = async () => {
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    dispatch(setUser(user));
-  };
-
-  const handleDeleteToggle = async () => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this user? This action cannot be undone."
-    );
-
-    if (!confirmed) return;
-
-    try {
-      const { error } = await supabaseAdmin.auth.admin.deleteUser(user.id);
-      if (error) throw error;
-
-      if (displayImage.profile_picture) {
-        const { error } = await supabase.storage
-          .from(BUCKET_NAME)
-          .remove([`public/${user.id}`]);
-
-        if (error) throw error;
-      }
-
-      if (userType === "farmer") {
-        const filePath = `public/${user.id}`;
-
-        const { data: list } = await supabase.storage
-          .from("chat-images")
-          .list(filePath);
-        const filesToRemove = list?.map((x) => `${filePath}/${x.name}`);
-
-        if (filesToRemove && filesToRemove.length > 0) {
-          const { error } = await supabase.storage
-            .from("chat-images")
-            .remove(filesToRemove);
-
-          if (error) {
-            console.error("Error deleting image:", error.message);
-            return;
-          }
-        }
-      }
-
-      setIsLoading(true);
-      handleLogout();
-    } catch (error) {
-      console.error("Error deleting user:", error);
-    }
-  };
-
-  // handlers for user info
-  const handleInputChange = (e: any) => {
-    const { name, value } = e.target;
-    setTempUserInfo((prevState) => ({ ...prevState, [name]: value }));
-    setIsChanged(true);
-  };
-
-  const handleEditToggle = () => {
-    if (isEditing) {
-      // If canceling, revert to tempUserInfo
-      setTempUserInfo(userInfo);
-      setTempLoginInfo(loginInfo);
-
-      setIsChanged(false);
-      setIsLoginChanged(false);
-    } else {
-      // If starting to edit, save current userInfo to tempUserInfo
-      setTempUserInfo(userInfo);
-      setTempLoginInfo(loginInfo);
-    }
-    setIsEditing(!isEditing);
-    setIsLoading(false);
-  };
-
-  const handleSave = async () => {
-    try {
-      const { error } = await supabase.auth.updateUser({
-        data: {
-          ...tempUserInfo,
-        },
-      });
-
-      if (error) {
-        throw error;
-      }
-
-      reloadUser();
-      setIsEditing(false);
-      setIsChanged(false);
-    } catch (error) {
-      console.error("Error updating user:", error);
-    }
-  };
-
-  // Handlers for login info
-  const handleLoginInputChange = (e: any) => {
-    const { name, value } = e.target;
-    setTempLoginInfo((prevState) => ({ ...prevState, [name]: value }));
-    setIsLoginChanged(true);
-  };
-
-  const handleLoginEditToggle = () => {
-    if (isLoginEditing) {
-      // If canceling, revert to tempUserInfo
-      setTempLoginInfo(loginInfo);
-      setIsLoginChanged(false);
-    } else {
-      // If starting to edit, save current userInfo to tempUserInfo
-      setTempLoginInfo(loginInfo);
-    }
-    setIsLoginEditing(!isLoginEditing);
-  };
-
-  const handleLoginSave = async () => {
-    try {
-      const { error } = await supabase.auth.updateUser({
-        email: tempLoginInfo.email,
-        password: tempLoginInfo.password,
-        data: {
-          email: tempLoginInfo.email,
-          password: tempLoginInfo.password,
-        },
-      });
-      if (error) throw error;
-
-      reloadUser();
-      setIsLoginEditing(false);
-      setIsLoginChanged(false);
-
-      setIsEditing(false);
-      setIsChanged(false);
-    } catch (error) {
-      console.error("Error updating login information:", error);
-    }
-  };
-
-  // Handlers for image
-  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    setDisplayImageOpen(false);
-
-    const files = e.target.files;
-
-    if (files && files[0]) {
-      setDisplayImage((prevState) => ({
-        ...prevState,
-        profile_picture: "",
-      }));
-
-      setDisplayImage((prevState) => ({
-        ...prevState,
-        profile_picture: "",
-      }));
-
-      if (displayImage.profile_picture) {
-        const { error } = await supabase.storage
-          .from(BUCKET_NAME)
-          .remove([`public/${user.id}`]);
-
-        if (error) {
-          console.error("Error deleting image:", error.message);
-          return;
-        }
-      }
-
-      const { data, error } = await supabase.storage
-        .from(BUCKET_NAME)
-        .upload(`public/${user.id}`, files[0]);
-
-      if (data && !error) {
-        const { publicUrl } = supabase.storage
-          .from(BUCKET_NAME)
-          .getPublicUrl(data.path).data;
-
-        const { error } = await supabase.auth.updateUser({
-          data: {
-            profile_picture: publicUrl,
-          },
-        });
-
-        setDisplayImage((prevState) => ({
-          ...prevState,
-          profile_picture: publicUrl,
-        }));
-
-        setDisplayImage((prevState) => ({
-          ...prevState,
-          profile_picture: publicUrl,
-        }));
-
-        reloadUser();
-
-        if (error) throw error;
-      }
-    }
-  };
-
-  const handleImageDelete = async () => {
-    setDisplayImageOpen(false);
-
-    const { error } = await supabase.storage
-      .from(BUCKET_NAME)
-      .remove([`public/${user.id}`]);
-
-    if (error) {
-      console.error("Error deleting image:", error.message);
-      return;
-    }
-
-    await supabase.auth.updateUser({
-      data: {
-        profile_picture: "",
-      },
-    });
-
-    setDisplayImage((prevState) => ({
-      ...prevState,
-      profile_picture: "",
-    }));
-
-    reloadUser();
-  };
-
   const isTechnicianPathBase = pathname === "/technician/chat";
   // console.log("isTechnicianPathBase", isTechnicianPathBase);
 
@@ -471,304 +107,18 @@ export default function ChatSidebarComponent({
 
   return (
     <>
-      <Modal
-        // size="xl"
-        backdrop="blur"
-        isOpen={openUserInfo}
-        hideCloseButton={true}
-        onOpenChange={setOpenUserInfo}
-        className="h-full lg:h-auto"
-      >
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader className="flex flex-col gap-1">
-                Personal Information
-              </ModalHeader>
-              <ModalBody className="h-full overflow-y-auto">
-                <div className="w-full h-full flex flex-col lg:grid lg:grid-cols-3 gap-4 overflow-y-auto">
-                  <div className="lg:col-span-3 flex flex-col items-center">
-                    <Popover
-                      showArrow
-                      placement="right"
-                      isOpen={displayImageOpen}
-                      onOpenChange={(open) =>
-                        isEditing && setDisplayImageOpen(open)
-                      }
-                    >
-                      <PopoverTrigger>
-                        {/* {displayImage.profile_picture ? ( */}
-                        <Avatar
-                          src={displayImage.profile_picture}
-                          alt="Profile"
-                          className="w-32 h-32 rounded-full object-cover cursor-pointer"
-                        />
-                        {/* ) : (
-                          <FaUserCircle size="8rem" className="text-gray-500" />
-                        )} */}
-                      </PopoverTrigger>
-                      <PopoverContent className="p-3 flex flex-col items-start gap-3">
-                        <input
-                          id="profile-picture-upload"
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageChange}
-                          className="hidden"
-                        />
-                        <label
-                          htmlFor="profile-picture-upload"
-                          className="flex items-center gap-2 text-md cursor-pointer"
-                        >
-                          <MdSave className="text-lg" />
-                          <span>
-                            {!displayImage ? "Upload an image" : "Change image"}
-                          </span>
-                        </label>
-
-                        {displayImage.profile_picture && (
-                          <button
-                            className="flex items-center gap-2 text-md cursor-pointer"
-                            onClick={handleImageDelete}
-                          >
-                            <MdDeleteOutline className="text-lg" />
-                            <span>Delete</span>
-                          </button>
-                        )}
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                  {/* info */}
-                  <Input
-                    label="First Name"
-                    name="first_name"
-                    value={tempUserInfo.first_name}
-                    onChange={handleInputChange}
-                    readOnly={!isEditing}
-                  />
-                  <Input
-                    label="Last Name"
-                    name="last_name"
-                    value={tempUserInfo.last_name}
-                    onChange={handleInputChange}
-                    readOnly={!isEditing}
-                  />
-                  <Input
-                    label="Middle Name"
-                    name="middle_name"
-                    value={tempUserInfo.middle_name}
-                    onChange={handleInputChange}
-                    readOnly={!isEditing}
-                  />
-                  <Input
-                    label="Mobile Number"
-                    name="mobile_number"
-                    value={tempUserInfo.mobile_number}
-                    onChange={handleInputChange}
-                    readOnly={!isEditing}
-                    // className="col-span-2"
-                  />
-                  <Input
-                    label="Birth Date"
-                    name="birth_date"
-                    value={tempUserInfo.birth_date}
-                    onChange={handleInputChange}
-                    readOnly={!isEditing}
-                  />
-                  <Input
-                    label="Address"
-                    name="address"
-                    value={tempUserInfo.address}
-                    onChange={handleInputChange}
-                    readOnly={!isEditing}
-                    // className="col-span-2"
-                  />
-                  <Input
-                    label="Complete Address"
-                    name="complete_address"
-                    value={tempUserInfo.complete_address}
-                    onChange={handleInputChange}
-                    readOnly={!isEditing}
-                    className="col-span-3"
-                  />
-
-                  <hr className="lg:col-span-3" />
-                  {/* technician specific */}
-                  {userType === "technician" && (
-                    <>
-                      <Input
-                        label="License Number"
-                        name="license_number"
-                        value={tempUserInfo.license_number}
-                        onChange={handleInputChange}
-                        className="lg:col-span-3"
-                        readOnly={!isEditing}
-                      />
-
-                      <Input
-                        label="Specialization"
-                        name="specialization"
-                        value={tempUserInfo.specialization}
-                        onChange={handleInputChange}
-                        className="lg:col-span-3"
-                        readOnly={!isEditing}
-                      />
-
-                      <Input
-                        label="Experiences"
-                        name="experiences"
-                        value={tempUserInfo.experiences}
-                        onChange={handleInputChange}
-                        className="lg:col-span-3"
-                        readOnly={!isEditing}
-                      />
-                    </>
-                  )}
-
-                  {/* pig farmer specific */}
-                  {userType === "farmer" && (
-                    <>
-                      <Input
-                        label="Number of Heads"
-                        name="num_heads"
-                        value={tempUserInfo.num_heads}
-                        onChange={handleInputChange}
-                        readOnly={!isEditing}
-                      />
-                      <Input
-                        label="Experience Years"
-                        name="experience_years"
-                        value={tempUserInfo.experience_years}
-                        onChange={handleInputChange}
-                        className="col-span-2"
-                        readOnly={!isEditing}
-                      />
-                      <Input
-                        label="Operations"
-                        name="operations"
-                        value={tempUserInfo.operations}
-                        onChange={handleInputChange}
-                        className="lg:col-span-3"
-                        readOnly={!isEditing}
-                      />
-                    </>
-                  )}
-
-                  <hr className="lg:col-span-3" />
-                  <h1 className="text-sm font-semibold lg:col-span-3">
-                    Account Login Information
-                  </h1>
-                  <Input
-                    label="Email"
-                    name="email"
-                    color="success"
-                    variant="bordered"
-                    value={tempLoginInfo.email}
-                    onChange={handleLoginInputChange}
-                    readOnly={!isLoginEditing}
-                  />
-                  <Input
-                    type={isInputUserPasswordVisible ? "text" : "password"}
-                    label="Password"
-                    name="password"
-                    color="success"
-                    variant="bordered"
-                    value={tempLoginInfo.password}
-                    onChange={handleLoginInputChange}
-                    readOnly={!isLoginEditing}
-                    endContent={
-                      <button
-                        className="focus:outline-none"
-                        type="button"
-                        onClick={() =>
-                          setIsInputUserPasswordVisible(
-                            !isInputUserPasswordVisible
-                          )
-                        }
-                      >
-                        {isInputUserPasswordVisible ? (
-                          <EyeSlashFilledIcon className="text-2xl text-default-400 pointer-events-none" />
-                        ) : (
-                          <EyeFilledIcon className="text-2xl text-default-400 pointer-events-none" />
-                        )}
-                      </button>
-                    }
-                  />
-                  <div
-                    className={`${
-                      !isEditing && "hidden"
-                    } flex justify-center items-center gap-2`}
-                  >
-                    <Button
-                      fullWidth
-                      variant="bordered"
-                      startContent={
-                        isLoginEditing ? <MdCancel /> : <MdModeEditOutline />
-                      }
-                      color="secondary"
-                      onClick={handleLoginEditToggle}
-                    >
-                      {isLoginEditing ? "Cancel" : "Edit Login Info"}
-                    </Button>
-                    <Button
-                      fullWidth
-                      variant="bordered"
-                      startContent={<MdSave />}
-                      className={`${!isLoginChanged && "hidden"} `}
-                      color="success"
-                      onClick={handleLoginSave}
-                    >
-                      Save
-                    </Button>
-                  </div>
-                </div>
-              </ModalBody>
-              <ModalFooter>
-                <div className="w-full flex justify-between gap-2">
-                  <Button
-                    startContent={<MdDeleteOutline />}
-                    color="danger"
-                    variant="bordered"
-                    onClick={handleDeleteToggle}
-                  >
-                    Delete Account
-                  </Button>
-                  <div className="flex justify-end items-center gap-2">
-                    <Button
-                      startContent={
-                        isEditing ? <MdCancel /> : <MdModeEditOutline />
-                      }
-                      color="secondary"
-                      onClick={handleEditToggle}
-                    >
-                      {isEditing ? "Cancel" : "Edit"}
-                    </Button>
-                    <Button
-                      startContent={isChanged ? <MdSave /> : <MdClose />}
-                      className="bg-[#007057] text-white self-center"
-                      onClick={() => {
-                        if (isChanged) {
-                          handleSave();
-                        } else {
-                          setOpenUserInfo(false);
-                          setTempUserInfo(userInfo);
-                          setTempLoginInfo(loginInfo);
-                          setIsEditing(false);
-                          setIsLoginEditing(false);
-                          setIsChanged(false);
-                          setIsLoginChanged(false);
-                        }
-                      }}
-                    >
-                      {isChanged ? "Save" : "Close"}
-                    </Button>
-                  </div>
-                </div>
-              </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
-
+      <ChatSidebarModal
+        openUserInfo={openUserInfo}
+        setOpenUserInfo={setOpenUserInfo}
+        user={user}
+        displayImage={displayImage}
+        setDisplayImage={setDisplayImage}
+        initials={initials}
+        setInitials={setInitials}
+        userType={userType}
+        setUserType={setUserType}
+        setIsLoading={setIsLoading}
+      />
       {isLoading && (
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
           <Spinner color="success" />
@@ -824,30 +174,6 @@ export default function ChatSidebarComponent({
                   </li>
                 ) : (
                   chatHeaders.map((message) => {
-                    const displayName =
-                      message.sender_id !== user.id
-                        ? `${message.sender_raw_user_meta_data.first_name} ${message.sender_raw_user_meta_data.last_name}`
-                        : message.receiver_id !== user.id
-                        ? `${message.receiver_raw_user_meta_data.first_name} ${message.receiver_raw_user_meta_data.last_name}`
-                        : "Unknown";
-
-                    // Determine if the user is the latest messager
-                    const isUserLatestMessager = message.sender_id === user.id;
-
-                    const isLatestMessagerAndAi =
-                      isUserLatestMessager && message.is_ai;
-
-                    const farmerId =
-                      message.sender_raw_user_meta_data.user_type === "farmer"
-                        ? message.sender_id
-                        : message.receiver_id;
-                    const technicianId =
-                      message.sender_raw_user_meta_data.user_type ===
-                      "technician"
-                        ? message.sender_id
-                        : message.receiver_id;
-                    // console.log('message', message);
-
                     return (
                       <li
                         key={message.chat_message_id}
@@ -856,29 +182,17 @@ export default function ChatSidebarComponent({
                           currentHeader === message.chat_message_id
                             ? "bg-[#005c4d]"
                             : ""
-                        } flex items-center py-2 px-3 text-sm rounded-md hover:bg-[#005c4d] cursor-pointer w-full relative group`}
+                        } flex items-center py-3 px-4 text-sm rounded-md hover:bg-[#005c4d] cursor-pointer w-full relative group`}
                         onClick={() => {
                           router.push(
-                            `/${userType}/chat/id?sender=${farmerId}&receiver=${technicianId}`
+                            `/${userType}/chat/${message.chat_connection_id}`
                           );
                         }}
                       >
-                        <span className="w-full flex items-center gap-2">
-                          {/* <Avatar size="sm" name={displayName} showFallback /> */}
-                          <div className="flex flex-col justify-center truncate">
-                            <span className="truncate text-lg font-semibold">
-                              {displayName}
-                            </span>
-                            <span className="text-xs truncate">
-                              {isUserLatestMessager
-                                ? isLatestMessagerAndAi
-                                  ? `AI: ${message.message}`
-                                  : `You: ${message.message}`
-                                : message.message}
-                            </span>
-                          </div>
+                        <span className="w-full text-center truncate text-base">
+                          {message.message}
                         </span>
-                        <Popover
+                        {/* <Popover
                           showArrow
                           isOpen={openPopoverId === message.chat_message_id}
                           onOpenChange={(open) => {
@@ -962,7 +276,7 @@ export default function ChatSidebarComponent({
                               Delete
                             </Button>
                           </PopoverContent>
-                        </Popover>
+                        </Popover> */}
                       </li>
                     );
                   })
@@ -1006,7 +320,8 @@ export default function ChatSidebarComponent({
               </div>
             </div>
           </div>
-          {/* HEADER */}
+
+          {/* ----- HEADER ----- */}
           <div className="h-full w-full flex flex-col relative overflow-hidden">
             <div className="flex-none">
               <div className="w-full bg-[#007057] text-white flex justify-between items-center px-5">
@@ -1031,20 +346,6 @@ export default function ChatSidebarComponent({
                     AgriAdvice
                   </div>
                 </div>
-                {/* <div
-                  className={`${
-                    chatId === "chat" ? "hidden" : "flex"
-                  } flex-col items-center`}
-                >
-                  <span className="text-xs">You&apos;re talking to</span>
-                  {chatConnectionData && (
-                    <span>{`${
-                      (chatConnectionData as any).technician_first_name || ""
-                    } ${
-                      (chatConnectionData as any).technician_last_name || ""
-                    }`}</span>
-                  )}
-                </div> */}
                 <button
                   className="flex items-center gap-2"
                   onClick={() => setOpenUserInfo(true)}

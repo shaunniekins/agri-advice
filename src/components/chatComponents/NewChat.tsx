@@ -78,7 +78,6 @@ const ChatPageComponent = () => {
     // insert chat connection
     const response = await insertChatConnection({
       farmer_id: user.id,
-      technician_id: chosenTechnicianId,
     });
 
     if (!response) {
@@ -86,9 +85,12 @@ const ChatPageComponent = () => {
       return;
     }
 
+    const chatConnectionId = response.data[0].chat_connection_id;
+
+    // insert message
     insertChatMessage({
+      chat_connection_id: chatConnectionId,
       sender_id: user.id,
-      receiver_id: chosenTechnicianId,
       message: messageInput,
     });
 
@@ -96,9 +98,7 @@ const ChatPageComponent = () => {
     setChosenTechnicianId(null);
     setMessageInput("");
 
-    router.push(
-      `/${userType}/chat/id?sender=${user.id}&receiver=${chosenTechnicianId}`
-    );
+    router.push(`/${userType}/chat/${chatConnectionId}`);
   };
 
   if (userType === "technician") {

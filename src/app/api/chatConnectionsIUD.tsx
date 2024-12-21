@@ -28,8 +28,8 @@ export const deleteChatConnection = async (
     const response = await supabase
       .from("ChatConnections")
       .delete()
-      .or(`farmer_id.eq.${user1Id},technician_id.eq.${user1Id}`)
-      .or(`farmer_id.eq.${user2Id},technician_id.eq.${user2Id}`);
+      .or(`sender_id.eq.${user1Id},receiver_id.eq.${user1Id}`)
+      .or(`sender_id.eq.${user2Id},receiver_id.eq.${user2Id}`);
 
     if (response.error) {
       throw response.error;

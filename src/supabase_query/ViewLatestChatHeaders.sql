@@ -1,33 +1,26 @@
 create view "ViewLatestChatHeaders" as
-select
+select distinct on (cc.chat_connection_id) cc.chat_connection_id,
   cm.chat_message_id,
   cm.message,
+  cm.is_read,
   cm.sender_id,
-  cm.is_ai,
   cm.receiver_id,
-  cm.last_accessed_at,
   cm.created_at,
-  greatest(cm.sender_id, cm.receiver_id) as partner_id,
-  least(cm.sender_id, cm.receiver_id) as other_id,
-  sender_user.raw_user_meta_data as sender_raw_user_meta_data,
-  receiver_user.raw_user_meta_data as receiver_raw_user_meta_data
-from
-  "ChatMessages" cm
+  sender_user.raw_user_meta_data->>'first_name' as sender_first_name,
+  sender_user.raw_user_meta_data->>'last_name' as sender_last_name,
+  COALESCE(
+    receiver_user.raw_user_meta_data->>'first_name',
+    'AI Assistant'
+  ) as receiver_first_name,
+  COALESCE(
+    receiver_user.raw_user_meta_data->>'last_name',
+    ''
+  ) as receiver_last_name,
+  sender_user.raw_user_meta_data as sender_meta_data,
+  COALESCE(receiver_user.raw_user_meta_data, '{}'::jsonb) as receiver_meta_data
+from "ChatConnections" cc
+  left join "ChatMessages" cm on cc.chat_connection_id = cm.chat_connection_id
   join auth.users sender_user on cm.sender_id = sender_user.id
-  join auth.users receiver_user on cm.receiver_id = receiver_user.id
-where
-  cm.created_at = (
-    -- Subquery to get the latest message
-    select
-      subquery.created_at
-    from
-      "ChatMessages" subquery
-    where
-      (
-        (subquery.sender_id = cm.sender_id and subquery.receiver_id = cm.receiver_id)
-        or (subquery.sender_id = cm.receiver_id and subquery.receiver_id = cm.sender_id)
-      )
-    order by
-      subquery.created_at desc
-    limit 1
-  );
+  left join auth.users receiver_user on cm.receiver_id = receiver_user.id
+order by cc.chat_connection_id,
+  cm.created_at asc nulls last;

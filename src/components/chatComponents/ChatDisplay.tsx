@@ -1,27 +1,13 @@
 "use client";
 
 import {
-  deleteSpecificChatMessagesBasedOnSenderIdAndNonAiChat,
   insertChatMessage,
   updateChatMessage,
 } from "@/app/api/chatMessagesIUD";
 import { RootState } from "@/app/reduxUtils/store";
 import useChatMessages from "@/hooks/useChatMessages";
-import {
-  Avatar,
-  Button,
-  Card,
-  CardBody,
-  CardHeader,
-  Modal,
-  ModalBody,
-  ModalContent,
-  ModalFooter,
-  ModalHeader,
-  Spinner,
-  Textarea,
-} from "@nextui-org/react";
-import { useSearchParams } from "next/navigation";
+import { Avatar, Button, Spinner, Textarea } from "@nextui-org/react";
+import { usePathname } from "next/navigation";
 import React, { useRef } from "react";
 import { useEffect, useState } from "react";
 import {
@@ -41,23 +27,7 @@ import { useSelector } from "react-redux";
 import ReactMarkdown from "react-markdown";
 import { supabase } from "@/utils/supabase";
 import { GrRefresh } from "react-icons/gr";
-import usePartnerInfo from "@/hooks/usePartnerInfo";
 import { FaBars } from "react-icons/fa";
-import {
-  MdClose,
-  MdOutlineArrowBack,
-  MdOutlineArrowForward,
-  MdOutlineChat,
-  MdOutlineEdit,
-  MdOutlineStarRate,
-} from "react-icons/md";
-import {
-  fetchFeedback,
-  insertFeedback,
-  updateFeedback,
-} from "@/app/api/feedbackIUD";
-import useFeedback from "@/hooks/useFeedback";
-import StarRating from "./StarRating";
 
 export default function ChatDisplayComponent() {
   const user = useSelector((state: RootState) => state.user.user);
@@ -66,28 +36,18 @@ export default function ChatDisplayComponent() {
 
   const [currentUserId, setCurrentUserId] = useState("");
   const [currentUserType, setCurrentUserType] = useState("");
-  const [partnerId, setPartnerId] = useState("");
+  // const [partnerId, setPartnerId] = useState("");
   const rowsPerPage = 1000;
   const [currentPage, setCurrentPage] = useState(1);
 
-  // this is the conversation session (url)
-  const [sessionFarmerId, setSessionFarmerId] = useState("");
-  const [sessionTechnicianId, setSessionTechnicianId] = useState("");
+  const pathName = usePathname();
+
   const [aiIsGenerating, setAiIsGenerating] = useState(false);
 
   const [selectedMessageToEdit, setSelectedMessageToEdit] = useState("");
 
-  const searchParams = useSearchParams();
-
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [selectedMessageId, setSelectedMessageId] = useState(null);
-  const [openFeedback, setOpenFeedback] = useState(false);
-  const [chatMessageIdFeedback, setChatMessageIdFeedback] = useState<
-    number | undefined
-  >(undefined);
-  const [currentFeedbackId, setCurrentFeedbackId] = useState("");
-  const [feedbackMessage, setFeedbackMessage] = useState("");
-  const [ratings, setRatings] = useState(0);
 
   const [otherPanelOpen, setOtherPanelOpen] = useState(false);
   const [processingMessageId, setProcessingMessageId] = useState<number | null>(
@@ -128,32 +88,16 @@ export default function ChatDisplayComponent() {
     }
   }, [user]);
 
+  const [chatConnectionId, setChatConnectionId] = useState("");
+
   useEffect(() => {
-    // senderId = sessionFarmerId
-    // receiverId = sessionTechnicianId
-    setSessionFarmerId(searchParams.get("sender") || "");
-    setSessionTechnicianId(searchParams.get("receiver") || "");
-
-    if (user) {
-      if (user.id === searchParams.get("sender")) {
-        setPartnerId(searchParams.get("receiver") || "");
-      } else {
-        setPartnerId(searchParams.get("sender") || "");
-      }
-    }
-  }, [searchParams, user]);
-
-  const { partnerData } = usePartnerInfo(partnerId);
-
-  // useEffect(() => {
-  //   console.log("partnerData", partnerData);
-  // }, [partnerData]);
+    setChatConnectionId(pathName.split("/")[3]);
+  }, [pathName]);
 
   const { chatMessages, loadingChatMessages } = useChatMessages(
     rowsPerPage,
     currentPage,
-    sessionFarmerId || "",
-    sessionTechnicianId || ""
+    chatConnectionId
   );
 
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -163,12 +107,9 @@ export default function ChatDisplayComponent() {
   useEffect(() => {
     const filtered = chatMessages.filter((message) => {
       return (
-        (currentUserType === "farmer" &&
-          message.sender_id !== currentUserId &&
-          !message.is_ai) ||
+        (currentUserType === "farmer" && message.sender_id !== currentUserId) ||
         (currentUserType === "technician" &&
-          message.sender_id === currentUserId &&
-          !message.is_ai)
+          message.sender_id === currentUserId)
       );
     });
 
@@ -189,6 +130,11 @@ export default function ChatDisplayComponent() {
     setCurrentIndex((prevIndex) => (prevIndex > 0 ? prevIndex - 1 : prevIndex));
   };
 
+  const BUCKET_NAME = "chat-images";
+  const imageUrlPattern =
+    /"https:\/\/vgckngozsjzlzkrntaoq\.supabase\.co\/storage\/v1\/object\/public\/chat-images\/[^"]+"/;
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
   useEffect(() => {
     const shouldGenerateReply = () => {
       if (!chatMessages.length || !currentUserId || !currentUserType)
@@ -197,8 +143,11 @@ export default function ChatDisplayComponent() {
 
       const lastMessage = chatMessages[chatMessages.length - 1];
 
-      // Only generate reply if the last message is from the farmer and not from AI
-      return lastMessage.sender_id === sessionFarmerId && !lastMessage.is_ai;
+      // Check if message is an image using imageUrlPattern
+      const isImageMessage = imageUrlPattern.test(lastMessage.message);
+
+      // Only generate reply if the last message is from the farmer, not from AI, and not an image
+      return lastMessage.sender_user_type === "farmer" && !isImageMessage;
     };
 
     if (shouldGenerateReply()) {
@@ -209,36 +158,14 @@ export default function ChatDisplayComponent() {
     return () => {
       hasGeneratedReplyRef.current = false;
     };
-  }, [chatMessages, currentUserId, currentUserType, sessionFarmerId]);
-
-  const BUCKET_NAME = "chat-images";
-  const imageUrlPattern =
-    /"https:\/\/vgckngozsjzlzkrntaoq\.supabase\.co\/storage\/v1\/object\/public\/chat-images\/[^"]+"/;
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
+  }, [chatMessages, currentUserId, currentUserType, chatConnectionId]);
 
   const handleSubmit = async (message: string) => {
     if (!user) return;
-
-    let partnerId;
-    if (user.id === sessionFarmerId) {
-      partnerId = sessionTechnicianId;
-    } else {
-      partnerId = sessionFarmerId;
-    }
-
-    // if (currentUserType === "technician" && !aiIsGenerating) {
-    //   await deleteSpecificChatMessagesBasedOnSenderIdAndNonAiChat(
-    //     currentUserId
-    //   );
-    // }
-
     const file = selectedImage;
 
     if (file) {
-      const filePath =
-        currentUserType === "farmer"
-          ? `public/${user.id}/${partnerId}/${file.name}`
-          : `public/${partnerId}/${user.id}/${file.name}`;
+      const filePath = `public/${chatConnectionId}/${file.name}`;
 
       if (currentUserType === "technician") {
         const { data: list } = await supabase.storage
@@ -270,9 +197,9 @@ export default function ChatDisplayComponent() {
         message = `"${publicUrl}"`;
 
         await insertChatMessage({
-          sender_id: user.id,
-          receiver_id: partnerId,
           message: message,
+          chat_connection_id: chatConnectionId,
+          sender_id: user.id,
         });
 
         setMessageInput("");
@@ -282,9 +209,9 @@ export default function ChatDisplayComponent() {
       }
     } else {
       await insertChatMessage({
-        sender_id: user.id,
-        receiver_id: partnerId,
         message: message,
+        chat_connection_id: chatConnectionId,
+        sender_id: user.id,
       });
 
       setMessageInput("");
@@ -341,17 +268,14 @@ export default function ChatDisplayComponent() {
         // Update existing AI message
         await updateChatMessage(chatMessageId, {
           message: aiReply,
-          is_ai: true,
-          sender_id: sessionTechnicianId, // Ensure correct sender ID
-          receiver_id: sessionFarmerId, // Ensure correct receiver ID
+          chat_connection_id: chatConnectionId,
         });
       } else {
         // Insert new AI message
         await insertChatMessage({
-          sender_id: sessionTechnicianId, // Always set as technician
-          receiver_id: sessionFarmerId, // Always set as farmer
-          is_ai: true,
           message: aiReply,
+          chat_connection_id: chatConnectionId,
+          receiver_id: user.id,
         });
       }
 
@@ -437,53 +361,6 @@ export default function ChatDisplayComponent() {
     return differenceInYears(currentDate, birthDateObj);
   };
 
-  const handleFeedbackSubmit = async () => {
-    try {
-      if (ratings && feedbackMessage) {
-        if (currentFeedbackId) {
-          // Update existing feedback
-          await updateFeedback(currentFeedbackId, {
-            feedback_message: feedbackMessage,
-            ratings,
-          });
-        } else {
-          // Insert new feedback
-          await insertFeedback({
-            chat_message_id: chatMessageIdFeedback,
-            feedback_message: feedbackMessage,
-            ratings,
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Error submitting feedback:", error);
-    } finally {
-      // Reset and close modal after submission
-      setChatMessageIdFeedback(undefined);
-      setCurrentFeedbackId("");
-      setRatings(0);
-      setFeedbackMessage("");
-      setOpenFeedback(false);
-    }
-  };
-
-  const [feedbackMessages, setFeedbackMessages] = useState(new Set());
-
-  // Function to check and add feedback message IDs
-  const checkFeedback = async (chatMessageId: number) => {
-    const response = await fetchFeedback(chatMessageId);
-    if (response) {
-      setFeedbackMessages((prev) => new Set(prev).add(chatMessageId));
-    }
-  };
-
-  useEffect(() => {
-    // Fetch feedback for each message on initial render or when chatMessages change
-    chatMessages.forEach((message) => {
-      checkFeedback(message.chat_message_id);
-    });
-  }, [chatMessages]);
-
   if (loadingChatMessages) {
     return (
       <div className="h-full flex justify-center items-center">
@@ -502,75 +379,6 @@ export default function ChatDisplayComponent() {
 
   return (
     <>
-      <Modal
-        size="lg"
-        backdrop="blur"
-        isOpen={openFeedback}
-        hideCloseButton={true}
-        onOpenChange={setOpenFeedback}
-        onClose={() => {
-          setChatMessageIdFeedback(undefined);
-          setCurrentFeedbackId("");
-          setRatings(0);
-          setFeedbackMessage("");
-          setOpenFeedback(false);
-        }}
-      >
-        <ModalContent>
-          {(onClose) => (
-            <>
-              <ModalHeader className="flex flex-col gap-1">
-                {currentUserType === "technician" ? (
-                  <span>View Feedback</span>
-                ) : (
-                  <span>Send Feedback</span>
-                )}
-              </ModalHeader>
-              <ModalBody>
-                <div className="w-full mb-3">
-                  {currentUserType === "technician" ? (
-                    <StarRating rating={ratings} isReadOnly />
-                  ) : (
-                    <StarRating rating={ratings} setRating={setRatings} />
-                  )}
-                </div>
-                <Textarea
-                  label="Feedback Message"
-                  color="success"
-                  placeholder="Enter your feedback here..."
-                  value={feedbackMessage}
-                  isReadOnly={currentUserType === "technician"}
-                  onChange={(e) => setFeedbackMessage(e.target.value)}
-                  fullWidth
-                />
-              </ModalBody>
-              <ModalFooter>
-                <Button
-                  startContent={<MdClose />}
-                  className="bg-[#007057] text-white self-center"
-                  onClick={() => {
-                    setChatMessageIdFeedback(undefined);
-                    setCurrentFeedbackId("");
-                    setRatings(0);
-                    setFeedbackMessage("");
-                    setOpenFeedback(false);
-                  }}
-                >
-                  Close
-                </Button>
-                <Button
-                  isDisabled={!ratings || !feedbackMessage}
-                  color="primary"
-                  className={currentUserType === "technician" ? "hidden" : ""}
-                  onClick={handleFeedbackSubmit}
-                >
-                  Submit Feedback
-                </Button>
-              </ModalFooter>
-            </>
-          )}
-        </ModalContent>
-      </Modal>
       <div className="h-full flex flex-col overflow-hidden">
         <div className="h-full overflow-y-auto grid grid-cols-1 md:grid-cols-[2fr_1fr] md:gap-10">
           {/* Chat view */}
@@ -581,8 +389,7 @@ export default function ChatDisplayComponent() {
             <div className="h-full w-full">
               <div className="flex flex-col gap-3">
                 {chatMessages.map((message: any) => {
-                  const isSender =
-                    (message.sender_id || message.receiver_id) === user.id;
+                  const isFarmerSender = message.sender_id === user.id;
                   const senderFirstName = message.sender_first_name;
                   const senderLastName = message.sender_last_name;
                   const senderProfilePicture = message.sender_profile_picture;
@@ -611,12 +418,10 @@ export default function ChatDisplayComponent() {
                         ${
                           (currentUserType === "farmer" &&
                             (message.sender_id === currentUserId ||
-                              (message.sender_id !== currentUserId &&
-                                message.is_ai))) ||
+                              message.sender_id !== currentUserId)) ||
                           (currentUserType === "technician" &&
                             (message.sender_id !== currentUserId ||
-                              (message.sender_id === currentUserId &&
-                                message.is_ai)))
+                              message.sender_id === currentUserId))
                             ? ""
                             : "hidden"
                         }  
@@ -636,32 +441,15 @@ export default function ChatDisplayComponent() {
                       )}
                       <div
                         className={`w-full flex flex-col md:flex-row md:gap-4 py-2 ${
-                          !isSender ? "justify-start" : "justify-end"
+                          !isFarmerSender ? "justify-start" : "justify-end"
                         }
                         
                         `}
                       >
                         <div className="flex">
-                          {!isSender &&
-                            (!senderProfilePicture ? (
-                              message.is_ai ? (
-                                <Avatar size="sm" name="AI" showFallback />
-                              ) : (
-                                <Avatar
-                                  size="sm"
-                                  name={initials}
-                                  showFallback
-                                />
-                              )
-                            ) : (
-                              <Avatar
-                                size="sm"
-                                src={senderProfilePicture}
-                                alt="Profile"
-                                showFallback
-                                className="rounded-full object-cover cursor-pointer"
-                              />
-                            ))}
+                          {!isFarmerSender && !senderProfilePicture && (
+                            <Avatar size="sm" name={initials} showFallback />
+                          )}
                         </div>
 
                         <div
@@ -674,137 +462,57 @@ export default function ChatDisplayComponent() {
                         >
                           <div
                             className={`max-w-full text-sm py-2 relative ${
-                              isSender && "px-3 rounded-2xl bg-green-200"
+                              isFarmerSender && "px-3 rounded-2xl bg-green-200"
                             }`}
                           >
                             {renderMessage(message.message)}
                             <div ref={bottomRef} />
-
-                            {currentUserType === "technician" &&
-                              message.is_ai &&
-                              feedbackMessages.has(message.chat_message_id) && (
-                                <div className="absolute -bottom-5 left-0 flex justify-start items-center p-2">
-                                  <Button
-                                    // size="sm"
-                                    color="success"
-                                    isIconOnly
-                                    className="p-1 rounded-full bg-green-400 bg-opacity-80"
-                                    style={{
-                                      minWidth: "0",
-                                      width: "auto",
-                                      height: "auto",
-                                    }}
-                                    onPress={async () => {
-                                      // Clear previous data first
-                                      setCurrentFeedbackId("");
-                                      setRatings(0);
-                                      setFeedbackMessage("");
-
-                                      const response = await fetchFeedback(
-                                        message.chat_message_id
-                                      );
-
-                                      // Update the state only if data exists
-                                      if (response) {
-                                        setCurrentFeedbackId(
-                                          response.feedback_id
-                                        );
-                                        setRatings(response.ratings);
-                                        setFeedbackMessage(
-                                          response.feedback_message
-                                        );
-                                      }
-                                      setOpenFeedback(true);
-                                    }}
-                                  >
-                                    <MdOutlineChat size={15} color="yellow" />
-                                  </Button>
-                                </div>
-                              )}
                           </div>
 
                           {selectedMessageId === message.chat_message_id && (
                             <>
                               <span
                                 className={`text-[0.7rem] ${
-                                  isSender ? "text-end" : "text-start"
+                                  isFarmerSender ? "text-end" : "text-start"
                                 }`}
-                                //  ${message.is_ai && "hidden"}
                               >
                                 {formatMessageTime(message.created_at)}
                               </span>
-                              {isSender && currentUserType === "technician" && (
-                                <div className="z-10 absolute -top-6 right-3">
-                                  <button
-                                    className="p-1 rounded-full text-xs text-green-400 hover:text-green-600"
-                                    onClick={() => {
-                                      setMessageInput(message.message);
-                                      setSelectedMessageToEdit(
-                                        message.chat_message_id
-                                      );
-                                    }}
-                                  >
-                                    Edit
-                                  </button>
-                                </div>
-                              )}
+                              {isFarmerSender &&
+                                currentUserType === "technician" && (
+                                  <div className="z-10 absolute -top-6 right-3">
+                                    <button
+                                      className="p-1 rounded-full text-xs text-green-400 hover:text-green-600"
+                                      onClick={() => {
+                                        setMessageInput(message.message);
+                                        setSelectedMessageToEdit(
+                                          message.chat_message_id
+                                        );
+                                      }}
+                                    >
+                                      Edit
+                                    </button>
+                                  </div>
+                                )}
                             </>
                           )}
 
-                          {currentUserType === "farmer" &&
-                            message.is_ai &&
-                            !aiIsGenerating && (
-                              <div className="text-gray-500 text-xs flex justify-start items-center">
-                                <Button
-                                  size="sm"
-                                  color="success"
-                                  variant="light"
-                                  isIconOnly
-                                  className="md:-ml-3"
-                                  onPress={() =>
-                                    handleGenerateAiReply(
-                                      message.chat_message_id
-                                    )
-                                  }
-                                >
-                                  <GrRefresh size={15} />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  color="success"
-                                  variant="light"
-                                  isIconOnly
-                                  onPress={async () => {
-                                    // Clear previous data first
-                                    setCurrentFeedbackId("");
-                                    setRatings(0);
-                                    setFeedbackMessage("");
-
-                                    // Fetch new feedback
-                                    setChatMessageIdFeedback(
-                                      message.chat_message_id
-                                    );
-                                    const response = await fetchFeedback(
-                                      message.chat_message_id
-                                    );
-
-                                    // Update the state only if data exists
-                                    if (response) {
-                                      setCurrentFeedbackId(
-                                        response.feedback_id
-                                      );
-                                      setRatings(response.ratings);
-                                      setFeedbackMessage(
-                                        response.feedback_message
-                                      );
-                                    }
-                                    setOpenFeedback(true);
-                                  }}
-                                >
-                                  <MdOutlineStarRate size={17} />
-                                </Button>
-                              </div>
-                            )}
+                          {!isFarmerSender && !aiIsGenerating && (
+                            <div className="text-gray-500 text-xs flex justify-start items-center">
+                              <Button
+                                size="sm"
+                                color="success"
+                                variant="light"
+                                isIconOnly
+                                className="md:-ml-3"
+                                onPress={() =>
+                                  handleGenerateAiReply(message.chat_message_id)
+                                }
+                              >
+                                <GrRefresh size={15} />
+                              </Button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -814,246 +522,7 @@ export default function ChatDisplayComponent() {
             </div>
           </div>
 
-          {/* Extra side panel */}
-          {/* <div className="h-full overflow-y-auto hidden md:block"> */}
-          <div
-            className={`h-full overflow-y-auto md:block bg-[#F4FFFC] md:bg-none rounded-tl-md md:rounded-none ${
-              otherPanelOpen
-                ? "fixed right-0 top-0 z-10 py-5 px-3 flex flex-col w-72 md:w-96 lg:w-auto md:static md:flex-none md:block md:p-0"
-                : "hidden"
-            }`}
-          >
-            {/* partners details */}
-            <div className="flex flex-col gap-3">
-              {partnerData && (
-                <Card className="shadow-none">
-                  <CardHeader className="flex justify-center">
-                    <h1 className="font-bold">
-                      {currentUserType === "farmer"
-                        ? "Technician"
-                        : "Pig Farmer"}
-                      &apos;s Details
-                    </h1>
-                  </CardHeader>
-                  <CardBody className="text-sm">
-                    <div className="flex items-center gap-3 mb-4">
-                      <div className="flex">
-                        {!partnerData.profile_picture ? (
-                          <Avatar
-                            name={
-                              partnerData.first_name[0] +
-                              partnerData.last_name[0]
-                            }
-                            showFallback
-                          />
-                        ) : (
-                          <Avatar
-                            src={partnerData.profile_picture}
-                            alt="Profile"
-                            showFallback
-                            className="rounded-full object-cover cursor-pointer"
-                          />
-                        )}
-                      </div>
-                      <div className="flex flex-col">
-                        <span className="font-semibold">
-                          {partnerData.first_name}
-                        </span>
-                        <span className="text-xs">{partnerData.email}</span>
-                      </div>
-                    </div>
-                    <h2>
-                      <span className="font-semibold">First Name: </span>
-                      {partnerData.first_name}
-                    </h2>
-                    <h2>
-                      <span className="font-semibold">Last Name: </span>
-                      {partnerData.last_name}
-                    </h2>
-                    <h2>
-                      <span className="font-semibold">Email: </span>
-                      {partnerData.email}
-                    </h2>
-                    <h2>
-                      <span className="font-semibold">Location: </span>
-                      {partnerData.address}
-                    </h2>
-                    <h2>
-                      <span className="font-semibold">Age: </span>
-                      {partnerData.birth_date
-                        ? calculateAge(partnerData.birth_date) + " years old"
-                        : "N/A"}
-                    </h2>
-                    {currentUserType !== "farmer" && (
-                      <>
-                        <h2>
-                          <span className="font-semibold">No. of Pigs: </span>
-                          {partnerData.num_heads || "N/A"}
-                        </h2>
-                        <h2>
-                          <span className="font-semibold">
-                            Years of Experience:{" "}
-                          </span>
-                          {partnerData.experience_years || "N/A"}
-                        </h2>
-                        <h2>
-                          <span className="font-semibold">Operations: </span>
-                          {partnerData.operations || "N/A"}
-                        </h2>
-                        <h2>
-                          <span className="font-semibold">
-                            Complete Address:{" "}
-                          </span>
-                          {partnerData.complete_address || "N/A"}
-                        </h2>
-                      </>
-                    )}
-                    {currentUserType !== "technician" && (
-                      <>
-                        <h2>
-                          <span className="font-semibold">
-                            Specialization:{" "}
-                          </span>
-                          {partnerData.specialization || "N/A"}
-                        </h2>
-                        <h2>
-                          <span className="font-semibold">Experiences: </span>
-                          {partnerData.experiences || "N/A"}
-                        </h2>
-                      </>
-                    )}
-                  </CardBody>
-                </Card>
-              )}
-            </div>
-            {/* other chat */}
-            <div className="flex flex-col gap-3 mt-5">
-              {currentMessage ? (
-                <div className="relative">
-                  <Card className="shadow-none">
-                    <CardHeader className="flex flex-col justify-center">
-                      <h1 className="font-bold">
-                        {currentUserType === "farmer"
-                          ? "More Advice Here"
-                          : "Your Advice"}
-                      </h1>
-                      <span className="text-[0.7rem]">
-                        {formatMessageDate(currentMessage.created_at)}
-                      </span>
-                    </CardHeader>
-                    <CardBody>
-                      <div
-                        className="w-full text-sm break-words"
-                        style={{
-                          overflowWrap: "break-word",
-                          wordBreak: "break-word",
-                          maxWidth: "100%",
-                        }}
-                      >
-                        {renderMessage(currentMessage.message)}
-                      </div>
-                    </CardBody>
-                  </Card>
-
-                  {currentUserType === "technician" &&
-                    !currentMessage.is_ai &&
-                    feedbackMessages.has(currentMessage.chat_message_id) && (
-                      <div className="z-10 absolute -bottom-5 left-0 flex p-2">
-                        <Button
-                          color="success"
-                          isIconOnly
-                          className="p-1 rounded-full bg-green-400 bg-opacity-80"
-                          style={{
-                            minWidth: "0",
-                            width: "auto",
-                            height: "auto",
-                          }}
-                          onPress={async () => {
-                            setCurrentFeedbackId("");
-                            setRatings(0);
-                            setFeedbackMessage("");
-
-                            const response = await fetchFeedback(
-                              currentMessage.chat_message_id
-                            );
-
-                            if (response) {
-                              setCurrentFeedbackId(response.feedback_id);
-                              setRatings(response.ratings);
-                              setFeedbackMessage(response.feedback_message);
-                            }
-                            setOpenFeedback(true);
-                          }}
-                        >
-                          <MdOutlineChat size={15} color="yellow" />
-                        </Button>
-                      </div>
-                    )}
-
-                  <div className="z-10 absolute -top-5 flex justify-between w-full mt-3">
-                    {/* <div className="z-10 absolute -bottom-5 left-0 flex justify-start items-center p-2"> */}
-
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      color="success"
-                      onPress={handlePrev}
-                      isDisabled={currentIndex === 0}
-                    >
-                      <MdOutlineArrowBack size={20} />
-                    </Button>
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      color="success"
-                      onPress={handleNext}
-                      isDisabled={currentIndex === filteredMessages.length - 1}
-                    >
-                      <MdOutlineArrowForward size={20} />
-                    </Button>
-                  </div>
-
-                  {currentUserType === "farmer" && !currentMessage.is_ai && (
-                    <div className="z-10 absolute -bottom-5 left-0 flex justify-start items-center p-2">
-                      <Button
-                        color="success"
-                        isIconOnly
-                        className="p-1 rounded-full bg-green-400 bg-opacity-80"
-                        style={{
-                          minWidth: "0",
-                          width: "auto",
-                          height: "auto",
-                        }}
-                        onPress={async () => {
-                          setCurrentFeedbackId("");
-                          setRatings(0);
-                          setFeedbackMessage("");
-
-                          setChatMessageIdFeedback(
-                            currentMessage.chat_message_id
-                          );
-                          const response = await fetchFeedback(
-                            currentMessage.chat_message_id
-                          );
-
-                          if (response) {
-                            setCurrentFeedbackId(response.feedback_id);
-                            setRatings(response.ratings);
-                            setFeedbackMessage(response.feedback_message);
-                          }
-                          setOpenFeedback(true);
-                        }}
-                      >
-                        <MdOutlineStarRate size={15} color="yellow" />
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p>No messages to display.</p>
-              )}
-            </div>
-          </div>
+          {/* ----- Extra side panel ----- */}
         </div>
         <div className="flex-none w-full pb-6">
           {aiIsGenerating && (
