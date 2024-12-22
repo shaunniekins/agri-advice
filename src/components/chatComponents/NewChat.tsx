@@ -8,48 +8,30 @@ import { useRouter } from "next/navigation";
 import React, { useRef } from "react";
 import { useEffect, useState } from "react";
 import { FaPiggyBank } from "react-icons/fa";
-import {
-  IoCloseCircleOutline,
-  IoCloseOutline,
-  IoOptionsOutline,
-  IoSendOutline,
-} from "react-icons/io5";
+import { IoOptionsOutline, IoSendOutline } from "react-icons/io5";
 import { useSelector } from "react-redux";
 import usePremadePrompts from "@/hooks/usePremadePrompts";
 import HelpComponent from "./Help";
-import useTechnician from "@/hooks/useTechnician";
 
 const ChatPageComponent = () => {
   const user = useSelector((state: RootState) => state.user.user);
   const [userType, setUserType] = useState("");
-  const [userLocation, setUserLocation] = useState("");
   const [messageInput, setMessageInput] = useState("");
-  const [chosenTechnicianId, setChosenTechnicianId] = useState<string | null>(
-    null
-  );
+
   const [isLoading, setIsLoading] = useState(true);
   const [showPremadePrompts, setShowPremadePrompts] = useState(false);
 
   const router = useRouter();
   const premadePromptsRef = useRef<HTMLDivElement>(null);
 
+  const { premadePrompts, isLoadingPrompts } = usePremadePrompts();
+
   useEffect(() => {
     if (user && user.user_metadata) {
       setUserType(user.user_metadata.user_type);
-      setUserLocation(user.user_metadata.address);
-    }
-  }, [user]);
-
-  const { technicianData, isLoadingTechnician } = useTechnician(userLocation);
-
-  useEffect(() => {
-    if (!isLoadingTechnician) {
       setIsLoading(false);
     }
-    setChosenTechnicianId(technicianData[0]?.id);
-  }, [technicianData]);
-
-  const { premadePrompts, isLoadingPrompts } = usePremadePrompts();
+  }, [user]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -68,13 +50,6 @@ const ChatPageComponent = () => {
   }, []);
 
   const handleSubmit = async () => {
-    if (!chosenTechnicianId) {
-      alert(
-        "There is currently no assigned technician in your area. Please contact the admin if this issue persists."
-      );
-      return;
-    }
-
     // insert chat connection
     const response = await insertChatConnection({
       farmer_id: user.id,
@@ -95,7 +70,6 @@ const ChatPageComponent = () => {
     });
 
     setIsLoading(true);
-    setChosenTechnicianId(null);
     setMessageInput("");
 
     router.push(`/${userType}/chat/${chatConnectionId}`);

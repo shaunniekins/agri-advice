@@ -13,20 +13,25 @@ import {
 import React from "react";
 import { useEffect, useState } from "react";
 import { FaBars, FaSignOutAlt } from "react-icons/fa";
-import { IoAddCircleOutline, IoAddSharp } from "react-icons/io5";
-import { IoMdTrash } from "react-icons/io";
+import { IoAddCircleOutline, IoAddSharp, IoArrowBack } from "react-icons/io5";
+import { IoMdShare, IoMdTrash } from "react-icons/io";
 import { useHandleLogout } from "@/utils/authUtils";
 import { useSelector } from "react-redux";
 import { RootState } from "@/app/reduxUtils/store";
 import useChatHeaders from "@/hooks/useChatHeaders";
-import { getIdFromPathname } from "@/utils/compUtils";
-import { BsThreeDotsVertical } from "react-icons/bs";
+import { calculateAge, getIdFromPathname } from "@/utils/compUtils";
+import { BsBack, BsThreeDotsVertical } from "react-icons/bs";
 import { deleteChatMessage } from "@/app/api/chatMessagesIUD";
-import { deleteChatConnection } from "@/app/api/chatConnectionsIUD";
+import {
+  deleteChatConnection,
+  updateChatConnection,
+} from "@/app/api/chatConnectionsIUD";
 import { MdOutlineSpaceDashboard } from "react-icons/md";
 import { supabase } from "@/utils/supabase";
 import { FiHelpCircle } from "react-icons/fi";
 import ChatSidebarModal from "./ChatSidebarModal";
+import useTechnician from "@/hooks/useTechnician";
+import useChatConnectionForTechnicianRecipient from "@/hooks/useChatConnectionForTechnicianRecipient";
 
 export default function ChatSidebarComponent({
   children,
@@ -64,6 +69,9 @@ export default function ChatSidebarComponent({
   // useEffect(() => {
   //   console.log("chatHeaders", chatHeaders);
   // }, [chatHeaders]);
+
+  const { chatConnection } =
+    useChatConnectionForTechnicianRecipient(chatConnectionId);
 
   const totalPages = Math.ceil(totalChatHeaders / rowsPerPage);
 
@@ -104,6 +112,23 @@ export default function ChatSidebarComponent({
   // console.log("isTechnicianPathBase", isTechnicianPathBase);
 
   const [openPopoverId, setOpenPopoverId] = useState<string | null>(null);
+
+  // sidebar options
+  const [isCurrentlySharing, setIsCurrentlySharing] = useState(false);
+  const [userLocation, setUserLocation] = useState("");
+
+  const [chosenTechnicianId, setChosenTechnicianId] = useState<string | null>(
+    null
+  );
+
+  useEffect(() => {
+    if (user && user.user_metadata) {
+      setUserType(user.user_metadata.user_type);
+      setUserLocation(user.user_metadata.address);
+    }
+  }, [user]);
+
+  const { technicianData, isLoadingTechnician } = useTechnician(userLocation);
 
   return (
     <>
@@ -192,7 +217,7 @@ export default function ChatSidebarComponent({
                         <span className="w-full text-center truncate text-base">
                           {message.message}
                         </span>
-                        {/* <Popover
+                        <Popover
                           showArrow
                           isOpen={openPopoverId === message.chat_message_id}
                           onOpenChange={(open) => {
@@ -200,6 +225,7 @@ export default function ChatSidebarComponent({
                               setOpenPopoverId(message.chat_message_id);
                             } else {
                               setOpenPopoverId(null);
+                              setIsCurrentlySharing(false);
                             }
                           }}
                           placement="bottom"
@@ -212,13 +238,29 @@ export default function ChatSidebarComponent({
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setOpenPopoverId(message.chat_message_id);
+                                setChatCoonectionId(message.chat_connection_id);
                               }}
                             >
                               <BsThreeDotsVertical />
                             </div>
                           </PopoverTrigger>
                           <PopoverContent className="flex gap-2 p-2">
-                            <Button
+                            {!isCurrentlySharing ? (
+                              <>
+                                <Button
+                                  fullWidth
+                                  size="sm"
+                                  startContent={<IoMdShare />}
+                                  className={`${
+                                    chatConnection[0]
+                                      ?.recipient_technician_id && "hidden"
+                                  }`}
+                                  onClick={() => setIsCurrentlySharing(true)}
+                                >
+                                  Share
+                                </Button>
+
+                                {/* <Button
                               fullWidth
                               size="sm"
                               startContent={<IoMdTrash />}
@@ -274,9 +316,119 @@ export default function ChatSidebarComponent({
                               }}
                             >
                               Delete
-                            </Button>
+                            </Button> */}
+                              </>
+                            ) : (
+                              <div className="flex flex-col p-2 gap-4 w-full sm:w-96">
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    fullWidth
+                                    size="sm"
+                                    isIconOnly
+                                    startContent={<IoArrowBack />}
+                                    onClick={() => setIsCurrentlySharing(false)}
+                                  />
+
+                                  <div className="flex flex-col">
+                                    <h3 className="text-base font-semibold ">
+                                      List of Technicians in {userLocation}
+                                    </h3>
+                                    <span className="text-xs text-red-500">
+                                      *Only one technician in specific
+                                      conversation
+                                    </span>
+                                  </div>
+                                </div>
+                                {/* map technicians */}
+                                <div>
+                                  {technicianData.map((technician) => {
+                                    return (
+                                      <div
+                                        key={technician.id}
+                                        className="flex flex-col gap-2 hover:bg-green-100 rounded-lg p-2 cursor-pointer"
+                                      >
+                                        <div className="flex justify-between">
+                                          <div className="flex items-center gap-2">
+                                            <Avatar
+                                              size="sm"
+                                              src={technician.profile_picture}
+                                              alt="Profile"
+                                              showFallback
+                                              className="rounded-full object-cover"
+                                            />
+                                            <span>
+                                              {technician.first_name}{" "}
+                                              {technician.last_name}
+                                            </span>
+                                          </div>
+                                          <Button
+                                            color="success"
+                                            size="sm"
+                                            className="text-white"
+                                            onClick={async () => {
+                                              const res = window.confirm(
+                                                "Are you sure? You can only share to one technician."
+                                              );
+                                              if (res) {
+                                                setChosenTechnicianId(
+                                                  technician.id
+                                                );
+                                                await updateChatConnection(
+                                                  message.chat_connection_id,
+                                                  technician.id
+                                                );
+                                                setIsCurrentlySharing(false);
+                                                setOpenPopoverId(null);
+                                              }
+                                            }}
+                                          >
+                                            Share
+                                          </Button>
+                                        </div>
+                                        <div className="flex flex-col">
+                                          <h2>
+                                            <span className="font-semibold">
+                                              Email:{" "}
+                                            </span>
+                                            {technician.email}
+                                          </h2>
+                                          <h2>
+                                            <span className="font-semibold">
+                                              Age:{" "}
+                                            </span>
+                                            {technician.birth_date
+                                              ? calculateAge(
+                                                  technician.birth_date
+                                                ) + " years old"
+                                              : "N/A"}
+                                          </h2>
+                                          {technician.specialization && (
+                                            <h2>
+                                              <span className="font-semibold">
+                                                Specialization:{" "}
+                                              </span>
+                                              {technician.specialization}
+                                            </h2>
+                                          )}
+                                          {technician.experiences && (
+                                            <h2>
+                                              <span className="font-semibold">
+                                                Experiences:{" "}
+                                              </span>
+                                              <span className="text-justify">
+                                                {technician.experiences}
+                                              </span>
+                                            </h2>
+                                          )}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
                           </PopoverContent>
-                        </Popover> */}
+                        </Popover>
                       </li>
                     );
                   })

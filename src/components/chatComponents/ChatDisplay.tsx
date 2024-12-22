@@ -28,6 +28,7 @@ import ReactMarkdown from "react-markdown";
 import { supabase } from "@/utils/supabase";
 import { GrRefresh } from "react-icons/gr";
 import { FaBars } from "react-icons/fa";
+import useChatConnectionForTechnicianRecipient from "@/hooks/useChatConnectionForTechnicianRecipient";
 
 export default function ChatDisplayComponent() {
   const user = useSelector((state: RootState) => state.user.user);
@@ -93,6 +94,24 @@ export default function ChatDisplayComponent() {
   useEffect(() => {
     setChatConnectionId(pathName.split("/")[3]);
   }, [pathName]);
+
+  // useEffect(() => {
+  //   const fetchChatConnection = async () => {
+  //     const localConnectionId = pathName.split("/")[3];
+  //     setChatConnectionId(localConnectionId);
+  //     const recipient_tech_id = await checkChatConnection(localConnectionId);
+  //     console.log("recipient_tech_id: ", recipient_tech_id);
+  //   };
+
+  //   fetchChatConnection();
+  // }, [pathName]);
+
+  const { chatConnection } =
+    useChatConnectionForTechnicianRecipient(chatConnectionId);
+
+  // useEffect(() => {
+  //   console.log("chatConnection: ", chatConnection);
+  // }, [chatConnection]);
 
   const { chatMessages, loadingChatMessages } = useChatMessages(
     rowsPerPage,
@@ -380,7 +399,12 @@ export default function ChatDisplayComponent() {
   return (
     <>
       <div className="h-full flex flex-col overflow-hidden">
-        <div className="h-full overflow-y-auto grid grid-cols-1 md:grid-cols-[2fr_1fr] md:gap-10">
+        <div
+          className={`h-full overflow-y-auto grid grid-cols-1 md:gap-10 ${
+            chatConnection[0]?.recipient_technician_id &&
+            "md:grid-cols-[2fr_1fr]"
+          }`}
+        >
           {/* Chat view */}
           <div
             className="h-full overflow-y-auto"
