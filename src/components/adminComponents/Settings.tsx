@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { FaPiggyBank } from "react-icons/fa";
-import { IoAdd, IoSearch } from "react-icons/io5";
+import { IoAdd, IoRemoveCircle } from "react-icons/io5";
 import usePremadePrompts from "@/hooks/usePremadePrompts";
 import {
   Button,
@@ -33,7 +33,8 @@ import {
   insertSuggestedLink,
   updateSuggestedLink,
 } from "@/app/api/suggestedLinkIUD";
-import { prompt_categories } from "@/app/api/prompt_categories";
+import usePromptCategory from "@/hooks/usePromptCategory";
+import { deleteCategory, insertCategory } from "@/app/api/promptCategoryIUD";
 
 const AdminSettings = () => {
   // suggested URL structure
@@ -45,6 +46,8 @@ const AdminSettings = () => {
   const [newLinkName, setNewLinkName] = useState("");
   const [newLinkUrl, setNewLinkUrl] = useState("");
   const [selectedSuggestedLink, setSelectedSuggestedLink] = useState<any>(null);
+
+  const { category } = usePromptCategory();
 
   const handleCloseLinkModal = () => {
     setIsModalSuggestedLinkOpen(false);
@@ -309,9 +312,12 @@ const AdminSettings = () => {
                   value={newMsgCategory}
                   onChange={(e) => setNewMsgCategory(e.target.value)}
                 >
-                  {prompt_categories.map((item: any) => (
-                    <SelectItem key={item.key}>{item.label}</SelectItem>
-                  ))}
+                  {category &&
+                    category.map((item: any) => (
+                      <SelectItem key={item.category_name}>
+                        {item.category_name}
+                      </SelectItem>
+                    ))}
                 </Select>
               </ModalBody>
               <ModalFooter
@@ -453,6 +459,20 @@ const AdminSettings = () => {
           <div className="flex justify-between gap-2">
             <h2 className="text-lg font-semibold">Suggested Prompts</h2>
             <div className="flex flex-col md:flex-row items-center justify-end gap-2">
+              <Button
+                isIconOnly
+                color="success"
+                size="lg"
+                startContent={<IoAdd />}
+                onClick={async () => {
+                  const newCategory = window.prompt("Enter new category name:");
+                  if (newCategory) {
+                    await insertCategory({
+                      category_name: newCategory,
+                    });
+                  }
+                }}
+              />
               <Select
                 fullWidth
                 label="Filter Category"
@@ -461,9 +481,33 @@ const AdminSettings = () => {
                 className="min-w-52"
                 onChange={(e) => setSearchMsg(e.target.value)}
               >
-                {prompt_categories.map((item: any) => (
-                  <SelectItem key={item.key}>{item.label}</SelectItem>
-                ))}
+                {category &&
+                  category.map((item: any) => (
+                    <SelectItem
+                      key={item.category_name}
+                      selectedIcon={
+                        <IoRemoveCircle
+                          size={18}
+                          color="red"
+                          onClick={async (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+
+                            const confirmed = window.confirm(
+                              `Are you sure you want to delete ${item.category_name}?`
+                            );
+                            if (confirmed) {
+                              setSearchMsg("");
+                              await deleteCategory(item.category_name);
+                            }
+                          }}
+                          style={{ cursor: "pointer" }}
+                        />
+                      }
+                    >
+                      {item.category_name}
+                    </SelectItem>
+                  ))}
               </Select>
               <Button
                 fullWidth
