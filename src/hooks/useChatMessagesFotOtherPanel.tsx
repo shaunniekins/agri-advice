@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/utils/supabase";
 import { PostgrestResponse } from "@supabase/supabase-js";
 
-const useChatMessages = (
+const useChatMessagesFotOtherPanel = (
   rowsPerPage: number,
   currentPage: number,
   chatConnectionId: string
@@ -84,7 +84,7 @@ const useChatMessages = (
   // Set up real-time subscription for INSERT, UPDATE, and DELETE events
   const subscribeToChanges = useCallback(() => {
     const channel = supabase
-      .channel("chat_messages_changes_1")
+      .channel("chat_messages_changes_2")
       .on(
         "postgres_changes",
         {
@@ -153,4 +153,4 @@ const useChatMessages = (
   };
 };
 
-export default useChatMessages;
+export default useChatMessagesFotOtherPanel;

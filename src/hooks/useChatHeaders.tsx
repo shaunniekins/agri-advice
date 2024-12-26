@@ -26,7 +26,9 @@ const useChatHeaders = (
       const query = supabase
         .from("ViewLatestChatHeaders")
         .select("*")
-        .or(`sender_id.eq.${userId},receiver_id.eq.${userId}`)
+        .or(
+          `sender_id.eq.${userId},receiver_id.eq.${userId},recipient_technician_id.eq.${userId}`
+        )
         .order("created_at", { ascending: false });
 
       const response: PostgrestResponse<any> = await query.range(

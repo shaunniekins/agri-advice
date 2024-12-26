@@ -15,7 +15,9 @@ const useChatConnectionForTechnicianRecipient = (
       // Build the query
       const { data, error } = await supabase
         .from("ChatConnections")
-        .select("chat_connection_id, recipient_technician_id")
+        .select(
+          "chat_connection_id, farmer_id, recipient_technician_id, parent_chat_connection_id"
+        )
         .eq("chat_connection_id", chat_connection_id);
       // .not("recipient_technician_id", "is", null);
 
@@ -66,7 +68,6 @@ const useChatConnectionForTechnicianRecipient = (
 
             // Handle DELETE
             else if (eventType === "DELETE") {
-              console.log("delete");
               return prev.filter(
                 (chat) => chat.chat_connection_id !== oldChat.chat_connection_id
               );

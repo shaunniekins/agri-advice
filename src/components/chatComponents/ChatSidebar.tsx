@@ -21,9 +21,13 @@ import { RootState } from "@/app/reduxUtils/store";
 import useChatHeaders from "@/hooks/useChatHeaders";
 import { calculateAge, getIdFromPathname } from "@/utils/compUtils";
 import { BsBack, BsThreeDotsVertical } from "react-icons/bs";
-import { deleteChatMessage } from "@/app/api/chatMessagesIUD";
+import {
+  deleteChatMessage,
+  insertChatMessage,
+} from "@/app/api/chatMessagesIUD";
 import {
   deleteChatConnection,
+  insertChatConnection,
   updateChatConnection,
 } from "@/app/api/chatConnectionsIUD";
 import { MdOutlineSpaceDashboard } from "react-icons/md";
@@ -214,8 +218,16 @@ export default function ChatSidebarComponent({
                           );
                         }}
                       >
-                        <span className="w-full text-center truncate text-base">
-                          {message.message}
+                        <span className="w-full text-left truncate text-base">
+                          {!message.parent_chat_connection_id
+                            ? message.message
+                            : userType === "farmer"
+                            ? message.sender_meta_data.first_name +
+                              " " +
+                              message.sender_meta_data.last_name
+                            : message.receiver_meta_data.first_name +
+                              " " +
+                              message.receiver_meta_data.last_name}
                         </span>
                         <Popover
                           showArrow
@@ -373,12 +385,46 @@ export default function ChatSidebarComponent({
                                                 setChosenTechnicianId(
                                                   technician.id
                                                 );
-                                                await updateChatConnection(
-                                                  message.chat_connection_id,
-                                                  technician.id
-                                                );
-                                                setIsCurrentlySharing(false);
-                                                setOpenPopoverId(null);
+                                                // await updateChatConnection(
+                                                //   message.chat_connection_id,
+                                                //   technician.id
+                                                // );
+                                                const newSession: any =
+                                                  await insertChatConnection({
+                                                    parent_chat_connection_id:
+                                                      message.chat_connection_id,
+                                                    farmer_id:
+                                                      message.farmer_id,
+                                                    recipient_technician_id:
+                                                      technician.id,
+                                                  });
+
+                                                if (
+                                                  newSession.data &&
+                                                  newSession.data[0]
+                                                ) {
+                                                  const newMsg =
+                                                    await insertChatMessage({
+                                                      chat_connection_id:
+                                                        newSession.data[0]
+                                                          ?.chat_connection_id,
+                                                      sender_id: technician.id,
+                                                      receiver_id:
+                                                        message.farmer_id,
+                                                      message:
+                                                        "Hi! Please wait for the reply",
+                                                    });
+
+                                                  if (newMsg) {
+                                                    setIsCurrentlySharing(
+                                                      false
+                                                    );
+                                                    setOpenPopoverId(null);
+                                                    router.push(
+                                                      `/${userType}/chat/${newSession.data[0].chat_connection_id}`
+                                                    );
+                                                  }
+                                                }
                                               }
                                             }}
                                           >
