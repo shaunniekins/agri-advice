@@ -19,11 +19,17 @@ import { useHandleLogout } from "@/utils/authUtils";
 import { useSelector } from "react-redux";
 import { RootState } from "@/app/reduxUtils/store";
 import useChatHeaders from "@/hooks/useChatHeaders";
-import { calculateAge, getIdFromPathname } from "@/utils/compUtils";
+import {
+  calculateAge,
+  getIdFromPathname,
+  getMessageDateGroup,
+} from "@/utils/compUtils";
 import { BsBack, BsThreeDotsVertical } from "react-icons/bs";
 import {
   deleteChatMessage,
   insertChatMessage,
+  updateReceiverMessagesReadStatus,
+  updateSenderMessagesReadStatus,
 } from "@/app/api/chatMessagesIUD";
 import {
   deleteChatConnection,
@@ -134,6 +140,19 @@ export default function ChatSidebarComponent({
 
   const { technicianData, isLoadingTechnician } = useTechnician(userLocation);
 
+  const [sharingSates, setSharingStates] = useState<{ [key: string]: boolean }>(
+    {}
+  );
+
+  const groupedChatHeaders = chatHeaders.reduce((acc, message) => {
+    const dateGroup = getMessageDateGroup(new Date(message.latest_created_at));
+    if (!acc[dateGroup]) {
+      acc[dateGroup] = [];
+    }
+    acc[dateGroup].push(message);
+    return acc;
+  }, {} as Record<string, typeof chatHeaders>);
+
   return (
     <>
       <ChatSidebarModal
@@ -197,287 +216,313 @@ export default function ChatSidebarComponent({
                 </Button>
               </div>
               <ul className="h-full w-full self-start mt-2 mb-20 flex flex-col pt-3 pb-5">
-                {chatHeaders.length === 0 ? (
+                {Object.keys(groupedChatHeaders).length === 0 ? (
                   <li className="flex justify-center items-center h-full w-full">
                     No chat history
                   </li>
                 ) : (
-                  chatHeaders.map((message) => {
-                    return (
-                      <li
-                        key={message.chat_message_id}
-                        className={`${
-                          chatId === message.chat_message_id ||
-                          currentHeader === message.chat_message_id
-                            ? "bg-[#005c4d]"
-                            : ""
-                        } flex items-center py-3 px-4 text-sm rounded-md hover:bg-[#005c4d] cursor-pointer w-full relative group`}
-                        onClick={() => {
-                          router.push(
-                            `/${userType}/chat/${message.chat_connection_id}`
-                          );
-                        }}
-                      >
-                        <span className="w-full text-left truncate text-base">
-                          {!message.parent_chat_connection_id
-                            ? message.message
-                            : userType === "farmer"
-                            ? message.sender_meta_data.first_name +
-                              " " +
-                              message.sender_meta_data.last_name
-                            : message.receiver_meta_data.first_name +
-                              " " +
-                              message.receiver_meta_data.last_name}
-                        </span>
-                        <Popover
-                          showArrow
-                          isOpen={openPopoverId === message.chat_message_id}
-                          onOpenChange={(open) => {
-                            if (open) {
-                              setOpenPopoverId(message.chat_message_id);
-                            } else {
-                              setOpenPopoverId(null);
-                              setIsCurrentlySharing(false);
-                            }
-                          }}
-                          placement="bottom"
-                        >
-                          <PopoverTrigger>
-                            <div
-                              className={`absolute top-1/2 right-3 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full p-2 hover:bg-green-900 ${
-                                userType === "technician" && "hidden"
-                              }`}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setOpenPopoverId(message.chat_message_id);
-                                setChatCoonectionId(message.chat_connection_id);
-                              }}
-                            >
-                              <BsThreeDotsVertical />
-                            </div>
-                          </PopoverTrigger>
-                          <PopoverContent className="flex gap-2 p-2">
-                            {!isCurrentlySharing ? (
-                              <>
-                                <Button
-                                  fullWidth
-                                  size="sm"
-                                  startContent={<IoMdShare />}
-                                  className={`${
-                                    chatConnection[0]
-                                      ?.recipient_technician_id && "hidden"
-                                  }`}
-                                  onClick={() => setIsCurrentlySharing(true)}
-                                >
-                                  Share
-                                </Button>
+                  Object.keys(groupedChatHeaders).map((dateGroup) => (
+                    <React.Fragment key={dateGroup}>
+                      <li className="text-center text-xs font-semibold py-2">
+                        {dateGroup}
+                      </li>
+                      {groupedChatHeaders[dateGroup].map(
+                        (message: any, index: any) => {
+                          const isAi = !message.parent_chat_connection_id;
+                          const isFarmer =
+                            message.parent_chat_connection_id &&
+                            userType === "farmer";
 
-                                {/* <Button
-                              fullWidth
-                              size="sm"
-                              startContent={<IoMdTrash />}
-                              onClick={async () => {
-                                const confirmed = window.confirm(
-                                  "Are you sure you want to delete this message?"
+                          const isSender = user.id === message.first_sender_id;
+                          const isReceiver =
+                            user.id === message.first_receiver_id;
+
+                          return (
+                            <li
+                              key={`${message.chat_message_id}-${index}`}
+                              className={`${
+                                chatId === message.chat_message_id ||
+                                currentHeader === message.chat_message_id
+                                  ? "bg-[#005c4d]"
+                                  : ""
+                              }
+                            flex items-center py-3 px-4 text-sm rounded-md hover:bg-[#005c4d] cursor-pointer w-full relative group`}
+                              onClick={() => {
+                                isSender &&
+                                  !isReceiver &&
+                                  updateSenderMessagesReadStatus(
+                                    message.chat_connection_id
+                                  );
+                                isReceiver &&
+                                  !isSender &&
+                                  updateReceiverMessagesReadStatus(
+                                    message.chat_connection_id
+                                  );
+                                router.push(
+                                  `/${userType}/chat/${message.chat_connection_id}`
                                 );
-                                if (confirmed) {
-                                  deleteChatMessage(
-                                    message.sender_id,
-                                    message.receiver_id
-                                  );
-                                  deleteChatConnection(
-                                    message.sender_id,
-                                    message.receiver_id
-                                  );
-
-                                  if (userType === "farmer") {
-                                    const partnerId =
-                                      user.id === message.sender_id
-                                        ? message.receiver_id
-                                        : message.sender_id;
-                                    const filePath = `public/${user.id}/${partnerId}`;
-
-                                    const { data: list } =
-                                      await supabase.storage
-                                        .from("chat-images")
-                                        .list(filePath);
-                                    const filesToRemove = list?.map(
-                                      (x) => `${filePath}/${x.name}`
-                                    );
-
-                                    if (
-                                      filesToRemove &&
-                                      filesToRemove.length > 0
-                                    ) {
-                                      const { error } = await supabase.storage
-                                        .from("chat-images")
-                                        .remove(filesToRemove);
-
-                                      if (error) {
-                                        console.error(
-                                          "Error deleting image:",
-                                          error.message
-                                        );
-                                        return;
-                                      }
-                                    }
-                                  }
-
-                                  setOpenPopoverId(null);
-                                }
                               }}
                             >
-                              Delete
-                            </Button> */}
-                              </>
-                            ) : (
-                              <div className="flex flex-col p-2 gap-4 w-full sm:w-96">
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    fullWidth
-                                    size="sm"
-                                    isIconOnly
-                                    startContent={<IoArrowBack />}
-                                    onClick={() => setIsCurrentlySharing(false)}
-                                  />
+                              <span
+                                className={`
+                                ${
+                                  isSender &&
+                                  !isReceiver &&
+                                  message.is_sender_read &&
+                                  "font-semibold"
+                                }
+                                ${
+                                  isReceiver &&
+                                  !isSender &&
+                                  message.is_receiver_read &&
+                                  "font-semibold"
+                                }
 
-                                  <div className="flex flex-col">
-                                    <h3 className="text-base font-semibold ">
-                                      List of Technicians in {userLocation}
-                                    </h3>
-                                    <span className="text-xs text-red-500">
-                                      *Only one technician in specific
-                                      conversation
-                                    </span>
+                              w-full text-left truncate text-base`}
+                              >
+                                {isAi
+                                  ? message.first_message
+                                  : isFarmer
+                                  ? message.sender_first_name +
+                                    " " +
+                                    message.sender_last_name
+                                  : message.receiver_first_name +
+                                    " " +
+                                    message.receiver_last_name}
+                              </span>
+                              <Popover
+                                showArrow
+                                isOpen={
+                                  openPopoverId ===
+                                  `${message.chat_connection_id}-${message.chat_message_id}`
+                                }
+                                onOpenChange={(open) => {
+                                  if (open) {
+                                    setOpenPopoverId(
+                                      `${message.chat_connection_id}-${message.chat_message_id}`
+                                    );
+                                  } else {
+                                    setOpenPopoverId(null);
+                                    setSharingStates((prev) => ({
+                                      ...prev,
+                                      [`${message.chat_connection_id}-${message.chat_message_id}`]:
+                                        false,
+                                    }));
+                                  }
+                                }}
+                                placement="bottom"
+                              >
+                                <PopoverTrigger>
+                                  <div
+                                    className={`absolute top-1/2 right-3 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full p-2 hover:bg-green-900 ${
+                                      userType === "technician" && "hidden"
+                                    }`}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setOpenPopoverId(
+                                        `${message.chat_connection_id}-${message.chat_message_id}`
+                                      );
+                                      setChatCoonectionId(
+                                        message.chat_connection_id
+                                      );
+                                    }}
+                                  >
+                                    <BsThreeDotsVertical />
                                   </div>
-                                </div>
-                                {/* map technicians */}
-                                <div>
-                                  {technicianData.map((technician) => {
-                                    return (
-                                      <div
-                                        key={technician.id}
-                                        className="flex flex-col gap-2 hover:bg-green-100 rounded-lg p-2 cursor-pointer"
+                                </PopoverTrigger>
+                                <PopoverContent className="flex gap-2 p-2">
+                                  {!sharingSates[
+                                    `${message.chat_connection_id}-${message.chat_message_id}`
+                                  ] ? (
+                                    <>
+                                      <Button
+                                        fullWidth
+                                        size="sm"
+                                        startContent={<IoMdShare />}
+                                        className={`${
+                                          chatConnection[0]
+                                            ?.recipient_technician_id &&
+                                          "hidden"
+                                        }`}
+                                        onClick={() =>
+                                          setSharingStates((prev) => ({
+                                            ...prev,
+                                            [`${message.chat_connection_id}-${message.chat_message_id}`]:
+                                              true,
+                                          }))
+                                        }
                                       >
-                                        <div className="flex justify-between">
-                                          <div className="flex items-center gap-2">
-                                            <Avatar
-                                              size="sm"
-                                              src={technician.profile_picture}
-                                              alt="Profile"
-                                              showFallback
-                                              className="rounded-full object-cover"
-                                            />
-                                            <span>
-                                              {technician.first_name}{" "}
-                                              {technician.last_name}
-                                            </span>
-                                          </div>
-                                          <Button
-                                            color="success"
-                                            size="sm"
-                                            className="text-white"
-                                            onClick={async () => {
-                                              const res = window.confirm(
-                                                "Are you sure? You can only share to one technician."
-                                              );
-                                              if (res) {
-                                                setChosenTechnicianId(
-                                                  technician.id
-                                                );
-                                                // await updateChatConnection(
-                                                //   message.chat_connection_id,
-                                                //   technician.id
-                                                // );
-                                                const newSession: any =
-                                                  await insertChatConnection({
-                                                    parent_chat_connection_id:
-                                                      message.chat_connection_id,
-                                                    farmer_id:
-                                                      message.farmer_id,
-                                                    recipient_technician_id:
-                                                      technician.id,
-                                                  });
+                                        Share
+                                      </Button>
+                                    </>
+                                  ) : (
+                                    <div className="flex flex-col p-2 gap-4 w-full sm:w-96">
+                                      <div className="flex items-center gap-2">
+                                        <Button
+                                          fullWidth
+                                          size="sm"
+                                          isIconOnly
+                                          startContent={<IoArrowBack />}
+                                          onClick={() =>
+                                            setSharingStates((prev) => ({
+                                              ...prev,
+                                              [`${message.chat_connection_id}-${message.chat_message_id}`]:
+                                                false,
+                                            }))
+                                          }
+                                        />
 
-                                                if (
-                                                  newSession.data &&
-                                                  newSession.data[0]
-                                                ) {
-                                                  const newMsg =
-                                                    await insertChatMessage({
-                                                      chat_connection_id:
-                                                        newSession.data[0]
-                                                          ?.chat_connection_id,
-                                                      sender_id: technician.id,
-                                                      receiver_id:
-                                                        message.farmer_id,
-                                                      message:
-                                                        "Hi! Please wait for the reply",
-                                                    });
-
-                                                  if (newMsg) {
-                                                    setIsCurrentlySharing(
-                                                      false
-                                                    );
-                                                    setOpenPopoverId(null);
-                                                    router.push(
-                                                      `/${userType}/chat/${newSession.data[0].chat_connection_id}`
-                                                    );
-                                                  }
-                                                }
-                                              }
-                                            }}
-                                          >
-                                            Share
-                                          </Button>
-                                        </div>
                                         <div className="flex flex-col">
-                                          <h2>
-                                            <span className="font-semibold">
-                                              Email:{" "}
-                                            </span>
-                                            {technician.email}
-                                          </h2>
-                                          <h2>
-                                            <span className="font-semibold">
-                                              Age:{" "}
-                                            </span>
-                                            {technician.birth_date
-                                              ? calculateAge(
-                                                  technician.birth_date
-                                                ) + " years old"
-                                              : "N/A"}
-                                          </h2>
-                                          {technician.specialization && (
-                                            <h2>
-                                              <span className="font-semibold">
-                                                Specialization:{" "}
-                                              </span>
-                                              {technician.specialization}
-                                            </h2>
-                                          )}
-                                          {technician.experiences && (
-                                            <h2>
-                                              <span className="font-semibold">
-                                                Experiences:{" "}
-                                              </span>
-                                              <span className="text-justify">
-                                                {technician.experiences}
-                                              </span>
-                                            </h2>
-                                          )}
+                                          <h3 className="text-base font-semibold ">
+                                            List of Technicians in{" "}
+                                            {userLocation}
+                                          </h3>
+                                          <span className="text-xs text-red-500">
+                                            *Only one technician in specific
+                                            conversation
+                                          </span>
                                         </div>
                                       </div>
-                                    );
-                                  })}
-                                </div>
-                              </div>
-                            )}
-                          </PopoverContent>
-                        </Popover>
-                      </li>
-                    );
-                  })
+                                      {/* map technicians */}
+                                      <div>
+                                        {technicianData.map((technician) => {
+                                          return (
+                                            <div
+                                              key={technician.id}
+                                              className="flex flex-col gap-2 hover:bg-green-100 rounded-lg p-2 cursor-pointer"
+                                            >
+                                              <div className="flex justify-between">
+                                                <div className="flex items-center gap-2">
+                                                  <Avatar
+                                                    size="sm"
+                                                    src={
+                                                      technician.profile_picture
+                                                    }
+                                                    alt="Profile"
+                                                    showFallback
+                                                    className="rounded-full object-cover"
+                                                  />
+                                                  <span>
+                                                    {technician.first_name}{" "}
+                                                    {technician.last_name}
+                                                  </span>
+                                                </div>
+                                                <Button
+                                                  color="success"
+                                                  size="sm"
+                                                  className="text-white"
+                                                  onClick={async () => {
+                                                    const res = window.confirm(
+                                                      "Are you sure? You can only share to one technician."
+                                                    );
+                                                    if (res) {
+                                                      setChosenTechnicianId(
+                                                        technician.id
+                                                      );
+                                                      // await updateChatConnection(
+                                                      //   message.chat_connection_id,
+                                                      //   technician.id
+                                                      // );
+                                                      const newSession: any =
+                                                        await insertChatConnection(
+                                                          {
+                                                            parent_chat_connection_id:
+                                                              message.chat_connection_id,
+                                                            farmer_id:
+                                                              message.farmer_id,
+                                                            recipient_technician_id:
+                                                              technician.id,
+                                                          }
+                                                        );
+
+                                                      if (
+                                                        newSession.data &&
+                                                        newSession.data[0]
+                                                      ) {
+                                                        const newMsg =
+                                                          await insertChatMessage(
+                                                            {
+                                                              chat_connection_id:
+                                                                newSession
+                                                                  .data[0]
+                                                                  ?.chat_connection_id,
+                                                              sender_id:
+                                                                technician.id,
+                                                              receiver_id:
+                                                                message.farmer_id,
+                                                              message:
+                                                                "Hi! Please wait for the reply",
+                                                            }
+                                                          );
+
+                                                        if (newMsg) {
+                                                          setIsCurrentlySharing(
+                                                            false
+                                                          );
+                                                          setOpenPopoverId(
+                                                            null
+                                                          );
+                                                          router.push(
+                                                            `/${userType}/chat/${newSession.data[0].chat_connection_id}`
+                                                          );
+                                                        }
+                                                      }
+                                                    }
+                                                  }}
+                                                >
+                                                  Share
+                                                </Button>
+                                              </div>
+                                              <div className="flex flex-col">
+                                                <h2>
+                                                  <span className="font-semibold">
+                                                    Email:{" "}
+                                                  </span>
+                                                  {technician.email}
+                                                </h2>
+                                                <h2>
+                                                  <span className="font-semibold">
+                                                    Age:{" "}
+                                                  </span>
+                                                  {technician.birth_date
+                                                    ? calculateAge(
+                                                        technician.birth_date
+                                                      ) + " years old"
+                                                    : "N/A"}
+                                                </h2>
+                                                {technician.specialization && (
+                                                  <h2>
+                                                    <span className="font-semibold">
+                                                      Specialization:{" "}
+                                                    </span>
+                                                    {technician.specialization}
+                                                  </h2>
+                                                )}
+                                                {technician.experiences && (
+                                                  <h2>
+                                                    <span className="font-semibold">
+                                                      Experiences:{" "}
+                                                    </span>
+                                                    <span className="text-justify">
+                                                      {technician.experiences}
+                                                    </span>
+                                                  </h2>
+                                                )}
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+                                    </div>
+                                  )}
+                                </PopoverContent>
+                              </Popover>
+                            </li>
+                          );
+                        }
+                      )}
+                    </React.Fragment>
+                  ))
                 )}
               </ul>
               <div

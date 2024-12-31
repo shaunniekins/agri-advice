@@ -97,3 +97,47 @@ export const deleteSpecificChatMessagesBasedOnSenderIdAndNonAiChat = async (
     return null;
   }
 };
+
+export const updateSenderMessagesReadStatus = async (
+  chatConnectionId: string
+) => {
+  try {
+    const { data, error } = await supabase
+      .from("ChatMessages")
+      .update({ is_sender_read: true })
+      .eq("chat_connection_id", chatConnectionId)
+      .not("is_sender_read", "eq", true) // Only update unread messages
+      .select();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } catch (error: any) {
+    console.error("Error updating messages read status:", error);
+    return null;
+  }
+};
+
+export const updateReceiverMessagesReadStatus = async (
+  chatConnectionId: string
+) => {
+  try {
+    const { data, error } = await supabase
+      .from("ChatMessages")
+      .update({ is_receiver_read: true })
+      .eq("chat_connection_id", chatConnectionId)
+      .not("is_receiver_read", "eq", true) // Only update unread messages
+      .select();
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } catch (error: any) {
+    console.error("Error updating messages read status:", error);
+    return null;
+  }
+};

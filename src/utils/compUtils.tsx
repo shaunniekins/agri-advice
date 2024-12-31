@@ -62,3 +62,15 @@ export const formatMessageDate = (date: any) => {
     return `${format(parsedDate, "dd MMM")} AT ${format(parsedDate, "h:mm a")}`;
   }
 };
+
+export const getMessageDateGroup = (date: Date) => {
+  if (isToday(date)) {
+    return "TODAY";
+  } else if (isYesterday(date)) {
+    return "YESTERDAY";
+  } else if (isThisWeek(date)) {
+    return "Previous 7 days";
+  } else {
+    return "Others";
+  }
+};

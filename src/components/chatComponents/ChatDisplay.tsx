@@ -382,145 +382,132 @@ export default function ChatDisplayComponent() {
           >
             <div className="h-full w-full">
               <div className="flex flex-col gap-3">
-                {chatMessages
-                  // .filter((message: any) => {
-                  //   // return currentUserType === "farmer"
-                  //   //   ? message.sender_id !==
-                  //   //       chatConnection[0]?.recipient_technician_id
-                  //   //   : true;
+                {chatMessages.map((message: any, index: number) => {
+                  // Added index parameter
+                  const isFarmerSender = message.sender_id === user.id;
+                  const senderFirstName = message.sender_first_name;
+                  const senderLastName = message.sender_last_name;
+                  const senderProfilePicture = message.sender_profile_picture;
+                  const initials = `${(senderFirstName
+                    ? senderFirstName[0]
+                    : "A"
+                  ).toUpperCase()}${(senderLastName
+                    ? senderLastName[0]
+                    : "A"
+                  ).toUpperCase()}`;
 
-                  //   return (
-                  //     message.sender_id !==
-                  //     chatConnection[0]?.recipient_technician_id
-                  //   );
-                  // })
-                  .map((message: any) => {
-                    const isFarmerSender = message.sender_id === user.id;
-                    const senderFirstName = message.sender_first_name;
-                    const senderLastName = message.sender_last_name;
-                    const senderProfilePicture = message.sender_profile_picture;
-                    const initials = `${(senderFirstName
-                      ? senderFirstName[0]
-                      : "A"
-                    ).toUpperCase()}${(senderLastName
-                      ? senderLastName[0]
-                      : "A"
-                    ).toUpperCase()}`;
+                  const messageDate = format(
+                    new Date(message.created_at),
+                    "yyyy-MM-dd"
+                  );
 
-                    const messageDate = format(
-                      new Date(message.created_at),
-                      "yyyy-MM-dd"
-                    );
+                  const showDate = !displayedDates.has(messageDate);
+                  if (showDate) {
+                    displayedDates.add(messageDate);
+                  }
 
-                    const showDate = !displayedDates.has(messageDate);
-                    if (showDate) {
-                      displayedDates.add(messageDate);
-                    }
-
-                    return (
+                  return (
+                    <div
+                      key={`${message.chat_message_id}-${index}`} // Modified key to include index
+                      className={`w-full flex flex-col py-2`}
+                      onClick={() => {
+                        if (selectedMessageId === message.chat_message_id) {
+                          setSelectedMessageId(null);
+                        } else {
+                          setSelectedMessageId(message.chat_message_id);
+                        }
+                      }}
+                    >
+                      {showDate && (
+                        <span className="text-[0.7rem] text-center">
+                          {formatMessageDate(message.created_at)}
+                        </span>
+                      )}
                       <div
-                        key={message.chat_message_id}
-                        className={`w-full flex flex-col py-2
-                        `}
-                        onClick={() => {
-                          if (selectedMessageId === message.chat_message_id) {
-                            setSelectedMessageId(null);
-                          } else {
-                            setSelectedMessageId(message.chat_message_id);
-                          }
-                        }}
-                      >
-                        {showDate && (
-                          <span className="text-[0.7rem] text-center">
-                            {formatMessageDate(message.created_at)}
-                          </span>
-                        )}
-                        <div
-                          className={`w-full flex flex-col md:flex-row md:gap-4 py-2 ${
-                            !isFarmerSender ? "justify-start" : "justify-end"
-                          }
+                        className={`w-full flex flex-col md:flex-row md:gap-4 py-2 ${
+                          !isFarmerSender ? "justify-start" : "justify-end"
+                        }
                         
                         `}
+                      >
+                        <div className="flex">
+                          {!isFarmerSender && !senderProfilePicture && (
+                            <Avatar size="sm" name={initials} showFallback />
+                          )}
+                        </div>
+
+                        <div
+                          className={`message flex flex-col max-w-full whitespace-pre-wrap flex-wrap text-wrap break-words relative`}
+                          style={{
+                            overflowWrap: "break-word",
+                            wordBreak: "break-word",
+                            maxWidth: "100%",
+                          }}
                         >
-                          <div className="flex">
-                            {!isFarmerSender && !senderProfilePicture && (
-                              <Avatar size="sm" name={initials} showFallback />
-                            )}
-                          </div>
-
                           <div
-                            className={`message flex flex-col max-w-full whitespace-pre-wrap flex-wrap text-wrap break-words relative`}
-                            style={{
-                              overflowWrap: "break-word",
-                              wordBreak: "break-word",
-                              maxWidth: "100%",
-                            }}
+                            className={`max-w-full text-sm py-2 relative ${
+                              isFarmerSender && "px-3 rounded-2xl bg-green-200"
+                            }`}
                           >
-                            <div
-                              className={`max-w-full text-sm py-2 relative ${
-                                isFarmerSender &&
-                                "px-3 rounded-2xl bg-green-200"
-                              }`}
-                            >
-                              {renderMessage(message.message)}
-                              <div ref={bottomRef} />
-                            </div>
-
-                            {selectedMessageId === message.chat_message_id && (
-                              <>
-                                <span
-                                  className={`text-[0.7rem] ${
-                                    isFarmerSender ? "text-end" : "text-start"
-                                  }`}
-                                >
-                                  {formatMessageTime(message.created_at)}
-                                </span>
-                                {isFarmerSender &&
-                                  currentUserType === "technician" && (
-                                    <div className="z-10 absolute -top-6 right-3">
-                                      <button
-                                        className="p-1 rounded-full text-xs text-green-400 hover:text-green-600"
-                                        onClick={() => {
-                                          setMessageInput(message.message);
-                                          setSelectedMessageToEdit(
-                                            message.chat_message_id
-                                          );
-                                        }}
-                                      >
-                                        Edit
-                                      </button>
-                                    </div>
-                                  )}
-                              </>
-                            )}
-
-                            {!isFarmerSender &&
-                              !aiIsGenerating &&
-                              !parentChatConnectionId && (
-                                <div className="text-gray-500 text-xs flex justify-start items-center">
-                                  <Button
-                                    size="sm"
-                                    color="success"
-                                    variant="light"
-                                    isIconOnly
-                                    className={`${
-                                      currentUserType !== "farmer" && "hidden"
-                                    } md:-ml-3`}
-                                    onPress={() =>
-                                      handleGenerateAiReply(
-                                        message.chat_message_id
-                                      )
-                                    }
-                                  >
-                                    <GrRefresh size={15} />
-                                  </Button>
-                                </div>
-                              )}
+                            {renderMessage(message.message)}
+                            <div ref={bottomRef} />
                           </div>
+
+                          {selectedMessageId === message.chat_message_id && (
+                            <>
+                              <span
+                                className={`text-[0.7rem] ${
+                                  isFarmerSender ? "text-end" : "text-start"
+                                }`}
+                              >
+                                {formatMessageTime(message.created_at)}
+                              </span>
+                              {isFarmerSender &&
+                                currentUserType === "technician" && (
+                                  <div className="z-10 absolute -top-6 right-3">
+                                    <button
+                                      className="p-1 rounded-full text-xs text-green-400 hover:text-green-600"
+                                      onClick={() => {
+                                        setMessageInput(message.message);
+                                        setSelectedMessageToEdit(
+                                          message.chat_message_id
+                                        );
+                                      }}
+                                    >
+                                      Edit
+                                    </button>
+                                  </div>
+                                )}
+                            </>
+                          )}
+
+                          {!isFarmerSender &&
+                            !aiIsGenerating &&
+                            !parentChatConnectionId && (
+                              <div className="text-gray-500 text-xs flex justify-start items-center">
+                                <Button
+                                  size="sm"
+                                  color="success"
+                                  variant="light"
+                                  isIconOnly
+                                  className={`${
+                                    currentUserType !== "farmer" && "hidden"
+                                  } md:-ml-3`}
+                                  onPress={() =>
+                                    handleGenerateAiReply(
+                                      message.chat_message_id
+                                    )
+                                  }
+                                >
+                                  <GrRefresh size={15} />
+                                </Button>
+                              </div>
+                            )}
                         </div>
                       </div>
-                    );
-                  })}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

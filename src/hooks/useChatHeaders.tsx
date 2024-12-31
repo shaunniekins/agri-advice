@@ -26,10 +26,8 @@ const useChatHeaders = (
       const query = supabase
         .from("ViewLatestChatHeaders")
         .select("*")
-        .or(
-          `sender_id.eq.${userId},receiver_id.eq.${userId},recipient_technician_id.eq.${userId}`
-        )
-        .order("created_at", { ascending: false });
+        .or(`first_sender_id.eq.${userId},first_receiver_id.eq.${userId}`)
+        .order("first_created_at", { ascending: false });
 
       const response: PostgrestResponse<any> = await query.range(
         offset,
@@ -54,9 +52,9 @@ const useChatHeaders = (
   }, [rowsPerPage, currentPage, userId]);
 
   useEffect(() => {
-    fetchChatHeaders(); // Fetch initial chat headers
+    fetchChatHeaders();
 
-    // Optionally set up real-time updates for new messages or deleted messages
+    // Set up real-time updates for messages and read status
     const unsubscribe = supabase
       .channel("chat_headers")
       .on(
@@ -66,14 +64,14 @@ const useChatHeaders = (
           schema: "public",
           table: "ChatMessages",
         },
-        (payload) => {
-          fetchChatHeaders(); // Re-fetch the latest headers on changes
+        () => {
+          fetchChatHeaders();
         }
       )
       .subscribe();
 
     return () => {
-      supabase.removeChannel(unsubscribe); // Clean up on unmount
+      supabase.removeChannel(unsubscribe);
     };
   }, [fetchChatHeaders]);
 
