@@ -46,9 +46,10 @@ const AdminReportsComponent = () => {
   }
 
   const columns = [
-    { key: "message_from", label: "Message From" },
-    { key: "suggestion_from", label: "Feedback By" },
-    { key: "feedback_message", label: "Feedback" },
+    { key: "responder", label: "Responder" },
+    { key: "from", label: "Farmer" },
+    // { key: "initial_message", label: "Initial Message" },
+    // { key: "feedback_message", label: "Feedback" },
     { key: "ratings", label: "Rating" },
     { key: "feedback_created_at", label: "Date" },
     { key: "option", label: "Option" },
@@ -78,20 +79,24 @@ const AdminReportsComponent = () => {
               <ModalBody>
                 <div className="w-full flex gap-3">
                   <Input
-                    label="Message From"
+                    label="Responder"
                     color="success"
-                    value={`${selectedFeedback.is_ai ? "(AI)" : ""} ${
-                      selectedFeedback.technician_raw_user_meta_data.first_name
-                    } ${
-                      selectedFeedback.technician_raw_user_meta_data.last_name
+                    value={`${
+                      selectedFeedback.parent_chat_connection_id
+                        ? selectedFeedback.technician_first_name +
+                          " " +
+                          selectedFeedback.technician_last_name
+                        : "AI"
                     }`}
                     readOnly
                     fullWidth
                   />
                   <Input
-                    label="Feedback By"
+                    label="Message From"
                     color="success"
-                    value={`${selectedFeedback.farmer_raw_user_meta_data.first_name} ${selectedFeedback.farmer_raw_user_meta_data.last_name}`}
+                    value={`${selectedFeedback.is_ai ? "(AI)" : ""} ${
+                      selectedFeedback.farmer_first_name
+                    } ${selectedFeedback.farmer_last_name}`}
                     readOnly
                     fullWidth
                   />
@@ -99,6 +104,13 @@ const AdminReportsComponent = () => {
                 <div className="w-full my-3">
                   <StarRating rating={selectedFeedback.ratings} isReadOnly />
                 </div>
+                <Textarea
+                  label="First Message Sent"
+                  color="success"
+                  value={selectedFeedback.initial_message}
+                  readOnly
+                  fullWidth
+                />
                 <Textarea
                   label="Feedback Message"
                   color="success"
@@ -164,26 +176,33 @@ const AdminReportsComponent = () => {
               {(item) => (
                 <TableRow key={item.feedback_id} className="text-center">
                   {(columnKey) => {
-                    if (columnKey === "message_from") {
+                    if (columnKey === "responder") {
                       return (
                         <TableCell className="text-center">
-                          {item?.is_ai ? (
-                            "AI"
-                          ) : (
-                            <>
-                              {item?.technician_raw_user_meta_data?.first_name}{" "}
-                              {item?.technician_raw_user_meta_data?.last_name}
-                            </>
-                          )}
+                          {item?.parent_chat_connection_id
+                            ? item?.technician_first_name +
+                              " " +
+                              item?.technician_last_name
+                            : "AI"}
                         </TableCell>
                       );
                     }
 
-                    if (columnKey === "suggestion_from") {
+                    if (columnKey === "from") {
                       return (
                         <TableCell className="text-center">
-                          {item?.farmer_raw_user_meta_data?.first_name}{" "}
-                          {item?.farmer_raw_user_meta_data?.last_name}
+                          {item?.farmer_first_name} {item?.farmer_last_name}
+                        </TableCell>
+                      );
+                    }
+
+                    if (columnKey === "initial_message") {
+                      return (
+                        <TableCell className="text-center truncate">
+                          {truncateText(
+                            item?.initial_message || "No message",
+                            15
+                          )}
                         </TableCell>
                       );
                     }

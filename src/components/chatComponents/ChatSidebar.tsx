@@ -14,7 +14,7 @@ import React from "react";
 import { useEffect, useState } from "react";
 import { FaBars, FaSignOutAlt } from "react-icons/fa";
 import { IoAddCircleOutline, IoAddSharp, IoArrowBack } from "react-icons/io5";
-import { IoMdShare, IoMdTrash } from "react-icons/io";
+import { IoMdShare, IoMdStar, IoMdTrash } from "react-icons/io";
 import { useHandleLogout } from "@/utils/authUtils";
 import { useSelector } from "react-redux";
 import { RootState } from "@/app/reduxUtils/store";
@@ -42,6 +42,8 @@ import { FiHelpCircle } from "react-icons/fi";
 import ChatSidebarModal from "./ChatSidebarModal";
 import useTechnician from "@/hooks/useTechnician";
 import useChatConnectionForTechnicianRecipient from "@/hooks/useChatConnectionForTechnicianRecipient";
+import RateModal from "./RateModal";
+import { fetchFeedback } from "@/app/api/feedbackIUD";
 
 export default function ChatSidebarComponent({
   children,
@@ -153,6 +155,13 @@ export default function ChatSidebarComponent({
     return acc;
   }, {} as Record<string, typeof chatHeaders>);
 
+  const [openRateModal, setOpenRateModal] = useState(false);
+  const [
+    selectedChatConnectionIdForFeedback,
+    setSelectedChatConnectionIdForFeedback,
+  ] = useState<string>("");
+  // const [selectedFeedback, setSelectedFeedback] = useState<number | null>(null);
+
   return (
     <>
       <ChatSidebarModal
@@ -166,6 +175,11 @@ export default function ChatSidebarComponent({
         userType={userType}
         setUserType={setUserType}
         setIsLoading={setIsLoading}
+      />
+      <RateModal
+        openModal={openRateModal}
+        setOpenModal={setOpenRateModal}
+        chatConnectionId={selectedChatConnectionIdForFeedback}
       />
       {isLoading && (
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
@@ -353,6 +367,24 @@ export default function ChatSidebarComponent({
                                         }
                                       >
                                         Share
+                                      </Button>
+
+                                      <Button
+                                        fullWidth
+                                        size="sm"
+                                        startContent={<IoMdStar />}
+                                        className={`${
+                                          userType !== "farmer" && "hidden"
+                                        }`}
+                                        onClick={() => {
+                                          setSelectedChatConnectionIdForFeedback(
+                                            message.chat_connection_id
+                                          );
+                                          setOpenRateModal(true);
+                                          setOpenPopoverId(null);
+                                        }}
+                                      >
+                                        Rate
                                       </Button>
                                     </>
                                   ) : (

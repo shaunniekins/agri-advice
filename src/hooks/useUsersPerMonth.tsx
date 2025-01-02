@@ -67,7 +67,30 @@ const useUsersPerMonth = (userType: string, yearFilter: string) => {
           }
         );
 
-        setUsersPerMonth(formattedData);
+        // Add sorting logic
+        const monthOrder: { [key: string]: number } = {
+          January: 1,
+          February: 2,
+          March: 3,
+          April: 4,
+          May: 5,
+          June: 6,
+          July: 7,
+          August: 8,
+          September: 9,
+          October: 10,
+          November: 11,
+          December: 12,
+        };
+
+        const sortedData = formattedData.sort((a, b) => {
+          if (a.year !== b.year) {
+            return a.year - b.year;
+          }
+          return monthOrder[a.month] - monthOrder[b.month];
+        });
+
+        setUsersPerMonth(sortedData);
       } catch (error: any) {
         setError(error.message);
       } finally {
@@ -76,7 +99,7 @@ const useUsersPerMonth = (userType: string, yearFilter: string) => {
     };
 
     fetchUsersPerMonth();
-  }, [userType]);
+  }, [userType, yearFilter]); // Add yearFilter to dependencies
 
   return { usersPerMonth, loading, error };
 };

@@ -1,11 +1,11 @@
 import { supabase } from "@/utils/supabase";
 
-export const fetchFeedback = async (chatMessageId: number) => {
+export const fetchFeedback = async (chatConnectionId: string) => {
   try {
     const response = await supabase
       .from("ViewFullFeedback")
       .select("*")
-      .eq("chat_message_id", chatMessageId);
+      .eq("chat_connection_id", chatConnectionId);
 
     if (response.error) {
       throw response.error;
