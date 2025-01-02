@@ -18,7 +18,6 @@ import { supabase } from "@/utils/supabase";
 
 export default function ResetPassword() {
   const router = useRouter();
-  const searchParams = useSearchParams();
 
   const [isInputUserPasswordVisible, setIsInputUserPasswordVisible] =
     useState(false);
@@ -35,19 +34,15 @@ export default function ResetPassword() {
       return;
     }
 
-    const token = searchParams.get("token"); // Assuming "token" is the query parameter name
-
-    if (!token) {
-      alert("No token found in the URL");
-      return;
-    }
-
     const { error } = await supabase.auth.updateUser({
       password: newPassword,
       data: {
         password: newPassword,
       },
     });
+
+    setNewPassword("");
+    setConfirmNewPassword("");
 
     if (error) {
       alert("Error updating password: " + error.message);

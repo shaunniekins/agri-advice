@@ -23,22 +23,21 @@ export default function RecoverPage() {
 
   const handleSendEmail = async () => {
     if (!email) return;
-    // const redirectTo =
-    //   process.env.NODE_ENV === "production"
-    //     ? "https://agri-advice-eight.vercel.app/ident/reset-password"
-    //     : "http://localhost:3000/ident/reset-password";
 
     try {
-      const { data, error } = await supabase.auth.resetPasswordForEmail(
-        email,
-        {
-          redirectTo: `${window.location.origin}/ident/reset-password`,
-        }
-      );
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/ident/reset-password`,
+      });
 
-      setEmail("");
-      setDescription("Success! Check your email to reset your password.");
-      console.log("data: ", data);
+      if (error) {
+        console.error("Error resetting password:", error.message);
+        alert("Error sending recovery email. Please try again later.");
+      } else {
+        console.log("data: ", data);
+
+        setEmail("");
+        setDescription("Success! Check your email to reset your password.");
+      }
     } catch (error) {
       console.error(error);
     }
