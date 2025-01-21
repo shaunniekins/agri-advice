@@ -8,7 +8,9 @@ import {
 const MODEL_NAME = "gemini-1.0-pro";
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
 
-async function runChat(userInput: string): Promise<string> {
+async function runChat(
+  conversationHistory: Array<{ role: string; parts: Array<{ text: string }> }>
+): Promise<string> {
   const genAI = new GoogleGenerativeAI(API_KEY as string);
   const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
@@ -41,33 +43,44 @@ async function runChat(userInput: string): Promise<string> {
   const chat = model.startChat({
     generationConfig,
     safetySettings,
-    history: [],
+    history: conversationHistory,
   });
 
-  const result = await chat.sendMessage(userInput);
+  const result = await chat.sendMessage(
+    "Generate a response in formal but commonly understood Bisaya/Cebuano based on the conversation history"
+  );
   const response = result.response;
   return response.text();
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { filteredMessage } = await request.json();
+    const { messages } = await request.json();
 
-    // Updated prompt for clean, formal but accessible Bisaya
-    const prompt = `
-Directly respond in formal but commonly understood Bisaya/Cebuano without any introductory text or concluding phrases. Follow these rules:
+    // Convert messages to the format expected by the API
+    const conversationHistory = messages.map((msg: any) => ({
+      role: msg.is_ai ? "model" : "user",
+      parts: [{ text: msg.message }],
+    }));
 
+    // Add initial prompt
+    const initialPrompt = {
+      role: "user",
+      parts: [
+        {
+          text: `You are an AI agricultural technician. Directly respond in formal but commonly understood Bisaya/Cebuano without any introductory text or concluding phrases. Follow these rules:
 - Start your response immediately in Bisaya/Cebuano without any prefix like "Bisaya response:" or similar phrases
 - Use formal but widely understood Bisaya/Cebuano words (avoid archaic or extremely deep terms)
 - Do not include any English phrases like "Hope this helps" at the end
 - Do not wrap or mark the response with any meta-text or formatting
 - Maintain professionalism while using commonly understood terms
-- End naturally without any closing remarks or signatures
+- End naturally without any closing remarks or signatures`,
+        },
+      ],
+    };
 
-Message to respond to: "${filteredMessage}"
-`;
-
-    const aiReply = await runChat(prompt);
+    const updatedHistory = [initialPrompt, ...conversationHistory];
+    const aiReply = await runChat(updatedHistory);
 
     return NextResponse.json({ aiReply });
   } catch (error) {

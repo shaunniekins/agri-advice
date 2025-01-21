@@ -185,33 +185,19 @@ export default function ChatDisplayComponent() {
     setProcessingMessageId(chatMessageId || null);
 
     try {
-      // Get the message to respond to
-      let messageToRespondTo;
-      if (chatMessageId) {
-        // If regenerating a specific message
-        const messageIndex = chatMessages.findIndex(
-          (message) => message.chat_message_id === chatMessageId
-        );
-        messageToRespondTo =
-          messageIndex > 0 ? chatMessages[messageIndex - 1] : null;
-      } else {
-        // Get the last message from the farmer
-        messageToRespondTo = chatMessages[chatMessages.length - 1];
-      }
-
-      if (!messageToRespondTo) return;
-
-      // Filter out images from the message
-      const filteredMessage = !imageUrlPattern.test(messageToRespondTo.message)
-        ? messageToRespondTo.message
-        : "";
+      // Get relevant messages for context (last 10 messages)
+      const relevantMessages = chatMessages
+        .slice(-10)
+        .filter((msg) => !imageUrlPattern.test(msg.message));
 
       const response = await fetch("/api/generate-ai-reply", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ filteredMessage }),
+        body: JSON.stringify({
+          messages: relevantMessages,
+        }),
       });
 
       if (!response.ok) {
@@ -222,13 +208,11 @@ export default function ChatDisplayComponent() {
       const aiReply = data.aiReply;
 
       if (chatMessageId) {
-        // Update existing AI message
         await updateChatMessage(chatMessageId, {
           message: aiReply,
           chat_connection_id: chatConnectionId,
         });
       } else {
-        // Insert new AI message
         await insertChatMessage({
           message: aiReply,
           chat_connection_id: chatConnectionId,
