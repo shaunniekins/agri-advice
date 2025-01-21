@@ -8,7 +8,7 @@ import {
   CardHeader,
   Input,
 } from "@nextui-org/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import React, { useState } from "react";
 import { IoChevronBack } from "react-icons/io5";
 import { MdFormatAlignJustify } from "react-icons/md";
@@ -22,6 +22,7 @@ export default function ResetPassword() {
   const [isInputUserPasswordVisible, setIsInputUserPasswordVisible] =
     useState(false);
   const [newPassword, setNewPassword] = useState("");
+
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
 
   const handleSubmit = async () => {

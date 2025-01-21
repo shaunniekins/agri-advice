@@ -22,11 +22,13 @@ const useChatHeaders = (
     setErrorChatHeaders(null);
 
     try {
-      // Query from the new view that returns the latest conversation for each partner
+      // Modified query to include messages where user is recipient_technician_id
       const query = supabase
         .from("ViewLatestChatHeaders")
         .select("*")
-        .or(`first_sender_id.eq.${userId},first_receiver_id.eq.${userId}`)
+        .or(
+          `first_sender_id.eq.${userId},first_receiver_id.eq.${userId},recipient_technician_id.eq.${userId}`
+        )
         .order("first_created_at", { ascending: false });
 
       const response: PostgrestResponse<any> = await query.range(

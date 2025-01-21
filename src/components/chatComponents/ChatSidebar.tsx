@@ -37,7 +37,6 @@ import {
   updateChatConnection,
 } from "@/app/api/chatConnectionsIUD";
 import { MdOutlineSpaceDashboard } from "react-icons/md";
-import { supabase } from "@/utils/supabase";
 import { FiHelpCircle } from "react-icons/fi";
 import ChatSidebarModal from "./ChatSidebarModal";
 import useTechnician from "@/hooks/useTechnician";
@@ -251,6 +250,8 @@ export default function ChatSidebarComponent({
                           const isReceiver =
                             user.id === message.first_receiver_id;
 
+                          // console.log("message", message);
+
                           return (
                             <li
                               key={`${message.chat_message_id}-${index}`}
@@ -460,8 +461,8 @@ export default function ChatSidebarComponent({
                                                           {
                                                             parent_chat_connection_id:
                                                               message.chat_connection_id,
-                                                            farmer_id:
-                                                              message.farmer_id,
+                                                            //  farmer_id: message.farmer_id,
+                                                            farmer_id: user.id,
                                                             recipient_technician_id:
                                                               technician.id,
                                                           }
@@ -479,9 +480,11 @@ export default function ChatSidebarComponent({
                                                                   .data[0]
                                                                   ?.chat_connection_id,
                                                               sender_id:
+                                                                // message.farmer_id,
                                                                 technician.id,
+
                                                               receiver_id:
-                                                                message.farmer_id,
+                                                                user.id,
                                                               message:
                                                                 "Hi! Please wait for the reply",
                                                             }
