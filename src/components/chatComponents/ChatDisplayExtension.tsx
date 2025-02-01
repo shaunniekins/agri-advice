@@ -1,6 +1,5 @@
 "use client";
 
-import { Avatar } from "@nextui-org/react";
 import { useEffect, useRef, useState } from "react";
 import useChatMessagesFotOtherPanel from "@/hooks/useChatMessagesFotOtherPanel";
 import {
@@ -13,13 +12,11 @@ import { format } from "date-fns";
 interface ChatDisplayExtensionProps {
   currentUserType: string;
   parentChatConnectionId: string;
-  user: any;
 }
 
 const ChatDisplayExtensionComponent: React.FC<ChatDisplayExtensionProps> = ({
   currentUserType,
   parentChatConnectionId,
-  user,
 }) => {
   const rowsPerPage = 1000;
   const [currentPage, setCurrentPage] = useState(1);
@@ -45,12 +42,13 @@ const ChatDisplayExtensionComponent: React.FC<ChatDisplayExtensionProps> = ({
 
   const displayedDates = new Set();
 
+  // console.log("uer", user.id);
+
   return (
     <div
       className={`
           h-full flex flex-col bg-[#F4FFFC] overflow-y-auto md:bg-none rounded-tl-md md:rounded-none
            ${currentUserType === "farmer" && "hidden"}
-
           `}
     >
       <div className="h-full w-full">
@@ -63,17 +61,7 @@ const ChatDisplayExtensionComponent: React.FC<ChatDisplayExtensionProps> = ({
             //   );
             // })
             .map((message: any) => {
-              const isFarmerSender = message.sender_id === user.id;
-              const senderFirstName = message.sender_first_name;
-              const senderLastName = message.sender_last_name;
-              const senderProfilePicture = message.sender_profile_picture;
-              const initials = `${(senderFirstName
-                ? senderFirstName[0]
-                : "A"
-              ).toUpperCase()}${(senderLastName
-                ? senderLastName[0]
-                : "A"
-              ).toUpperCase()}`;
+              const isFarmerSender = message.sender_id !== null;
 
               const messageDate = format(
                 new Date(message.created_at),
@@ -84,6 +72,9 @@ const ChatDisplayExtensionComponent: React.FC<ChatDisplayExtensionProps> = ({
               if (showDate) {
                 displayedDates.add(messageDate);
               }
+
+              // console.log("isFarmerSender", isFarmerSender);
+              // console.log("message", message);
 
               return (
                 <div
@@ -120,11 +111,11 @@ const ChatDisplayExtensionComponent: React.FC<ChatDisplayExtensionProps> = ({
                     
                     `}
                   >
-                    <div className="flex">
+                    {/* <div className="flex">
                       {!isFarmerSender && !senderProfilePicture && (
                         <Avatar size="sm" name={initials} showFallback />
                       )}
-                    </div>
+                    </div> */}
 
                     <div
                       className={`message flex flex-col max-w-full whitespace-pre-wrap flex-wrap text-wrap break-words relative`}

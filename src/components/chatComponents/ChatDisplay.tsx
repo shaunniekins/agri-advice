@@ -501,7 +501,6 @@ export default function ChatDisplayComponent() {
             <ChatDisplayExtensionComponent
               currentUserType={currentUserType}
               parentChatConnectionId={parentChatConnectionId}
-              user={user}
             />
           )}
         </div>
