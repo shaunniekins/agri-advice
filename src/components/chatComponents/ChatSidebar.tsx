@@ -24,7 +24,7 @@ import {
   getIdFromPathname,
   getMessageDateGroup,
 } from "@/utils/compUtils";
-import { BsBack, BsThreeDotsVertical } from "react-icons/bs";
+import { BsThreeDotsVertical } from "react-icons/bs";
 import {
   deleteChatMessage,
   insertChatMessage,
@@ -42,7 +42,7 @@ import ChatSidebarModal from "./ChatSidebarModal";
 import useTechnician from "@/hooks/useTechnician";
 import useChatConnectionForTechnicianRecipient from "@/hooks/useChatConnectionForTechnicianRecipient";
 import RateModal from "./RateModal";
-import { fetchFeedback } from "@/app/api/feedbackIUD";
+import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 
 export default function ChatSidebarComponent({
   children,
@@ -161,6 +161,12 @@ export default function ChatSidebarComponent({
   ] = useState<string>("");
   // const [selectedFeedback, setSelectedFeedback] = useState<number | null>(null);
 
+  const { isUserOnline } = useOnlineStatus(user ? user.id : "");
+
+  // useEffect(() => {
+  //   console.log("isUserOnline", isUserOnline);
+  // }, [isUserOnline]);
+
   return (
     <>
       <ChatSidebarModal
@@ -278,6 +284,20 @@ export default function ChatSidebarComponent({
                                 );
                               }}
                             >
+                              {/* Add online status indicator */}
+                              {!isAi && (
+                                <div
+                                  className={`w-2 h-2 rounded-full mr-2 ${
+                                    isSender
+                                      ? isUserOnline(message.first_receiver_id)
+                                        ? "bg-green-400"
+                                        : "bg-gray-400"
+                                      : isUserOnline(message.first_sender_id)
+                                      ? "bg-green-400"
+                                      : "bg-gray-400"
+                                  }`}
+                                />
+                              )}
                               <span
                                 className={`
                                 ${
