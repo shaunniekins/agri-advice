@@ -6,6 +6,10 @@ import {
   updateReceiverMessagesReadStatus,
   updateSenderMessagesReadStatus,
 } from "@/app/api/chatMessagesIUD";
+import {
+  unarchiveChatConnectionForFarmer,
+  unarchiveChatConnectionForTechnician,
+} from "@/app/api/chatConnectionsIUD";
 import { RootState } from "@/app/reduxUtils/store";
 import useChatMessages from "@/hooks/useChatMessages";
 import { Avatar, Button, Spinner, Textarea } from "@nextui-org/react";
@@ -249,6 +253,14 @@ export default function ChatDisplayComponent() {
   const handleSubmit = async (message: string) => {
     if (!user || isConversationEnded) return; // Prevent sending if the conversation is ended
     const file = selectedImage;
+
+    // First, unarchive the conversation for both parties when a new message is sent
+    // This ensures archived conversations reappear when there's new activity
+    if (currentUserType === "farmer") {
+      await unarchiveChatConnectionForFarmer(chatConnectionId);
+    } else if (currentUserType === "technician") {
+      await unarchiveChatConnectionForTechnician(chatConnectionId);
+    }
 
     if (file) {
       const filePath = `public/${chatConnectionId}/${file.name}`;

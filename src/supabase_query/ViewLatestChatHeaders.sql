@@ -11,6 +11,8 @@ create or replace view "ViewLatestChatHeaders" as with ranked_messages as (
     cc.parent_chat_connection_id,
     cc.farmer_deleted,
     cc.technician_deleted,
+    cc.farmer_archived,
+    cc.technician_archived,
     cm.created_at,
     sender_user.raw_user_meta_data->>'first_name' as sender_first_name,
     sender_user.raw_user_meta_data->>'last_name' as sender_last_name,
@@ -69,6 +71,9 @@ select
   -- Deletion flags
   first_msg.farmer_deleted,
   first_msg.technician_deleted,
+  -- Archive flags
+  first_msg.farmer_archived,
+  first_msg.technician_archived,
   -- Common details
   first_msg.sender_first_name,
   first_msg.sender_last_name,

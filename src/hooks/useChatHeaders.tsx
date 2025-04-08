@@ -6,7 +6,8 @@ const useChatHeaders = (
   rowsPerPage: number,
   currentPage: number,
   userId: string,
-  userType?: string
+  userType?: string,
+  showArchived: boolean = false // Add parameter to toggle showing archived chats
 ) => {
   const [chatHeaders, setChatHeaders] = useState<any[]>([]);
   const [loadingChatHeaders, setLoadingChatHeaders] = useState(true);
@@ -34,8 +35,22 @@ const useChatHeaders = (
       // Add deletion filters based on user type - this is critical
       if (userType === "farmer") {
         baseQuery.eq("farmer_deleted", false);
+
+        // Add archive filtering
+        if (showArchived) {
+          baseQuery.eq("farmer_archived", true);
+        } else {
+          baseQuery.eq("farmer_archived", false);
+        }
       } else if (userType === "technician") {
         baseQuery.eq("technician_deleted", false);
+
+        // Add archive filtering
+        if (showArchived) {
+          baseQuery.eq("technician_archived", true);
+        } else {
+          baseQuery.eq("technician_archived", false);
+        }
       }
 
       // Finish the query with ordering and pagination
@@ -59,7 +74,7 @@ const useChatHeaders = (
     } finally {
       setLoadingChatHeaders(false);
     }
-  }, [rowsPerPage, currentPage, userId, userType]);
+  }, [rowsPerPage, currentPage, userId, userType, showArchived]); // Added showArchived to dependencies
 
   // Explicit refetch function that can be called from components
   const refetch = useCallback(() => {

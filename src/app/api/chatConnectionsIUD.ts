@@ -240,3 +240,87 @@ export const canDeleteParentChat = async (chatConnectionId: string) => {
     return false;
   }
 };
+
+// Mark chat as archived for farmer
+export async function markChatConnectionAsArchivedForFarmer(
+  chatConnectionId: string
+) {
+  try {
+    const { data, error } = await supabase
+      .from("ChatConnections")
+      .update({ farmer_archived: true })
+      .eq("chat_connection_id", chatConnectionId);
+
+    if (error) {
+      throw error;
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error("Error archiving chat for farmer:", error);
+    return { data: null, error };
+  }
+}
+
+// Mark chat as archived for technician
+export async function markChatConnectionAsArchivedForTechnician(
+  chatConnectionId: string
+) {
+  try {
+    const { data, error } = await supabase
+      .from("ChatConnections")
+      .update({ technician_archived: true })
+      .eq("chat_connection_id", chatConnectionId);
+
+    if (error) {
+      throw error;
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error("Error archiving chat for technician:", error);
+    return { data: null, error };
+  }
+}
+
+// Unarchive chat for farmer
+export async function unarchiveChatConnectionForFarmer(
+  chatConnectionId: string
+) {
+  try {
+    const { data, error } = await supabase
+      .from("ChatConnections")
+      .update({ farmer_archived: false })
+      .eq("chat_connection_id", chatConnectionId);
+
+    if (error) {
+      throw error;
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error("Error unarchiving chat for farmer:", error);
+    return { data: null, error };
+  }
+}
+
+// Unarchive chat for technician
+export async function unarchiveChatConnectionForTechnician(
+  chatConnectionId: string
+) {
+  try {
+    const { data, error } = await supabase
+      .from("ChatConnections")
+      .update({ technician_archived: false })
+      .eq("chat_connection_id", chatConnectionId);
+
+    if (error) {
+      throw error;
+    }
+
+    return { data, error: null };
+  } catch (error) {
+    console.error("Error unarchiving chat for technician:", error);
+    return { data: null, error };
+  }
+}

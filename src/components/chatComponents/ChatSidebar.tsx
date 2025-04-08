@@ -37,8 +37,16 @@ import {
   updateChatConnection,
   markChatConnectionAsDeletedForFarmer,
   markChatConnectionAsDeletedForTechnician,
+  markChatConnectionAsArchivedForFarmer,
+  markChatConnectionAsArchivedForTechnician,
+  unarchiveChatConnectionForFarmer,
+  unarchiveChatConnectionForTechnician,
 } from "@/app/api/chatConnectionsIUD";
-import { MdOutlineSpaceDashboard } from "react-icons/md";
+import {
+  MdOutlineSpaceDashboard,
+  MdArchive,
+  MdUnarchive,
+} from "react-icons/md";
 import { FiHelpCircle } from "react-icons/fi";
 import ChatSidebarModal from "./ChatSidebarModal";
 import useTechnician from "@/hooks/useTechnician";
@@ -46,6 +54,7 @@ import useChatConnectionForTechnicianRecipient from "@/hooks/useChatConnectionFo
 import RateModal from "./RateModal";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { supabase } from "@/utils/supabase";
+import useAutoUnarchive from "@/hooks/useAutoUnarchive";
 
 export default function ChatSidebarComponent({
   children,
@@ -74,6 +83,8 @@ export default function ChatSidebarComponent({
 
   const [openUserInfo, setOpenUserInfo] = useState(false);
 
+  const [showingArchived, setShowingArchived] = useState(false);
+
   const {
     chatHeaders,
     totalChatHeaders,
@@ -84,7 +95,8 @@ export default function ChatSidebarComponent({
     rowsPerPage,
     page,
     user ? user.id : "",
-    userType // Pass userType to filter deleted conversations
+    userType,
+    showingArchived // Pass the showArchived flag
   );
 
   // Force refetch when userType changes
@@ -189,6 +201,9 @@ export default function ChatSidebarComponent({
   //   console.log("isUserOnline", isUserOnline);
   // }, [isUserOnline]);
 
+  // Initialize our new hook for auto-unarchiving
+  useAutoUnarchive(user ? user.id : "", userType);
+
   return (
     <>
       <ChatSidebarModal
@@ -235,7 +250,7 @@ export default function ChatSidebarComponent({
               >
                 <FaBars />
               </button>
-              <div>
+              <div className="flex justify-between items-center px-3 mt-16">
                 <Button
                   radius="full"
                   startContent={
@@ -245,21 +260,36 @@ export default function ChatSidebarComponent({
                       <MdOutlineSpaceDashboard />
                     )
                   }
-                  className="mt-16 py-5 mx-3 inline-flex"
+                  className="py-5 inline-flex"
                   onClick={() => {
                     if (pathname !== `/${userType}/chat`) {
-                      // setIsLoading(true);
                       router.push(`/${userType}/chat`);
                     }
                   }}
                 >
                   {userType === "farmer" ? "New Chat" : "Main"}
                 </Button>
+
+                {/* Toggle button for showing regular/archived chats */}
+                <Button
+                  // color={showingArchived ? "warning" : "default"}
+                  variant={showingArchived ? "solid" : "bordered"}
+                  className={`${!showingArchived && "text-white"}`}
+                  radius="full"
+                  startContent={<MdArchive />}
+                  onClick={() => {
+                    setShowingArchived(!showingArchived);
+                    setPage(1); // Reset to first page when switching views
+                  }}
+                >
+                  Archived
+                </Button>
               </div>
+
               <ul className="h-full w-full self-start mt-2 mb-20 flex flex-col pt-3 pb-5">
                 {Object.keys(groupedChatHeaders).length === 0 ? (
                   <li className="flex justify-center items-center h-full w-full">
-                    No chat history
+                    {showingArchived ? "No archived chats" : "No chat history"}
                   </li>
                 ) : (
                   Object.keys(groupedChatHeaders).map((dateGroup) => (
@@ -305,6 +335,25 @@ export default function ChatSidebarComponent({
                                 router.push(
                                   `/${userType}/chat/${message.chat_connection_id}`
                                 );
+
+                                // If this is an archived chat and user clicks on it,
+                                // unarchive it automatically
+                                if (showingArchived) {
+                                  if (userType === "farmer") {
+                                    unarchiveChatConnectionForFarmer(
+                                      message.chat_connection_id
+                                    );
+                                  } else if (userType === "technician") {
+                                    unarchiveChatConnectionForTechnician(
+                                      message.chat_connection_id
+                                    );
+                                  }
+                                  // After a short delay to let the unarchive complete, refresh and switch to regular view
+                                  setTimeout(() => {
+                                    setShowingArchived(false);
+                                    refetch();
+                                  }, 300);
+                                }
                               }}
                             >
                               {/* Add online status indicator */}
@@ -499,7 +548,101 @@ export default function ChatSidebarComponent({
                                         Rate
                                       </Button>
 
-                                      {/* Add new Delete button */}
+                                      {/* Modified Archive/Unarchive button based on current view */}
+                                      <Button
+                                        fullWidth
+                                        size="sm"
+                                        startContent={
+                                          showingArchived ? (
+                                            <MdUnarchive />
+                                          ) : (
+                                            <MdArchive />
+                                          )
+                                        }
+                                        color={
+                                          showingArchived
+                                            ? "success"
+                                            : "warning"
+                                        }
+                                        onClick={async () => {
+                                          const actionText = showingArchived
+                                            ? "unarchive"
+                                            : "archive";
+                                          const confirmAction = window.confirm(
+                                            `Are you sure you want to ${actionText} this conversation?`
+                                          );
+
+                                          if (confirmAction) {
+                                            try {
+                                              const currentChatId =
+                                                message.chat_connection_id;
+
+                                              if (showingArchived) {
+                                                // Unarchive action
+                                                if (userType === "farmer") {
+                                                  await unarchiveChatConnectionForFarmer(
+                                                    currentChatId
+                                                  );
+                                                } else if (
+                                                  userType === "technician"
+                                                ) {
+                                                  await unarchiveChatConnectionForTechnician(
+                                                    currentChatId
+                                                  );
+                                                }
+                                              } else {
+                                                // Archive action
+                                                if (userType === "farmer") {
+                                                  await markChatConnectionAsArchivedForFarmer(
+                                                    currentChatId
+                                                  );
+                                                } else if (
+                                                  userType === "technician"
+                                                ) {
+                                                  await markChatConnectionAsArchivedForTechnician(
+                                                    currentChatId
+                                                  );
+                                                }
+                                              }
+
+                                              // Clear any active message state
+                                              setOpenPopoverId(null);
+
+                                              // Check if we're currently viewing this chat
+                                              const currentViewingChatId =
+                                                pathname.split("/")[3];
+
+                                              // Force a refresh of the chat headers data
+                                              await refetch();
+
+                                              // Redirect if we're viewing this chat and archiving it
+                                              if (
+                                                !showingArchived &&
+                                                currentViewingChatId ===
+                                                  currentChatId
+                                              ) {
+                                                router.replace(
+                                                  `/${userType}/chat`
+                                                );
+                                              }
+                                            } catch (error) {
+                                              console.error(
+                                                `Error ${actionText}ing chat connection:`,
+                                                error
+                                              );
+                                              alert(
+                                                `Failed to ${actionText} conversation. Please try again.`
+                                              );
+                                            }
+                                          }
+                                        }}
+                                      >
+                                        {showingArchived
+                                          ? "Unarchive"
+                                          : "Archive"}
+                                      </Button>
+
+                                      {/* Delete button */}
                                       <Button
                                         fullWidth
                                         size="sm"
