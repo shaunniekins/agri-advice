@@ -16,7 +16,7 @@ const useChatConnectionForTechnicianRecipient = (
       const { data, error } = await supabase
         .from("ChatConnections")
         .select(
-          "chat_connection_id, farmer_id, recipient_technician_id, parent_chat_connection_id"
+          "chat_connection_id, farmer_id, recipient_technician_id, parent_chat_connection_id, farmer_deleted, technician_deleted"
         )
         .eq("chat_connection_id", chat_connection_id);
       // .not("recipient_technician_id", "is", null);

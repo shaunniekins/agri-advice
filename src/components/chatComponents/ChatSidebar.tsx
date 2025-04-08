@@ -14,7 +14,7 @@ import React from "react";
 import { useEffect, useState } from "react";
 import { FaBars, FaSignOutAlt } from "react-icons/fa";
 import { IoAddCircleOutline, IoAddSharp, IoArrowBack } from "react-icons/io5";
-import { IoMdShare, IoMdStar, IoMdTrash } from "react-icons/io";
+import { IoMdShare, IoMdStar, IoMdTrash, IoMdWarning } from "react-icons/io";
 import { useHandleLogout } from "@/utils/authUtils";
 import { useSelector } from "react-redux";
 import { RootState } from "@/app/reduxUtils/store";
@@ -147,6 +147,11 @@ export default function ChatSidebarComponent({
 
   const [chosenTechnicianId, setChosenTechnicianId] = useState<string | null>(
     null
+  );
+
+  // Add new state to track technicians with existing shared connections
+  const [sharedTechnicians, setSharedTechnicians] = useState<Set<string>>(
+    new Set()
   );
 
   useEffect(() => {
@@ -294,7 +299,8 @@ export default function ChatSidebarComponent({
                                 isReceiver &&
                                   !isSender &&
                                   updateReceiverMessagesReadStatus(
-                                    message.chat_connection_id
+                                    message.chat_connection_id,
+                                    user.id
                                   );
                                 router.push(
                                   `/${userType}/chat/${message.chat_connection_id}`
@@ -324,20 +330,23 @@ export default function ChatSidebarComponent({
                                   }
                                 />
                               )}
+
+                              {/* Add indicator for ended conversations */}
+                              {((userType === "farmer" &&
+                                message.technician_deleted) ||
+                                (userType === "technician" &&
+                                  message.farmer_deleted)) && (
+                                <div
+                                  className="text-yellow-400 mr-1"
+                                  title="Conversation ended by the other user"
+                                >
+                                  <IoMdWarning size={15} />
+                                </div>
+                              )}
+
                               <span
                                 className={`
-                                ${
-                                  isSender &&
-                                  !isReceiver &&
-                                  message.is_sender_read &&
-                                  "font-semibold"
-                                }
-                                ${
-                                  isReceiver &&
-                                  !isSender &&
-                                  message.is_receiver_read &&
-                                  "font-semibold"
-                                }
+                               
 
                               w-full text-left truncate text-base`}
                               >
@@ -351,6 +360,18 @@ export default function ChatSidebarComponent({
                                     " " +
                                     message.receiver_last_name}
                               </span>
+
+                              {/* Unread message count badge - only show if:
+                                  1. There are unread messages 
+                                  2. User is not currently viewing this chat */}
+                              {message.unread_count > 0 &&
+                                pathname !==
+                                  `/${userType}/chat/${message.chat_connection_id}` && (
+                                  <div className="flex items-center justify-center min-w-[20px] h-[20px] rounded-full bg-green-500 text-white text-xs font-bold mx-1">
+                                    {message.unread_count}
+                                  </div>
+                                )}
+
                               <Popover
                                 showArrow
                                 isOpen={
@@ -369,6 +390,7 @@ export default function ChatSidebarComponent({
                                       [`${message.chat_connection_id}-${message.chat_message_id}`]:
                                         false,
                                     }));
+                                    setSharedTechnicians(new Set()); // Reset shared technicians when closing
                                   }
                                 }}
                                 placement="bottom"
@@ -384,6 +406,51 @@ export default function ChatSidebarComponent({
                                       setChatCoonectionId(
                                         message.chat_connection_id
                                       );
+
+                                      // Fetch existing shared connections when opening the share popover
+                                      if (message.chat_connection_id) {
+                                        const fetchSharedConnections =
+                                          async () => {
+                                            try {
+                                              const { data } = await supabase
+                                                .from("ChatConnections")
+                                                .select(
+                                                  "recipient_technician_id"
+                                                )
+                                                .eq(
+                                                  "parent_chat_connection_id",
+                                                  message.chat_connection_id
+                                                )
+                                                .not(
+                                                  "recipient_technician_id",
+                                                  "is",
+                                                  null
+                                                );
+
+                                              if (data && data.length > 0) {
+                                                const technicianIds = new Set(
+                                                  data.map(
+                                                    (connection) =>
+                                                      connection.recipient_technician_id
+                                                  )
+                                                );
+                                                setSharedTechnicians(
+                                                  technicianIds
+                                                );
+                                              } else {
+                                                setSharedTechnicians(new Set());
+                                              }
+                                            } catch (error) {
+                                              console.error(
+                                                "Error fetching shared connections:",
+                                                error
+                                              );
+                                              setSharedTechnicians(new Set());
+                                            }
+                                          };
+
+                                        fetchSharedConnections();
+                                      }
                                     }}
                                   >
                                     <BsThreeDotsVertical />
@@ -579,6 +646,12 @@ export default function ChatSidebarComponent({
                                       {/* map technicians */}
                                       <div>
                                         {technicianData.map((technician) => {
+                                          // Check if this technician already has a shared conversation
+                                          const isAlreadyShared =
+                                            sharedTechnicians.has(
+                                              technician.id
+                                            );
+
                                           return (
                                             <div
                                               key={technician.id}
@@ -604,6 +677,7 @@ export default function ChatSidebarComponent({
                                                   color="success"
                                                   size="sm"
                                                   className="text-white"
+                                                  isDisabled={isAlreadyShared}
                                                   onClick={async () => {
                                                     const res = window.confirm(
                                                       "Are you sure? You can only share to one technician."
@@ -665,7 +739,9 @@ export default function ChatSidebarComponent({
                                                     }
                                                   }}
                                                 >
-                                                  Share
+                                                  {isAlreadyShared
+                                                    ? "Already Shared"
+                                                    : "Share"}
                                                 </Button>
                                               </div>
                                               <div className="flex flex-col">

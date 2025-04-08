@@ -118,9 +118,10 @@ const useChatMessages = (
           }
 
           if (eventType === "UPDATE") {
+            // FIX: Use chat_message_id for comparison instead of chat_connection_id
             setChatMessages((prev) =>
               prev.map((msg) =>
-                msg.chat_connection_id === newRecord.chat_connection_id
+                msg.chat_message_id === newRecord.chat_message_id
                   ? { ...msg, ...newRecord }
                   : msg
               )
@@ -129,9 +130,10 @@ const useChatMessages = (
           }
 
           if (eventType === "DELETE") {
+            // FIX: Use chat_message_id for comparison instead of chat_connection_id
             setChatMessages((prev) =>
               prev.filter(
-                (msg) => msg.chat_connection_id !== oldRecord.chat_connection_id
+                (msg) => msg.chat_message_id !== oldRecord.chat_message_id
               )
             );
             setTotalChatMessages((prev) => prev - 1);

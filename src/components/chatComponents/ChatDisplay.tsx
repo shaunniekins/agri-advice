@@ -3,12 +3,14 @@
 import {
   insertChatMessage,
   updateChatMessage,
+  updateReceiverMessagesReadStatus,
+  updateSenderMessagesReadStatus,
 } from "@/app/api/chatMessagesIUD";
 import { RootState } from "@/app/reduxUtils/store";
 import useChatMessages from "@/hooks/useChatMessages";
 import { Avatar, Button, Spinner, Textarea } from "@nextui-org/react";
 import { usePathname } from "next/navigation";
-import React, { useRef } from "react";
+import React, { useRef, useCallback } from "react";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import {
@@ -32,6 +34,7 @@ export default function ChatDisplayComponent() {
   const user = useSelector((state: RootState) => state.user.user);
   const [messageInput, setMessageInput] = useState("");
   const [isTextareaDisabled, setIsTextareaDisabled] = useState(false);
+  const [isConversationEnded, setIsConversationEnded] = useState(false);
 
   const [currentUserId, setCurrentUserId] = useState("");
   const [currentUserType, setCurrentUserType] = useState("");
@@ -97,6 +100,19 @@ export default function ChatDisplayComponent() {
 
       setParentChatConnectionId(chatConnection[0]?.parent_chat_connection_id);
   }, [chatConnection]);
+
+  useEffect(() => {
+    if (chatConnection && chatConnection.length > 0) {
+      // Check if the conversation has been ended by the partner
+      const isEnded =
+        currentUserType === "farmer"
+          ? chatConnection[0]?.technician_deleted
+          : chatConnection[0]?.farmer_deleted;
+
+      setIsConversationEnded(!!isEnded);
+      setIsTextareaDisabled(!!isEnded);
+    }
+  }, [chatConnection, currentUserType]);
 
   // current user messages
   const { chatMessages, loadingChatMessages } = useChatMessages(
@@ -231,7 +247,7 @@ export default function ChatDisplayComponent() {
   };
 
   const handleSubmit = async (message: string) => {
-    if (!user) return;
+    if (!user || isConversationEnded) return; // Prevent sending if the conversation is ended
     const file = selectedImage;
 
     if (file) {
@@ -335,6 +351,67 @@ export default function ChatDisplayComponent() {
 
   const displayedDates = new Set();
 
+  // Add a function to mark messages as read
+  const markMessagesAsRead = useCallback(async () => {
+    if (!chatConnectionId || !currentUserId || !currentUserType) return;
+
+    try {
+      // Only mark messages as read where the current user is the RECEIVER
+      // This prevents marking messages as read when the user isn't looking at them
+      const { data, error } = await supabase
+        .from("ChatMessages")
+        .update({ is_receiver_read: true })
+        .eq("chat_connection_id", chatConnectionId)
+        .eq("receiver_id", currentUserId) // Only update messages where current user is the receiver
+        .not("is_receiver_read", "eq", true);
+
+      if (error) {
+        throw error;
+      }
+    } catch (error) {
+      console.error("Error marking messages as read:", error);
+    }
+  }, [chatConnectionId, currentUserId, currentUserType]);
+
+  // Mark messages as read when component mounts or chat changes
+  useEffect(() => {
+    // Only run marking messages as read if the component is mounted/visible
+    const readInterval = setInterval(() => {
+      markMessagesAsRead();
+    }, 5000); // Check every 5 seconds
+
+    // Initial mark as read
+    markMessagesAsRead();
+
+    return () => clearInterval(readInterval);
+  }, [markMessagesAsRead, chatConnectionId]);
+
+  // Add handler for subscription to mark new messages as read immediately
+  useEffect(() => {
+    if (!chatConnectionId) return;
+
+    const channel = supabase
+      .channel(`chat-read-status-${chatConnectionId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "ChatMessages",
+          filter: `chat_connection_id=eq.${chatConnectionId}`,
+        },
+        () => {
+          // When a new message arrives, mark it as read immediately
+          markMessagesAsRead();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [chatConnectionId, markMessagesAsRead]);
+
   if (loadingChatMessages) {
     return (
       <div className="h-full flex justify-center items-center">
@@ -368,8 +445,8 @@ export default function ChatDisplayComponent() {
             <div className="h-full w-full">
               <div className="flex flex-col gap-3">
                 {chatMessages.map((message: any, index: number) => {
-                  // Added index parameter
-                  const isFarmerSender = message.sender_id === user.id;
+                  // Ensure the sender check is correct - this determines the message positioning
+                  const isSentByCurrentUser = message.sender_id === user.id;
                   const senderFirstName = message.sender_first_name;
                   const senderLastName = message.sender_last_name;
                   const senderProfilePicture = message.sender_profile_picture;
@@ -410,13 +487,13 @@ export default function ChatDisplayComponent() {
                       )}
                       <div
                         className={`w-full flex flex-col md:flex-row md:gap-4 py-2 ${
-                          !isFarmerSender ? "justify-start" : "justify-end"
+                          isSentByCurrentUser ? "justify-end" : "justify-start"
                         }
                         
                         `}
                       >
                         <div className="flex">
-                          {!isFarmerSender && !senderProfilePicture && (
+                          {!isSentByCurrentUser && !senderProfilePicture && (
                             <Avatar size="sm" name={initials} showFallback />
                           )}
                         </div>
@@ -431,7 +508,8 @@ export default function ChatDisplayComponent() {
                         >
                           <div
                             className={`max-w-full text-sm py-2 relative ${
-                              isFarmerSender && "px-3 rounded-2xl bg-green-200"
+                              isSentByCurrentUser &&
+                              "px-3 rounded-2xl bg-green-200"
                             }`}
                           >
                             {renderMessage(message.message)}
@@ -442,12 +520,14 @@ export default function ChatDisplayComponent() {
                             <>
                               <span
                                 className={`text-[0.7rem] ${
-                                  isFarmerSender ? "text-end" : "text-start"
+                                  isSentByCurrentUser
+                                    ? "text-end"
+                                    : "text-start"
                                 }`}
                               >
                                 {formatMessageTime(message.created_at)}
                               </span>
-                              {isFarmerSender &&
+                              {isSentByCurrentUser &&
                                 currentUserType === "technician" && (
                                   <div className="z-10 absolute -top-6 right-3">
                                     <button
@@ -466,7 +546,7 @@ export default function ChatDisplayComponent() {
                             </>
                           )}
 
-                          {!isFarmerSender &&
+                          {!isSentByCurrentUser &&
                             !aiIsGenerating &&
                             !parentChatConnectionId && (
                               <div className="text-gray-500 text-xs flex justify-start items-center">
@@ -519,18 +599,37 @@ export default function ChatDisplayComponent() {
             </div>
           )}
 
+          {isConversationEnded && (
+            <div className="flex items-center gap-2 py-2">
+              <span className="text-sm text-gray-500 font-medium">
+                This conversation has been ended by the other user. You can no
+                longer send messages.
+              </span>
+            </div>
+          )}
+
           <div className="flex gap-3">
             <Textarea
               size="lg"
               radius="lg"
               maxRows={6}
               minRows={1}
-              color={`${selectedMessageToEdit ? "secondary" : "success"}`}
+              color={`${
+                selectedMessageToEdit
+                  ? "secondary"
+                  : isConversationEnded
+                  ? "default"
+                  : "success"
+              }`}
               endContent={
                 <div className="flex gap-3 text-2xl">
                   <button
-                    className={`${!messageInput && "hidden"}`}
+                    className={`${!messageInput && "hidden"} ${
+                      isConversationEnded && "opacity-50 cursor-not-allowed"
+                    }`}
                     onClick={async () => {
+                      if (isConversationEnded) return; // Prevent sending if the conversation is ended
+
                       if (selectedMessageToEdit) {
                         await handleEditAIMessage(
                           parseInt(selectedMessageToEdit)
@@ -539,7 +638,7 @@ export default function ChatDisplayComponent() {
                         await handleSubmit(messageInput);
                       }
                     }}
-                    disabled={isTextareaDisabled}
+                    disabled={isTextareaDisabled || isConversationEnded}
                   >
                     <IoSendOutline />
                   </button>
@@ -584,21 +683,25 @@ export default function ChatDisplayComponent() {
                   />
                 </div>
               }
-              placeholder={`${
-                !selectedImage
+              placeholder={
+                isConversationEnded
+                  ? "This conversation has ended"
+                  : !selectedImage
                   ? "Enter message here"
                   : "You have selected an image"
-              }`}
+              }
               value={messageInput}
               onChange={(e) => {
-                if (selectedImage) return;
+                if (selectedImage || isConversationEnded) return;
                 setMessageInput(e.target.value);
 
                 if (e.target.value === "") {
                   setSelectedMessageToEdit("");
                 }
               }}
-              isDisabled={isTextareaDisabled || aiIsGenerating}
+              isDisabled={
+                isTextareaDisabled || aiIsGenerating || isConversationEnded
+              }
             />
           </div>
         </div>

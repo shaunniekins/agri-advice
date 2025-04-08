@@ -106,8 +106,7 @@ export const updateSenderMessagesReadStatus = async (
       .from("ChatMessages")
       .update({ is_sender_read: true })
       .eq("chat_connection_id", chatConnectionId)
-      .not("is_sender_read", "eq", true) // Only update unread messages
-      .select();
+      .not("is_sender_read", "eq", true); // Only update unread messages
 
     if (error) {
       throw error;
@@ -121,15 +120,16 @@ export const updateSenderMessagesReadStatus = async (
 };
 
 export const updateReceiverMessagesReadStatus = async (
-  chatConnectionId: string
+  chatConnectionId: string,
+  receiverId: string // Add receiverId parameter
 ) => {
   try {
     const { data, error } = await supabase
       .from("ChatMessages")
       .update({ is_receiver_read: true })
       .eq("chat_connection_id", chatConnectionId)
-      .not("is_receiver_read", "eq", true) // Only update unread messages
-      .select();
+      .eq("receiver_id", receiverId) // Only mark messages where this user is the receiver
+      .not("is_receiver_read", "eq", true); // Only update unread messages
 
     if (error) {
       throw error;
@@ -138,6 +138,32 @@ export const updateReceiverMessagesReadStatus = async (
     return data;
   } catch (error: any) {
     console.error("Error updating messages read status:", error);
+    return null;
+  }
+};
+
+// New function to mark specific message as read
+export const markSingleMessageAsRead = async (
+  messageId: number,
+  isReceiver: boolean
+) => {
+  try {
+    const updateField = isReceiver
+      ? { is_receiver_read: true }
+      : { is_sender_read: true };
+
+    const { data, error } = await supabase
+      .from("ChatMessages")
+      .update(updateField)
+      .eq("chat_message_id", messageId);
+
+    if (error) {
+      throw error;
+    }
+
+    return data;
+  } catch (error: any) {
+    console.error("Error updating message read status:", error);
     return null;
   }
 };
