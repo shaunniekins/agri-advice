@@ -5,7 +5,8 @@ import { PostgrestResponse } from "@supabase/supabase-js";
 const useChatMessagesFotOtherPanel = (
   rowsPerPage: number,
   currentPage: number,
-  chatConnectionId: string
+  chatConnectionId: string,
+  userType?: string // Add userType parameter
 ) => {
   const [chatMessages, setChatMessages] = useState<any[]>([]);
   const [totalChatMessages, setTotalChatMessages] = useState(0);
@@ -23,16 +24,25 @@ const useChatMessagesFotOtherPanel = (
     setErrorChatMessages(null);
 
     try {
+      // Create base query
       const query = supabase
         .from("ViewFullChatMessages")
         .select("*")
-        .eq("chat_connection_id", chatConnectionId)
-        .order("created_at", { ascending: true });
+        .eq("chat_connection_id", chatConnectionId);
 
-      const response: PostgrestResponse<any> = await query.range(
-        offset,
-        offset + rowsPerPage - 1
-      );
+      // Add user-specific deletion filters
+      if (userType === "farmer") {
+        // For farmers, only show messages from connections that aren't deleted for farmers
+        query.eq("farmer_deleted", false);
+      } else if (userType === "technician") {
+        // For technicians, only show messages from connections that aren't deleted for technicians
+        query.eq("technician_deleted", false);
+      }
+
+      // Complete the query
+      const response = await query
+        .order("created_at", { ascending: true })
+        .range(offset, offset + rowsPerPage - 1);
 
       if (response.error) {
         throw response.error;
@@ -49,7 +59,7 @@ const useChatMessagesFotOtherPanel = (
     } finally {
       setLoadingChatMessages(false);
     }
-  }, [rowsPerPage, currentPage, chatConnectionId]);
+  }, [rowsPerPage, currentPage, chatConnectionId, userType]);
 
   // chat_message_id is different from chat_connection_id
   const fetchFullChatMessages = async (chatMessageId: string) => {

@@ -5,7 +5,8 @@ import { PostgrestResponse } from "@supabase/supabase-js";
 const useChatHeaders = (
   rowsPerPage: number,
   currentPage: number,
-  userId: string
+  userId: string,
+  userType?: string
 ) => {
   const [chatHeaders, setChatHeaders] = useState<any[]>([]);
   const [loadingChatHeaders, setLoadingChatHeaders] = useState(true);
@@ -14,7 +15,7 @@ const useChatHeaders = (
 
   // Fetch the latest chat headers for the user
   const fetchChatHeaders = useCallback(async () => {
-    if (!userId) return;
+    if (!userId || !userType) return;
 
     const offset = (currentPage - 1) * rowsPerPage;
 
@@ -22,26 +23,33 @@ const useChatHeaders = (
     setErrorChatHeaders(null);
 
     try {
-      // Modified query to include messages where user is recipient_technician_id
-      const query = supabase
+      // Get all chat headers where the user is involved
+      const baseQuery = supabase
         .from("ViewLatestChatHeaders")
         .select("*")
         .or(
           `first_sender_id.eq.${userId},first_receiver_id.eq.${userId},recipient_technician_id.eq.${userId}`
-        )
-        .order("first_created_at", { ascending: false });
+        );
 
-      const response: PostgrestResponse<any> = await query.range(
-        offset,
-        offset + rowsPerPage - 1
-      );
+      // Add deletion filters based on user type - this is critical
+      if (userType === "farmer") {
+        baseQuery.eq("farmer_deleted", false);
+      } else if (userType === "technician") {
+        baseQuery.eq("technician_deleted", false);
+      }
+
+      // Finish the query with ordering and pagination
+      const response = await baseQuery
+        .order("latest_created_at", { ascending: false })
+        .range(offset, offset + rowsPerPage - 1);
 
       if (response.error) {
         throw response.error;
       }
 
+      // Set headers directly from database response - we already filtered by deletion status in the query
       setChatHeaders(response.data || []);
-      setTotalChatHeaders(response.count || 0);
+      setTotalChatHeaders(response.data?.length || 0);
     } catch (err) {
       if (err instanceof Error) {
         setErrorChatHeaders(err.message || "Error fetching chat headers");
@@ -51,14 +59,21 @@ const useChatHeaders = (
     } finally {
       setLoadingChatHeaders(false);
     }
-  }, [rowsPerPage, currentPage, userId]);
+  }, [rowsPerPage, currentPage, userId, userType]);
+
+  // Explicit refetch function that can be called from components
+  const refetch = useCallback(() => {
+    fetchChatHeaders();
+  }, [fetchChatHeaders]);
 
   useEffect(() => {
+    if (!userType || !userId) return;
+
     fetchChatHeaders();
 
-    // Set up real-time updates for messages and read status
-    const unsubscribe = supabase
-      .channel("chat_headers")
+    // Set up real-time updates for both ChatMessages and ChatConnections
+    const messageChannel = supabase
+      .channel("chat_message_changes")
       .on(
         "postgres_changes",
         {
@@ -72,16 +87,35 @@ const useChatHeaders = (
       )
       .subscribe();
 
+    // Add a new subscription specifically for ChatConnections changes
+    const connectionChannel = supabase
+      .channel("chat_connection_changes")
+      .on(
+        "postgres_changes",
+        {
+          event: "*", // Watch for all events, not just UPDATE
+          schema: "public",
+          table: "ChatConnections",
+        },
+        (payload) => {
+          // Force refetch for any changes to ChatConnections
+          fetchChatHeaders();
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(unsubscribe);
+      supabase.removeChannel(messageChannel);
+      supabase.removeChannel(connectionChannel);
     };
-  }, [fetchChatHeaders]);
+  }, [fetchChatHeaders, userType, userId]);
 
   return {
     chatHeaders,
     totalChatHeaders,
     loadingChatHeaders,
     errorChatHeaders,
+    refetch, // Export the refetch function
   };
 };
 

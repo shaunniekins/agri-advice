@@ -102,7 +102,8 @@ export default function ChatDisplayComponent() {
   const { chatMessages, loadingChatMessages } = useChatMessages(
     rowsPerPage,
     currentPage,
-    chatConnectionId
+    chatConnectionId,
+    currentUserType // Pass the user type to filter deleted conversations
   );
 
   // useEffect(() => {

@@ -35,6 +35,8 @@ import {
   deleteChatConnection,
   insertChatConnection,
   updateChatConnection,
+  markChatConnectionAsDeletedForFarmer,
+  markChatConnectionAsDeletedForTechnician,
 } from "@/app/api/chatConnectionsIUD";
 import { MdOutlineSpaceDashboard } from "react-icons/md";
 import { FiHelpCircle } from "react-icons/fi";
@@ -43,6 +45,7 @@ import useTechnician from "@/hooks/useTechnician";
 import useChatConnectionForTechnicianRecipient from "@/hooks/useChatConnectionForTechnicianRecipient";
 import RateModal from "./RateModal";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
+import { supabase } from "@/utils/supabase";
 
 export default function ChatSidebarComponent({
   children,
@@ -71,11 +74,25 @@ export default function ChatSidebarComponent({
 
   const [openUserInfo, setOpenUserInfo] = useState(false);
 
-  const { chatHeaders, totalChatHeaders } = useChatHeaders(
+  const {
+    chatHeaders,
+    totalChatHeaders,
+    loadingChatHeaders,
+    errorChatHeaders,
+    refetch,
+  } = useChatHeaders(
     rowsPerPage,
     page,
-    user ? user.id : ""
+    user ? user.id : "",
+    userType // Pass userType to filter deleted conversations
   );
+
+  // Force refetch when userType changes
+  useEffect(() => {
+    if (userType) {
+      refetch();
+    }
+  }, [userType, refetch]);
 
   // useEffect(() => {
   //   console.log("chatHeaders", chatHeaders);
@@ -296,6 +313,15 @@ export default function ChatSidebarComponent({
                                       ? "bg-green-400"
                                       : "bg-gray-400"
                                   }`}
+                                  title={
+                                    isSender
+                                      ? isUserOnline(message.first_receiver_id)
+                                        ? "Online"
+                                        : "Offline"
+                                      : isUserOnline(message.first_sender_id)
+                                      ? "Online"
+                                      : "Offline"
+                                  }
                                 />
                               )}
                               <span
@@ -349,9 +375,7 @@ export default function ChatSidebarComponent({
                               >
                                 <PopoverTrigger>
                                   <div
-                                    className={`absolute top-1/2 right-3 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full p-2 hover:bg-green-900 ${
-                                      userType === "technician" && "hidden"
-                                    }`}
+                                    className="absolute top-1/2 right-3 transform -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-full p-2 hover:bg-green-900"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setOpenPopoverId(
@@ -406,6 +430,122 @@ export default function ChatSidebarComponent({
                                         }}
                                       >
                                         Rate
+                                      </Button>
+
+                                      {/* Add new Delete button */}
+                                      <Button
+                                        fullWidth
+                                        size="sm"
+                                        startContent={<IoMdTrash />}
+                                        color="danger"
+                                        onClick={async () => {
+                                          // Check if this is an AI chat (parent chat) that has active shared conversations
+                                          const isParentChat =
+                                            !message.parent_chat_connection_id;
+
+                                          if (
+                                            isParentChat &&
+                                            userType === "farmer"
+                                          ) {
+                                            // First check if there are any active shared conversations linked to this parent
+                                            const {
+                                              data: sharedConvos,
+                                              error,
+                                            } = await supabase
+                                              .from("ChatConnections")
+                                              .select(
+                                                "chat_connection_id, farmer_deleted, technician_deleted"
+                                              )
+                                              .eq(
+                                                "parent_chat_connection_id",
+                                                message.chat_connection_id
+                                              );
+
+                                            if (error) {
+                                              console.error(
+                                                "Error checking shared conversations:",
+                                                error
+                                              );
+                                              return;
+                                            }
+
+                                            // If there are active shared conversations (not deleted by both parties)
+                                            const activeSharedConvos =
+                                              sharedConvos?.filter(
+                                                (convo) =>
+                                                  !(
+                                                    convo.farmer_deleted &&
+                                                    convo.technician_deleted
+                                                  )
+                                              );
+
+                                            if (
+                                              activeSharedConvos &&
+                                              activeSharedConvos.length > 0
+                                            ) {
+                                              alert(
+                                                "Cannot delete this conversation because it has active shared conversations with technicians."
+                                              );
+                                              setOpenPopoverId(null);
+                                              return;
+                                            }
+                                          }
+
+                                          const confirmDelete = window.confirm(
+                                            "Are you sure you want to delete this conversation? This won't affect the other user's view."
+                                          );
+
+                                          if (confirmDelete) {
+                                            try {
+                                              // Store current chat connection ID for comparison
+                                              const currentChatId =
+                                                message.chat_connection_id;
+
+                                              if (userType === "farmer") {
+                                                await markChatConnectionAsDeletedForFarmer(
+                                                  currentChatId
+                                                );
+                                              } else if (
+                                                userType === "technician"
+                                              ) {
+                                                await markChatConnectionAsDeletedForTechnician(
+                                                  currentChatId
+                                                );
+                                              }
+
+                                              // Clear any active message state
+                                              setOpenPopoverId(null);
+
+                                              // Check if we're currently viewing the deleted chat
+                                              const currentViewingChatId =
+                                                pathname.split("/")[3];
+
+                                              // Force a refresh of the chat headers data
+                                              await refetch();
+
+                                              // Always use replace to prevent back navigation issues
+                                              if (
+                                                currentViewingChatId ===
+                                                currentChatId
+                                              ) {
+                                                // Use replace to remove the deleted chat from history
+                                                router.replace(
+                                                  `/${userType}/chat`
+                                                );
+                                              }
+                                            } catch (error) {
+                                              console.error(
+                                                "Error deleting chat connection:",
+                                                error
+                                              );
+                                              alert(
+                                                "Failed to delete conversation. Please try again."
+                                              );
+                                            }
+                                          }
+                                        }}
+                                      >
+                                        Delete
                                       </Button>
                                     </>
                                   ) : (

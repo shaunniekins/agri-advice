@@ -8,6 +8,8 @@ select cm.chat_message_id,
   cm.sender_id,
   cm.receiver_id,
   cc.recipient_technician_id,
+  cc.farmer_deleted, -- Added
+  cc.technician_deleted, -- Added
   coalesce(
     sender_user.raw_user_meta_data->>'profile_picture'::text,
     null

@@ -25,7 +25,8 @@ const ChatDisplayExtensionComponent: React.FC<ChatDisplayExtensionProps> = ({
   const { chatMessages: parentChatMessages } = useChatMessagesFotOtherPanel(
     rowsPerPage,
     currentPage,
-    parentChatConnectionId
+    parentChatConnectionId,
+    currentUserType // Pass the user type to filter deleted conversations
   );
 
   //   useEffect(() => {

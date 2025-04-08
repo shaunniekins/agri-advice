@@ -1,4 +1,4 @@
-create view "ViewLatestChatHeaders" as with ranked_messages as (
+create or replace view "ViewLatestChatHeaders" as with ranked_messages as (
   select cc.chat_connection_id,
     cm.chat_message_id,
     cm.message,
@@ -9,6 +9,8 @@ create view "ViewLatestChatHeaders" as with ranked_messages as (
     cc.farmer_id,
     cc.recipient_technician_id,
     cc.parent_chat_connection_id,
+    cc.farmer_deleted, -- Added
+    cc.technician_deleted, -- Added
     cm.created_at,
     sender_user.raw_user_meta_data->>'first_name' as sender_first_name,
     sender_user.raw_user_meta_data->>'last_name' as sender_last_name,
@@ -53,6 +55,9 @@ select first_msg.chat_connection_id,
   latest_msg.is_receiver_read,
   latest_msg.sender_id as latest_sender_id,
   latest_msg.receiver_id as latest_receiver_id,
+  -- Deletion flags
+  first_msg.farmer_deleted, -- Added
+  first_msg.technician_deleted, -- Added
   -- Common details
   first_msg.sender_first_name,
   first_msg.sender_last_name,
