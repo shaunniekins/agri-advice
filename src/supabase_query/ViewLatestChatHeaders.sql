@@ -13,7 +13,10 @@ create or replace view "ViewLatestChatHeaders" as with ranked_messages as (
     cc.technician_deleted,
     cc.farmer_archived,
     cc.technician_archived,
+    cc.status,
+    cc.remarks,
     cm.created_at,
+    -- Keep sender/receiver of the specific message if needed
     sender_user.raw_user_meta_data->>'first_name' as sender_first_name,
     sender_user.raw_user_meta_data->>'last_name' as sender_last_name,
     COALESCE(
@@ -36,12 +39,11 @@ create or replace view "ViewLatestChatHeaders" as with ranked_messages as (
     ) as latest_message_rank
   from "ChatConnections" cc
     left join "ChatMessages" cm on cc.chat_connection_id = cm.chat_connection_id
-    join auth.users sender_user on cm.sender_id = sender_user.id
+    left join auth.users sender_user on cm.sender_id = sender_user.id
     left join auth.users receiver_user on cm.receiver_id = receiver_user.id
 ),
 unread_counts as (
   -- Only count messages where a user is the RECEIVER and hasn't read them yet
-  -- This fixes the issue of senders seeing their own messages as unread
   select 
     chat_connection_id,
     receiver_id as user_id,
@@ -52,8 +54,9 @@ unread_counts as (
 )
 select 
   first_msg.chat_connection_id,
-  first_msg.parent_chat_connection_id as parent_chat_connection_id,
-  first_msg.recipient_technician_id as recipient_technician_id,
+  first_msg.farmer_id,
+  first_msg.parent_chat_connection_id,
+  first_msg.recipient_technician_id,
   -- First message details
   first_msg.chat_message_id as first_chat_message_id,
   first_msg.message as first_message,
@@ -74,19 +77,33 @@ select
   -- Archive flags
   first_msg.farmer_archived,
   first_msg.technician_archived,
-  -- Common details
-  first_msg.sender_first_name,
-  first_msg.sender_last_name,
-  first_msg.receiver_first_name,
-  first_msg.receiver_last_name,
+  -- Status and remarks
+  first_msg.status,
+  first_msg.remarks,
+  -- Farmer Name (based on farmer_id) - For Remarks/Solved View
+  farmer_user.raw_user_meta_data->>'first_name' as farmer_first_name,
+  farmer_user.raw_user_meta_data->>'last_name' as farmer_last_name,
+  -- Technician Name (based on recipient_technician_id) - For Remarks/Solved View
+  technician_user.raw_user_meta_data->>'first_name' as technician_first_name,
+  technician_user.raw_user_meta_data->>'last_name' as technician_last_name,
+  -- Partner Name (for Sidebar Display) - Show Technician name if tech exists, otherwise null (AI chat)
+  technician_user.raw_user_meta_data->>'first_name' as display_technician_first_name,
+  technician_user.raw_user_meta_data->>'last_name' as display_technician_last_name,
+  -- Also provide farmer name specifically for sidebar display when technician is logged in
+  farmer_user.raw_user_meta_data->>'first_name' as display_farmer_first_name,
+  farmer_user.raw_user_meta_data->>'last_name' as display_farmer_last_name,
+  -- Keep original sender/receiver metadata if needed elsewhere
   first_msg.sender_meta_data,
   first_msg.receiver_meta_data,
-  -- Simplified unread message count - only count messages the user needs to read
-  -- as a receiver (we don't need separate sender_unread and receiver_unread)
+  -- Simplified unread message count
   COALESCE(unread.unread_count, 0) as unread_count
 from ranked_messages first_msg
   join ranked_messages latest_msg on first_msg.chat_connection_id = latest_msg.chat_connection_id
-  -- We only need one join to get unread counts for the user as a receiver
+  -- Join auth.users for farmer name
+  left join auth.users farmer_user on first_msg.farmer_id = farmer_user.id
+  -- Join auth.users for technician name
+  left join auth.users technician_user on first_msg.recipient_technician_id = technician_user.id
+  -- Join for unread counts
   left join unread_counts unread on 
     first_msg.chat_connection_id = unread.chat_connection_id
 where first_msg.first_message_rank = 1

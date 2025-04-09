@@ -39,6 +39,8 @@ export default function ChatDisplayComponent() {
   const [messageInput, setMessageInput] = useState("");
   const [isTextareaDisabled, setIsTextareaDisabled] = useState(false);
   const [isConversationEnded, setIsConversationEnded] = useState(false);
+  const [isConversationSolved, setIsConversationSolved] = useState(false);
+  const [connectionLoaded, setConnectionLoaded] = useState(false);
 
   const [currentUserId, setCurrentUserId] = useState("");
   const [currentUserType, setCurrentUserType] = useState("");
@@ -95,7 +97,7 @@ export default function ChatDisplayComponent() {
     setChatConnectionId(pathName.split("/")[3]);
   }, [pathName]);
 
-  const { chatConnection } =
+  const { chatConnection, isLoadingChatConnections } =
     useChatConnectionForTechnicianRecipient(chatConnectionId);
 
   useEffect(() => {
@@ -107,14 +109,25 @@ export default function ChatDisplayComponent() {
 
   useEffect(() => {
     if (chatConnection && chatConnection.length > 0) {
+      console.log("Conversation status:", {
+        connection: chatConnection[0],
+        status: chatConnection[0]?.status,
+        userType: currentUserType,
+      });
+
       // Check if the conversation has been ended by the partner
       const isEnded =
         currentUserType === "farmer"
           ? chatConnection[0]?.technician_deleted
           : chatConnection[0]?.farmer_deleted;
 
+      // Check if the conversation has been marked as solved
+      const isSolved = chatConnection[0]?.status === "solved";
+
       setIsConversationEnded(!!isEnded);
-      setIsTextareaDisabled(!!isEnded);
+      setIsConversationSolved(!!isSolved);
+      setIsTextareaDisabled(!!isEnded || !!isSolved);
+      setConnectionLoaded(true);
     }
   }, [chatConnection, currentUserType]);
 
@@ -424,7 +437,10 @@ export default function ChatDisplayComponent() {
     };
   }, [chatConnectionId, markMessagesAsRead]);
 
-  if (loadingChatMessages) {
+  // Don't render input field until we know the conversation status
+  const showInput = connectionLoaded && !isLoadingChatConnections;
+
+  if (loadingChatMessages || isLoadingChatConnections) {
     return (
       <div className="h-full flex justify-center items-center">
         <Spinner color="success" />
@@ -611,111 +627,136 @@ export default function ChatDisplayComponent() {
             </div>
           )}
 
-          {isConversationEnded && (
-            <div className="flex items-center gap-2 py-2">
-              <span className="text-sm text-gray-500 font-medium">
-                This conversation has been ended by the other user. You can no
-                longer send messages.
-              </span>
+          {showInput && (
+            <div className="flex flex-col gap-3">
+              {isConversationEnded && (
+                <div className="flex items-center gap-2 py-2">
+                  <span className="text-sm text-gray-500 font-medium">
+                    This conversation has been ended by the other user. You can
+                    no longer send messages.
+                  </span>
+                </div>
+              )}
+
+              {isConversationSolved && (
+                <div className="flex items-center gap-2 py-2">
+                  <span className="text-sm text-green-600 font-medium">
+                    This conversation has been marked as solved. No further
+                    messages can be sent.
+                  </span>
+                </div>
+              )}
+              <Textarea
+                size="lg"
+                radius="lg"
+                maxRows={6}
+                minRows={1}
+                color={`${
+                  selectedMessageToEdit
+                    ? "secondary"
+                    : isConversationEnded || isConversationSolved
+                    ? "default"
+                    : "success"
+                }`}
+                endContent={
+                  <div className="flex gap-3 text-2xl">
+                    <button
+                      className={`${!messageInput && "hidden"} ${
+                        (isConversationEnded || isConversationSolved) &&
+                        "opacity-50 cursor-not-allowed"
+                      }`}
+                      onClick={async () => {
+                        if (isConversationEnded || isConversationSolved) return; // Prevent sending if the conversation is ended or solved
+
+                        if (selectedMessageToEdit) {
+                          await handleEditAIMessage(
+                            parseInt(selectedMessageToEdit)
+                          );
+                        } else {
+                          await handleSubmit(messageInput);
+                        }
+                      }}
+                      disabled={
+                        isTextareaDisabled ||
+                        isConversationEnded ||
+                        isConversationSolved
+                      }
+                    >
+                      <IoSendOutline />
+                    </button>
+
+                    <button
+                      className={`${messageInput && "hidden"}`}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <IoImageOutline />
+                    </button>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      ref={fileInputRef}
+                      style={{ display: "none" }}
+                      onChange={handleImageChange}
+                    />
+                    {selectedImage && (
+                      <>
+                        <button onClick={() => setSelectedImage(null)}>
+                          <IoCloseCircleOutline />
+                        </button>
+                        <button onClick={() => handleSubmit("")}>
+                          <IoSendOutline />
+                        </button>
+                      </>
+                    )}
+                    <Button
+                      isIconOnly
+                      size="lg"
+                      color="success"
+                      variant="light"
+                      startContent={<FaBars size={20} />}
+                      // className="md:hidden md:z-auto z-20"
+                      className={`${
+                        currentUserType === "farmer"
+                          ? "hidden"
+                          : "md:hidden md:z-auto z-20"
+                      }`}
+                      onPress={() => setOtherPanelOpen(!otherPanelOpen)}
+                      aria-label="toggle side panel"
+                    />
+                  </div>
+                }
+                placeholder={
+                  isConversationSolved
+                    ? "This conversation has been marked as solved"
+                    : isConversationEnded
+                    ? "This conversation has ended"
+                    : !selectedImage
+                    ? "Enter message here"
+                    : "You have selected an image"
+                }
+                value={messageInput}
+                onChange={(e) => {
+                  if (
+                    selectedImage ||
+                    isConversationEnded ||
+                    isConversationSolved
+                  )
+                    return;
+                  setMessageInput(e.target.value);
+
+                  if (e.target.value === "") {
+                    setSelectedMessageToEdit("");
+                  }
+                }}
+                isDisabled={
+                  isTextareaDisabled ||
+                  aiIsGenerating ||
+                  isConversationEnded ||
+                  isConversationSolved
+                }
+              />
             </div>
           )}
-
-          <div className="flex gap-3">
-            <Textarea
-              size="lg"
-              radius="lg"
-              maxRows={6}
-              minRows={1}
-              color={`${
-                selectedMessageToEdit
-                  ? "secondary"
-                  : isConversationEnded
-                  ? "default"
-                  : "success"
-              }`}
-              endContent={
-                <div className="flex gap-3 text-2xl">
-                  <button
-                    className={`${!messageInput && "hidden"} ${
-                      isConversationEnded && "opacity-50 cursor-not-allowed"
-                    }`}
-                    onClick={async () => {
-                      if (isConversationEnded) return; // Prevent sending if the conversation is ended
-
-                      if (selectedMessageToEdit) {
-                        await handleEditAIMessage(
-                          parseInt(selectedMessageToEdit)
-                        );
-                      } else {
-                        await handleSubmit(messageInput);
-                      }
-                    }}
-                    disabled={isTextareaDisabled || isConversationEnded}
-                  >
-                    <IoSendOutline />
-                  </button>
-
-                  <button
-                    className={`${messageInput && "hidden"}`}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <IoImageOutline />
-                  </button>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    ref={fileInputRef}
-                    style={{ display: "none" }}
-                    onChange={handleImageChange}
-                  />
-                  {selectedImage && (
-                    <>
-                      <button onClick={() => setSelectedImage(null)}>
-                        <IoCloseCircleOutline />
-                      </button>
-                      <button onClick={() => handleSubmit("")}>
-                        <IoSendOutline />
-                      </button>
-                    </>
-                  )}
-                  <Button
-                    isIconOnly
-                    size="lg"
-                    color="success"
-                    variant="light"
-                    startContent={<FaBars size={20} />}
-                    // className="md:hidden md:z-auto z-20"
-                    className={`${
-                      currentUserType === "farmer"
-                        ? "hidden"
-                        : "md:hidden md:z-auto z-20"
-                    }`}
-                    onPress={() => setOtherPanelOpen(!otherPanelOpen)}
-                    aria-label="toggle side panel"
-                  />
-                </div>
-              }
-              placeholder={
-                isConversationEnded
-                  ? "This conversation has ended"
-                  : !selectedImage
-                  ? "Enter message here"
-                  : "You have selected an image"
-              }
-              value={messageInput}
-              onChange={(e) => {
-                if (selectedImage || isConversationEnded) return;
-                setMessageInput(e.target.value);
-
-                if (e.target.value === "") {
-                  setSelectedMessageToEdit("");
-                }
-              }}
-              isDisabled={
-                isTextareaDisabled || aiIsGenerating || isConversationEnded
-              }
-            />
-          </div>
         </div>
       </div>
     </>

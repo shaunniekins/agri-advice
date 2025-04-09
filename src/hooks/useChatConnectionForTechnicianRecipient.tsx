@@ -12,14 +12,13 @@ const useChatConnectionForTechnicianRecipient = (
     if (!chat_connection_id) return;
 
     try {
-      // Build the query
+      // Build the query with explicit field selection including status
       const { data, error } = await supabase
         .from("ChatConnections")
         .select(
-          "chat_connection_id, farmer_id, recipient_technician_id, parent_chat_connection_id, farmer_deleted, technician_deleted"
+          "chat_connection_id, farmer_id, recipient_technician_id, parent_chat_connection_id, farmer_deleted, technician_deleted, status, remarks, farmer_archived, technician_archived"
         )
         .eq("chat_connection_id", chat_connection_id);
-      // .not("recipient_technician_id", "is", null);
 
       if (error) {
         throw error;
@@ -28,7 +27,7 @@ const useChatConnectionForTechnicianRecipient = (
       setChatConnection(data);
     } catch (err) {
       if (err instanceof Error) {
-        console.error("Error fetching chat headers");
+        console.error("Error fetching chat connections:", err);
       } else {
         console.error("An unknown error occurred");
       }
@@ -38,50 +37,48 @@ const useChatConnectionForTechnicianRecipient = (
   }, [chat_connection_id]);
 
   const subscribeToChanges = useCallback(() => {
+    if (!chat_connection_id) return () => {};
+
     // Subscribe to real-time changes
-    const channel: any = supabase
-      .channel("chat_connections_realtime")
+    const channel = supabase
+      .channel(`chat_connections_${chat_connection_id}`)
       .on(
         "postgres_changes",
         {
           event: "*",
           schema: "public",
           table: "ChatConnections",
+          filter: `chat_connection_id=eq.${chat_connection_id}`,
         },
         (payload: any) => {
-          setChatConnection((prev) => {
-            const { new: newChat, old: oldChat, eventType } = payload;
+          console.log("Chat connection changed:", payload);
+          const { new: newChat, old: oldChat, eventType } = payload;
 
-            // Handle INSERT
-            if (eventType === "INSERT") {
-              return [...prev, newChat];
-            }
-
-            // Handle UPDATE
-            else if (eventType === "UPDATE") {
-              return prev.map((chat) =>
+          // Handle INSERT
+          if (eventType === "INSERT") {
+            setChatConnection((prev) => [...prev, newChat]);
+          }
+          // Handle UPDATE
+          else if (eventType === "UPDATE") {
+            setChatConnection((prev) =>
+              prev.map((chat) =>
                 chat.chat_connection_id === newChat.chat_connection_id
                   ? newChat
                   : chat
-              );
-            }
-
-            // Handle DELETE
-            else if (eventType === "DELETE") {
-              return prev.filter(
+              )
+            );
+          }
+          // Handle DELETE
+          else if (eventType === "DELETE") {
+            setChatConnection((prev) =>
+              prev.filter(
                 (chat) => chat.chat_connection_id !== oldChat.chat_connection_id
-              );
-            }
-
-            return prev;
-          });
+              )
+            );
+          }
         }
       )
-      .subscribe((status: any) => {
-        if (status !== "SUBSCRIBED") {
-          // console.error("Error subscribing to channel:", status);
-        }
-      });
+      .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
@@ -89,14 +86,12 @@ const useChatConnectionForTechnicianRecipient = (
   }, [chat_connection_id]);
 
   useEffect(() => {
-    fetchChatConnections();
-
-    const unsubscribe = subscribeToChanges();
-
-    return () => {
-      if (unsubscribe) unsubscribe();
-    };
-  }, [fetchChatConnections, subscribeToChanges]);
+    if (chat_connection_id) {
+      fetchChatConnections();
+      const unsubscribe = subscribeToChanges();
+      return unsubscribe;
+    }
+  }, [fetchChatConnections, subscribeToChanges, chat_connection_id]);
 
   return {
     chatConnection,

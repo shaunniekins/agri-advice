@@ -12,7 +12,7 @@ import {
 } from "@nextui-org/react";
 import React from "react";
 import { useEffect, useState } from "react";
-import { FaBars, FaSignOutAlt } from "react-icons/fa";
+import { FaBars, FaSignOutAlt, FaCheck } from "react-icons/fa";
 import { IoAddCircleOutline, IoAddSharp, IoArrowBack } from "react-icons/io5";
 import { IoMdShare, IoMdStar, IoMdTrash, IoMdWarning } from "react-icons/io";
 import { useHandleLogout } from "@/utils/authUtils";
@@ -55,6 +55,8 @@ import RateModal from "./RateModal";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { supabase } from "@/utils/supabase";
 import useAutoUnarchive from "@/hooks/useAutoUnarchive";
+import RemarksModal from "./RemarksModal";
+import ViewRemarksModal from "./ViewRemarksModal";
 
 export default function ChatSidebarComponent({
   children,
@@ -204,6 +206,41 @@ export default function ChatSidebarComponent({
   // Initialize our new hook for auto-unarchiving
   useAutoUnarchive(user ? user.id : "", userType);
 
+  const [openRemarksModal, setOpenRemarksModal] = useState(false);
+  const [openViewRemarksModal, setOpenViewRemarksModal] = useState(false);
+  const [currentChatForRemarks, setCurrentChatForRemarks] =
+    useState<string>("");
+
+  // Add handler for marking a chat as solved
+  const handleSolveChat = async () => {
+    // Refresh chat headers after marking a chat as solved
+    refetch();
+
+    // If we're currently viewing this chat, redirect to main chat page
+    const currentViewingChatId = pathname.split("/")[3];
+    if (currentViewingChatId === currentChatForRemarks) {
+      router.replace(`/${userType}/chat`);
+    }
+  };
+
+  const loadProfileInfo = async (user_id: string) => {
+    if (!user_id) return null;
+
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("first_name, last_name")
+        .eq("id", user_id)
+        .single();
+
+      if (error) throw error;
+      return data;
+    } catch (err) {
+      console.error("Error loading profile:", err);
+      return null;
+    }
+  };
+
   return (
     <>
       <ChatSidebarModal
@@ -222,6 +259,17 @@ export default function ChatSidebarComponent({
         openModal={openRateModal}
         setOpenModal={setOpenRateModal}
         chatConnectionId={selectedChatConnectionIdForFeedback}
+      />
+      <RemarksModal
+        openModal={openRemarksModal}
+        setOpenModal={setOpenRemarksModal}
+        chatConnectionId={currentChatForRemarks}
+        onSolveChat={handleSolveChat}
+      />
+      <ViewRemarksModal
+        openModal={openViewRemarksModal}
+        setOpenModal={setOpenViewRemarksModal}
+        userId={user?.id || ""}
       />
       {isLoading && (
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
@@ -312,10 +360,9 @@ export default function ChatSidebarComponent({
 
                           return (
                             <li
-                              key={`${message.chat_message_id}-${index}`}
+                              key={`${message.chat_message_id}-${index}`} // Use a unique key
                               className={`${
-                                chatId === message.chat_message_id ||
-                                currentHeader === message.chat_message_id
+                                chatId === message.chat_connection_id // Compare with connection_id
                                   ? "bg-[#005c4d]"
                                   : ""
                               }
@@ -333,7 +380,7 @@ export default function ChatSidebarComponent({
                                     user.id
                                   );
                                 router.push(
-                                  `/${userType}/chat/${message.chat_connection_id}`
+                                  `/${userType}/chat/${message.chat_connection_id}` // Navigate using connection_id
                                 );
 
                                 // If this is an archived chat and user clicks on it,
@@ -395,19 +442,25 @@ export default function ChatSidebarComponent({
 
                               <span
                                 className={`
-                               
-
-                              w-full text-left truncate text-base`}
+                                w-full text-left truncate text-base`}
                               >
-                                {isAi
-                                  ? message.first_message
-                                  : isFarmer
-                                  ? message.sender_first_name +
-                                    " " +
-                                    message.sender_last_name
-                                  : message.receiver_first_name +
-                                    " " +
-                                    message.receiver_last_name}
+                                {message.recipient_technician_id // Check if it's a human-to-human chat
+                                  ? userType === "farmer" // If farmer is logged in...
+                                    ? `${
+                                        message.display_technician_first_name ||
+                                        "Technician"
+                                      } ${
+                                        message.display_technician_last_name ||
+                                        ""
+                                      }` // Show technician name
+                                    : `${
+                                        message.display_farmer_first_name ||
+                                        "Farmer"
+                                      } ${
+                                        message.display_farmer_last_name || ""
+                                      }` // If technician is logged in, show farmer name
+                                  : message.first_message}{" "}
+                                {/* Otherwise (AI chat), show first message */}
                               </span>
 
                               {/* Unread message count badge - only show if:
@@ -450,7 +503,7 @@ export default function ChatSidebarComponent({
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       setOpenPopoverId(
-                                        `${message.chat_connection_id}-${message.chat_message_id}`
+                                        `${message.chat_connection_id}-${message.chat_message_id}` // Use unique key
                                       );
                                       setChatCoonectionId(
                                         message.chat_connection_id
@@ -528,6 +581,28 @@ export default function ChatSidebarComponent({
                                         }
                                       >
                                         Share
+                                      </Button>
+
+                                      {/* Add Remarks button for technicians */}
+                                      <Button
+                                        fullWidth
+                                        size="sm"
+                                        startContent={<FaCheck />}
+                                        className={`${
+                                          userType !== "technician" && "hidden"
+                                        } ${
+                                          message.status === "solved" &&
+                                          "hidden"
+                                        }`}
+                                        onClick={() => {
+                                          setCurrentChatForRemarks(
+                                            message.chat_connection_id
+                                          );
+                                          setOpenRemarksModal(true);
+                                          setOpenPopoverId(null);
+                                        }}
+                                      >
+                                        Solve
                                       </Button>
 
                                       <Button
@@ -965,6 +1040,18 @@ export default function ChatSidebarComponent({
                 >
                   Help
                 </Button>
+
+                {/* Add "View Remarks" button for technicians */}
+                <Button
+                  fullWidth
+                  color={"success"}
+                  startContent={<FaCheck />}
+                  className={`${userType !== "technician" && "hidden"}`}
+                  onClick={() => setOpenViewRemarksModal(true)}
+                >
+                  View Solved
+                </Button>
+
                 <Button
                   fullWidth
                   // size="sm"

@@ -1,5 +1,6 @@
 "use client";
 
+import AdminRemarks from "@/components/adminComponents/AdminRemarks";
 import AdminDashboard from "@/components/adminComponents/Dashboard";
 import AdminReportsComponent from "@/components/adminComponents/Reports";
 import AdminSettings from "@/components/adminComponents/Settings";
@@ -22,6 +23,8 @@ export default function AdminSlugPage() {
       setDisplay(<AdminSettings />);
     } else if (pathname.startsWith("/admin/report")) {
       setDisplay(<AdminReportsComponent />);
+    } else if (pathname.startsWith("/admin/remarks")) {
+      setDisplay(<AdminRemarks />);
     } else {
       setDisplay("No page found");
     }

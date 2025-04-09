@@ -10,6 +10,7 @@ import {
   FaChartBar,
   FaBars,
   FaSignOutAlt,
+  FaClipboardCheck,
 } from "react-icons/fa";
 import classNames from "classnames";
 import { useHandleLogout } from "@/utils/authUtils";
@@ -30,6 +31,7 @@ const AdminSidebarComponent = ({
     { path: "/admin/dashboard", label: "Dashboard", icon: <FaTachometerAlt /> },
     // { path: "/admin/monitor", label: "Monitor Chats", icon: <FaComments /> },
     { path: "/admin/users", label: "Users", icon: <FaUsers /> },
+    { path: "/admin/remarks", label: "Remarks", icon: <FaClipboardCheck /> }, // Add remarks menu item
     { path: "/admin/settings", label: "Settings", icon: <FaCog /> },
     { path: "/admin/report", label: "Report", icon: <FaChartBar /> },
   ];

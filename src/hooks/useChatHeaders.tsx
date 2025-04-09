@@ -27,9 +27,17 @@ const useChatHeaders = (
       // Get all chat headers where the user is involved
       const baseQuery = supabase
         .from("ViewLatestChatHeaders")
-        .select("*")
+        .select(
+          `
+          *,
+          display_technician_first_name,
+          display_technician_last_name,
+          display_farmer_first_name,
+          display_farmer_last_name
+        `
+        ) // Explicitly select all and the new display fields
         .or(
-          `first_sender_id.eq.${userId},first_receiver_id.eq.${userId},recipient_technician_id.eq.${userId}`
+          `first_sender_id.eq.${userId},first_receiver_id.eq.${userId},recipient_technician_id.eq.${userId},farmer_id.eq.${userId}` // Ensure farmer_id is checked too
         );
 
       // Add deletion filters based on user type - this is critical
