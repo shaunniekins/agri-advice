@@ -1,20 +1,18 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/utils/supabase";
-import { PostgrestResponse } from "@supabase/supabase-js";
 
 const useChatHeaders = (
   rowsPerPage: number,
   currentPage: number,
   userId: string,
   userType?: string,
-  showArchived: boolean = false // Add parameter to toggle showing archived chats
+  showArchived: boolean = false
 ) => {
   const [chatHeaders, setChatHeaders] = useState<any[]>([]);
   const [loadingChatHeaders, setLoadingChatHeaders] = useState(true);
   const [errorChatHeaders, setErrorChatHeaders] = useState<string | null>(null);
   const [totalChatHeaders, setTotalChatHeaders] = useState(0);
 
-  // Fetch the latest chat headers for the user
   const fetchChatHeaders = useCallback(async () => {
     if (!userId || !userType) return;
 
@@ -24,27 +22,25 @@ const useChatHeaders = (
     setErrorChatHeaders(null);
 
     try {
-      // Get all chat headers where the user is involved
       const baseQuery = supabase
         .from("ViewLatestChatHeaders")
         .select(
-          `
-          *,
-          display_technician_first_name,
-          display_technician_last_name,
-          display_farmer_first_name,
-          display_farmer_last_name
-        `
-        ) // Explicitly select all and the new display fields
+          `*,
+           display_technician_first_name,
+           display_technician_last_name,
+           display_farmer_first_name,
+           display_farmer_last_name,
+           unread_count,
+           unread_receiver_id`,
+          { count: "exact" }
+        )
         .or(
-          `first_sender_id.eq.${userId},first_receiver_id.eq.${userId},recipient_technician_id.eq.${userId},farmer_id.eq.${userId}` // Ensure farmer_id is checked too
+          `first_sender_id.eq.${userId},first_receiver_id.eq.${userId},recipient_technician_id.eq.${userId},farmer_id.eq.${userId}`
         );
 
-      // Add deletion filters based on user type - this is critical
+      // Add deletion filters based on user type
       if (userType === "farmer") {
         baseQuery.eq("farmer_deleted", false);
-
-        // Add archive filtering
         if (showArchived) {
           baseQuery.eq("farmer_archived", true);
         } else {
@@ -52,8 +48,6 @@ const useChatHeaders = (
         }
       } else if (userType === "technician") {
         baseQuery.eq("technician_deleted", false);
-
-        // Add archive filtering
         if (showArchived) {
           baseQuery.eq("technician_archived", true);
         } else {
@@ -61,67 +55,63 @@ const useChatHeaders = (
         }
       }
 
-      // Finish the query with ordering and pagination
       const response = await baseQuery
         .order("latest_created_at", { ascending: false })
         .range(offset, offset + rowsPerPage - 1);
 
       if (response.error) {
+        console.error("Supabase error:", response.error);
         throw response.error;
       }
 
-      // Set headers directly from database response - we already filtered by deletion status in the query
-      setChatHeaders(response.data || []);
-      setTotalChatHeaders(response.data?.length || 0);
+      // Process data to set correct unread count for the current user
+      const processedData = (response.data || []).map((header) => ({
+        ...header,
+        unread_count:
+          header.unread_receiver_id === userId ? header.unread_count : 0,
+      }));
+
+      setChatHeaders(processedData);
+      setTotalChatHeaders(response.count || 0);
     } catch (err) {
       if (err instanceof Error) {
         setErrorChatHeaders(err.message || "Error fetching chat headers");
       } else {
         setErrorChatHeaders("An unknown error occurred");
       }
+      console.error("Error in fetchChatHeaders:", err);
     } finally {
       setLoadingChatHeaders(false);
     }
-  }, [rowsPerPage, currentPage, userId, userType, showArchived]); // Added showArchived to dependencies
+  }, [rowsPerPage, currentPage, userId, userType, showArchived]);
 
-  // Explicit refetch function that can be called from components
   const refetch = useCallback(() => {
     fetchChatHeaders();
   }, [fetchChatHeaders]);
 
   useEffect(() => {
-    if (!userType || !userId) return;
-
+    if (!userType || !userId) {
+      return;
+    }
     fetchChatHeaders();
 
-    // Set up real-time updates for both ChatMessages and ChatConnections
     const messageChannel = supabase
       .channel("chat_message_changes")
       .on(
         "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "ChatMessages",
-        },
-        () => {
+        { event: "*", schema: "public", table: "ChatMessages" },
+        (payload) => {
           fetchChatHeaders();
         }
       )
       .subscribe();
 
-    // Add a new subscription specifically for ChatConnections changes
     const connectionChannel = supabase
       .channel("chat_connection_changes")
       .on(
         "postgres_changes",
-        {
-          event: "*", // Watch for all events, not just UPDATE
-          schema: "public",
-          table: "ChatConnections",
-        },
+        { event: "*", schema: "public", table: "ChatConnections" },
         (payload) => {
-          // Force refetch for any changes to ChatConnections
           fetchChatHeaders();
         }
       )
@@ -138,7 +128,7 @@ const useChatHeaders = (
     totalChatHeaders,
     loadingChatHeaders,
     errorChatHeaders,
-    refetch, // Export the refetch function
+    refetch,
   };
 };
 

@@ -197,11 +197,12 @@ export default function ChatSidebarComponent({
   ] = useState<string>("");
   // const [selectedFeedback, setSelectedFeedback] = useState<number | null>(null);
 
-  const { isUserOnline } = useOnlineStatus(user ? user.id : "");
+  const { isUserOnline, onlineUsers } = useOnlineStatus(user ? user.id : "");
 
-  // useEffect(() => {
-  //   console.log("isUserOnline", isUserOnline);
-  // }, [isUserOnline]);
+  // Add useEffect to log onlineUsers changes
+  useEffect(() => {
+    console.log("ChatSidebar: onlineUsers updated:", onlineUsers);
+  }, [onlineUsers]);
 
   // Initialize our new hook for auto-unarchiving
   useAutoUnarchive(user ? user.id : "", userType);
@@ -347,16 +348,39 @@ export default function ChatSidebarComponent({
                       </li>
                       {groupedChatHeaders[dateGroup].map(
                         (message: any, index: any) => {
-                          const isAi = !message.parent_chat_connection_id;
-                          const isFarmer =
-                            message.parent_chat_connection_id &&
-                            userType === "farmer";
+                          // Determine if this is an AI chat or a human-to-human chat
+                          const isHumanToHuman =
+                            !!message.recipient_technician_id;
 
-                          const isSender = user.id === message.first_sender_id;
-                          const isReceiver =
-                            user.id === message.first_receiver_id;
+                          // Determine the partner's ID based on the current user type
+                          let partnerId: string | null = null;
+                          if (isHumanToHuman) {
+                            if (userType === "farmer") {
+                              partnerId = message.recipient_technician_id;
+                            } else if (userType === "technician") {
+                              partnerId = message.farmer_id;
+                            }
+                          }
 
-                          // console.log("message", message);
+                          // Check if the determined partner is online using the onlineUsers set
+                          const isPartnerOnline = partnerId
+                            ? onlineUsers.has(partnerId)
+                            : false;
+
+                          // Add detailed logging here
+                          if (isHumanToHuman && partnerId) {
+                            console.log(
+                              `ChatSidebar: Header ${
+                                message.chat_connection_id
+                              } - UserType: ${userType}, PartnerType: ${
+                                userType === "farmer" ? "technician" : "farmer"
+                              }, PartnerID: ${partnerId}, IsOnlineCheck: ${isPartnerOnline}`
+                            );
+                          } else if (!isHumanToHuman) {
+                            console.log(
+                              `ChatSidebar: Header ${message.chat_connection_id} - AI Chat, no partner.`
+                            );
+                          }
 
                           return (
                             <li
@@ -368,76 +392,39 @@ export default function ChatSidebarComponent({
                               }
                             flex items-center py-3 px-4 text-sm rounded-md hover:bg-[#005c4d] cursor-pointer w-full relative group`}
                               onClick={() => {
-                                isSender &&
-                                  !isReceiver &&
-                                  updateSenderMessagesReadStatus(
-                                    message.chat_connection_id
-                                  );
-                                isReceiver &&
-                                  !isSender &&
+                                // Mark messages as read (use correct logic based on latest message receiver)
+                                if (
+                                  message.latest_receiver_id === user.id &&
+                                  !message.is_receiver_read
+                                ) {
                                   updateReceiverMessagesReadStatus(
                                     message.chat_connection_id,
                                     user.id
                                   );
+                                } else if (
+                                  message.latest_sender_id === user.id &&
+                                  !message.is_sender_read
+                                ) {
+                                  // Optionally mark sender read if needed, though less common for display
+                                  // updateSenderMessagesReadStatus(message.chat_connection_id);
+                                }
+
+                                // Navigate to the chat (existing logic)
                                 router.push(
                                   `/${userType}/chat/${message.chat_connection_id}` // Navigate using connection_id
                                 );
-
-                                // If this is an archived chat and user clicks on it,
-                                // unarchive it automatically
-                                if (showingArchived) {
-                                  if (userType === "farmer") {
-                                    unarchiveChatConnectionForFarmer(
-                                      message.chat_connection_id
-                                    );
-                                  } else if (userType === "technician") {
-                                    unarchiveChatConnectionForTechnician(
-                                      message.chat_connection_id
-                                    );
-                                  }
-                                  // After a short delay to let the unarchive complete, refresh and switch to regular view
-                                  setTimeout(() => {
-                                    setShowingArchived(false);
-                                    refetch();
-                                  }, 300);
-                                }
                               }}
                             >
-                              {/* Add online status indicator */}
-                              {!isAi && (
+                              {/* Add online status indicator - ONLY if it's human-to-human */}
+                              {isHumanToHuman && partnerId && (
                                 <div
                                   className={`w-2 h-2 rounded-full mr-2 ${
-                                    isSender
-                                      ? isUserOnline(message.first_receiver_id)
-                                        ? "bg-green-400"
-                                        : "bg-gray-400"
-                                      : isUserOnline(message.first_sender_id)
+                                    isPartnerOnline
                                       ? "bg-green-400"
                                       : "bg-gray-400"
                                   }`}
-                                  title={
-                                    isSender
-                                      ? isUserOnline(message.first_receiver_id)
-                                        ? "Online"
-                                        : "Offline"
-                                      : isUserOnline(message.first_sender_id)
-                                      ? "Online"
-                                      : "Offline"
-                                  }
+                                  title={isPartnerOnline ? "Online" : "Offline"}
                                 />
-                              )}
-
-                              {/* Add indicator for ended conversations */}
-                              {((userType === "farmer" &&
-                                message.technician_deleted) ||
-                                (userType === "technician" &&
-                                  message.farmer_deleted)) && (
-                                <div
-                                  className="text-yellow-400 mr-1"
-                                  title="Conversation ended by the other user"
-                                >
-                                  <IoMdWarning size={15} />
-                                </div>
                               )}
 
                               <span

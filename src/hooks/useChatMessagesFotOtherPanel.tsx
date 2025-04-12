@@ -27,7 +27,7 @@ const useChatMessagesFotOtherPanel = (
       // Create base query
       const query = supabase
         .from("ViewFullChatMessages")
-        .select("*")
+        .select("*, farmer_archived, technician_archived") // Added archive flags
         .eq("chat_connection_id", chatConnectionId);
 
       // Add user-specific deletion filters

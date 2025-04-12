@@ -3,11 +3,17 @@ import { supabase } from "@/utils/supabase";
 
 const ONLINE_THRESHOLD = 30; // Reduced to 30 seconds for more responsive status changes
 const UPDATE_INTERVAL = 15000; // Reduced to 15 seconds for more frequent updates
-const POLL_INTERVAL = 10000; // Poll online users every 10 seconds
 
 // Get the Supabase URL and key from environment variables
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+// Define an interface for the expected shape of the status record
+interface UserStatusRecord {
+  user_id: string;
+  is_online: boolean;
+  // Add other potential fields if needed, e.g., last_seen
+}
 
 export const useOnlineStatus = (userId: string) => {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
@@ -40,37 +46,75 @@ export const useOnlineStatus = (userId: string) => {
   }, [userId]);
 
   useEffect(() => {
-    if (!userId) return;
+    // Log the userId when the effect runs
+    console.log(`useOnlineStatus: Initializing for userId: ${userId}`);
+
+    if (!userId) {
+      console.log("useOnlineStatus: No userId provided, exiting.");
+      return;
+    }
 
     // Update only current user's status
     const updateCurrentUserStatus = async () => {
       try {
-        // Don't update if we're in the process of unmounting
         if (unmountingRef.current) return;
 
-        // Only update if user has been active recently (within the last minute)
-        const isRecentlyActive = Date.now() - lastActivityRef.current < 60000;
+        // Reinstate the activity check
+        const isRecentlyActive = Date.now() - lastActivityRef.current < 60000; // e.g., active within last 60 seconds
 
-        await supabase.from("UserOnlineStatus").upsert({
+        const updateData = {
           user_id: userId,
           last_seen: new Date().toISOString(),
-          is_online: isRecentlyActive, // Set to false if inactive for a while
-        });
+          is_online: isRecentlyActive, // Use activity status
+        };
+        console.log(
+          `useOnlineStatus: Attempting to upsert status for ${userId}:`,
+          updateData
+        ); // Log before upsert
+        const { error } = await supabase
+          .from("UserOnlineStatus")
+          .upsert(updateData);
+
+        if (error) {
+          console.error(
+            `Failed to upsert online status for ${userId}:`,
+            JSON.stringify(error, null, 2)
+          );
+        } else {
+          console.log(
+            `useOnlineStatus: Successfully upserted status for ${userId} (is_online: ${isRecentlyActive})`
+          ); // Log success
+        }
       } catch (error) {
-        console.error("Failed to update online status:", error);
+        console.error("Unexpected error in updateCurrentUserStatus:", error);
       }
     };
 
     // Function to set user as offline
     const setUserOffline = async () => {
       try {
-        await supabase.from("UserOnlineStatus").upsert({
+        const updateData = {
           user_id: userId,
           last_seen: new Date().toISOString(),
           is_online: false,
-        });
+        };
+        console.log(`useOnlineStatus: Attempting to set offline for ${userId}`); // Log attempt
+        const { error } = await supabase
+          .from("UserOnlineStatus")
+          .upsert(updateData);
+
+        if (error) {
+          console.error(
+            `Failed to set offline status for ${userId}:`,
+            JSON.stringify(error, null, 2)
+          );
+        } else {
+          console.log(
+            `useOnlineStatus: Successfully set offline for ${userId}`
+          );
+        }
       } catch (err) {
-        console.error("Error setting offline status:", err);
+        console.error("Unexpected error in setUserOffline:", err);
       }
     };
 
@@ -84,6 +128,10 @@ export const useOnlineStatus = (userId: string) => {
 
         if (onlineUsersData) {
           setOnlineUsers(new Set(onlineUsersData.map((user) => user.user_id)));
+          console.log(
+            "Fetched initial/visible online users:",
+            onlineUsersData.map((u) => u.user_id)
+          );
         }
       } catch (error) {
         console.error("Failed to fetch online users:", error);
@@ -116,12 +164,21 @@ export const useOnlineStatus = (userId: string) => {
     // Handle page visibility changes
     const handleVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
-        // Set user as offline when tab is hidden
+        // Re-enable setUserOffline
         setUserOffline();
+        console.log(
+          "useOnlineStatus: Visibility hidden, called setUserOffline"
+        );
       } else if (document.visibilityState === "visible") {
         // Set user as online when tab becomes visible again
-        updateCurrentUserStatus();
-        fetchOnlineUsers(); // Refresh online users when tab becomes visible
+        updateCurrentUserStatus().then(() => {
+          if (!unmountingRef.current) {
+            fetchOnlineUsers();
+          }
+        });
+        console.log(
+          "useOnlineStatus: Visibility visible, called updateCurrentUserStatus then fetchOnlineUsers"
+        );
       }
     };
 
@@ -130,20 +187,19 @@ export const useOnlineStatus = (userId: string) => {
       // Set user as offline when page is being unloaded
       unmountingRef.current = true;
 
-      // Use navigator.sendBeacon for more reliable async network requests during page unload
+      // Re-enable setUserOffline logic (sendBeacon/XHR)
+      console.log("useOnlineStatus: Before unload, attempting setUserOffline");
       if (navigator.sendBeacon && supabaseUrl) {
         const headers = {
           "Content-Type": "application/json",
           apikey: supabaseKey || "",
           Prefer: "return=minimal",
         };
-
         const data = JSON.stringify({
           user_id: userId,
           last_seen: new Date().toISOString(),
           is_online: false,
         });
-
         navigator.sendBeacon(
           `${supabaseUrl}/rest/v1/UserOnlineStatus?apikey=${encodeURIComponent(
             supabaseKey || ""
@@ -151,7 +207,6 @@ export const useOnlineStatus = (userId: string) => {
           new Blob([data], { type: "application/json" })
         );
       } else {
-        // Fallback for browsers that don't support sendBeacon
         try {
           const xhr = new XMLHttpRequest();
           xhr.open("POST", `${supabaseUrl}/rest/v1/UserOnlineStatus`, false);
@@ -166,15 +221,21 @@ export const useOnlineStatus = (userId: string) => {
             })
           );
         } catch (e) {
-          console.error("Failed to send offline status:", e);
+          console.error("Failed to send offline status via XHR:", e);
         }
       }
     };
 
     // Initial status update
     const initializeStatus = async () => {
+      // Immediately try to set status
       await updateCurrentUserStatus();
-      await fetchOnlineUsers();
+      // Add a small delay before fetching, allowing the upsert to potentially complete
+      setTimeout(() => {
+        if (!unmountingRef.current) {
+          fetchOnlineUsers();
+        }
+      }, 500); // 500ms delay
     };
 
     initializeStatus();
@@ -183,24 +244,20 @@ export const useOnlineStatus = (userId: string) => {
     const updateIntervalId = setInterval(async () => {
       if (!unmountingRef.current) {
         await updateCurrentUserStatus();
-        await cleanupStaleStatuses();
+        // Temporarily comment out the cleanup call
+        // await cleanupStaleStatuses();
+        console.log(
+          `useOnlineStatus: Skipped cleanupStaleStatuses in interval for ${userId}`
+        );
       }
     }, UPDATE_INTERVAL);
-
-    // Set up separate polling interval for fetching online users
-    const pollIntervalId = setInterval(async () => {
-      if (!unmountingRef.current) {
-        await fetchOnlineUsers();
-      }
-    }, POLL_INTERVAL);
 
     // Add event listeners for visibility and page unload
     document.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("beforeunload", handleBeforeUnload);
     window.addEventListener("pagehide", handleBeforeUnload); // For iOS
 
-    // Add fallback for mobile devices
-    window.addEventListener("blur", setUserOffline);
+    console.log("useOnlineStatus: Skipping blur listener attachment");
 
     // Subscribe to online status changes
     const channel = supabase
@@ -213,23 +270,49 @@ export const useOnlineStatus = (userId: string) => {
           table: "UserOnlineStatus",
         },
         (payload) => {
-          if (payload.new) {
-            const { user_id, is_online } = payload.new as any;
-            setOnlineUsers((prev) => {
-              const updated = new Set(prev);
-              if (is_online) {
-                updated.add(user_id);
-              } else {
-                updated.delete(user_id);
+          console.log("Received online status change:", payload);
+          const { eventType, new: newRecord, old: oldRecord } = payload;
+
+          setOnlineUsers((prev) => {
+            const updated = new Set(prev); // Create a new Set from previous state
+
+            if (eventType === "INSERT" || eventType === "UPDATE") {
+              const record = newRecord as Partial<UserStatusRecord>;
+              if (record && record.user_id) {
+                const user_id = record.user_id;
+                const is_online = record.is_online ?? false;
+                console.log(
+                  `Handling ${eventType} for ${user_id}. Is Online: ${is_online}`
+                );
+                if (is_online) {
+                  updated.add(user_id);
+                } else {
+                  updated.delete(user_id);
+                }
               }
-              return updated;
-            });
-          }
+            } else if (eventType === "DELETE") {
+              const record = oldRecord as Partial<UserStatusRecord>;
+              if (record && record.user_id) {
+                console.log(`Handling DELETE for ${record.user_id}`);
+                updated.delete(record.user_id);
+              }
+            }
+            console.log("Updated onlineUsers set:", updated);
+            // Always return the new set. React will handle optimizing re-renders.
+            return updated;
+          });
         }
       )
       .subscribe((status) => {
         if (status === "SUBSCRIBED") {
           console.log("Subscribed to online status changes");
+          updateCurrentUserStatus().then(() => {
+            if (!unmountingRef.current) {
+              fetchOnlineUsers();
+            }
+          });
+        } else {
+          console.log("Subscription status:", status);
         }
       });
 
@@ -239,18 +322,16 @@ export const useOnlineStatus = (userId: string) => {
       unmountingRef.current = true;
 
       clearInterval(updateIntervalId);
-      clearInterval(pollIntervalId);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       window.removeEventListener("beforeunload", handleBeforeUnload);
       window.removeEventListener("pagehide", handleBeforeUnload);
-      window.removeEventListener("blur", setUserOffline);
 
       try {
         // Unsubscribe from the channel
         supabase.removeChannel(channel);
-
-        // Set user as offline
+        // Re-enable final setUserOffline call
         setUserOffline();
+        console.log("useOnlineStatus: Cleanup, called final setUserOffline");
       } catch (error) {
         console.error("Error during cleanup:", error);
       }
