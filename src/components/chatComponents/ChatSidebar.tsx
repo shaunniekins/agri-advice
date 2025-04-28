@@ -12,7 +12,7 @@ import {
 } from "@nextui-org/react";
 import React from "react";
 import { useEffect, useState } from "react";
-import { FaBars, FaSignOutAlt, FaCheck } from "react-icons/fa";
+import { FaBars, FaSignOutAlt, FaCheck, FaUser } from "react-icons/fa";
 import { IoAddCircleOutline, IoAddSharp, IoArrowBack } from "react-icons/io5";
 import { IoMdShare, IoMdStar, IoMdTrash, IoMdWarning } from "react-icons/io";
 import { useHandleLogout } from "@/utils/authUtils";
@@ -57,6 +57,7 @@ import { supabase } from "@/utils/supabase";
 import useAutoUnarchive from "@/hooks/useAutoUnarchive";
 import RemarksModal from "./RemarksModal";
 import ViewRemarksModal from "./ViewRemarksModal";
+import UserProfile from "./UserProfile"; // Import UserProfile
 
 export default function ChatSidebarComponent({
   children,
@@ -84,6 +85,12 @@ export default function ChatSidebarComponent({
   });
 
   const [openUserInfo, setOpenUserInfo] = useState(false);
+
+  // State for Profile View Modal
+  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+  const [profileToView, setProfileToView] = useState<any>(null);
+  const [profileUserId, setProfileUserId] = useState<string>("");
+  const [profileUserType, setProfileUserType] = useState<string>("");
 
   const [showingArchived, setShowingArchived] = useState(false);
 
@@ -224,26 +231,29 @@ export default function ChatSidebarComponent({
     }
   };
 
-  const loadProfileInfo = async (user_id: string) => {
-    if (!user_id) return null;
-
+  const fetchUserProfile = async (userId: string) => {
+    if (!userId) return null;
     try {
       const { data, error } = await supabase
-        .from("profiles")
-        .select("first_name, last_name")
-        .eq("id", user_id)
+        .from("ViewUsers") // Use the existing view
+        .select("*")
+        .eq("id", userId)
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error fetching user profile:", error);
+        return null;
+      }
       return data;
     } catch (err) {
-      console.error("Error loading profile:", err);
+      console.error("Error in fetchUserProfile:", err);
       return null;
     }
   };
 
   return (
     <>
+      {/* Existing Modals */}
       <ChatSidebarModal
         openUserInfo={openUserInfo}
         setOpenUserInfo={setOpenUserInfo}
@@ -272,6 +282,17 @@ export default function ChatSidebarComponent({
         setOpenModal={setOpenViewRemarksModal}
         userId={user?.id || ""}
       />
+      {/* Add UserProfile Modal */}
+      {profileToView && (
+        <UserProfile
+          openUserInfo={isProfileModalOpen}
+          setOpenUserInfo={setIsProfileModalOpen}
+          currentUserInfo={profileToView}
+          setCurrentUserInfo={setProfileToView} // Pass setter, though likely read-only view needed
+          userId={profileUserId} // ID of the user being viewed
+          userType={profileUserType} // Type of the user being viewed
+        />
+      )}
       {isLoading && (
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
           <Spinner color="success" />
@@ -545,16 +566,68 @@ export default function ChatSidebarComponent({
                                     <BsThreeDotsVertical />
                                   </div>
                                 </PopoverTrigger>
-                                <PopoverContent className="flex gap-2 p-2">
+                                <PopoverContent className="flex flex-col gap-2 p-2">
+                                  {" "}
+                                  {/* Changed to flex-col */}
                                   {!sharingSates[
                                     `${message.chat_connection_id}-${message.chat_message_id}`
                                   ] ? (
                                     <>
+                                      {/* View Profile Button */}
+                                      {isHumanToHuman && (
+                                        <Button
+                                          fullWidth
+                                          size="sm"
+                                          startContent={<FaUser />}
+                                          onClick={async () => {
+                                            const otherUserId =
+                                              userType === "farmer"
+                                                ? message.recipient_technician_id
+                                                : message.farmer_id;
+                                            const otherUserType =
+                                              userType === "farmer"
+                                                ? "technician"
+                                                : "farmer";
+
+                                            if (otherUserId) {
+                                              const profileData =
+                                                await fetchUserProfile(
+                                                  otherUserId
+                                                );
+                                              if (profileData) {
+                                                setProfileToView(profileData);
+                                                setProfileUserId(otherUserId);
+                                                setProfileUserType(
+                                                  otherUserType
+                                                );
+                                                setIsProfileModalOpen(true);
+                                                setOpenPopoverId(null); // Close popover
+                                              } else {
+                                                alert(
+                                                  "Could not load profile information."
+                                                );
+                                              }
+                                            }
+                                          }}
+                                        >
+                                          View Profile
+                                        </Button>
+                                      )}
+
                                       <Button
                                         fullWidth
                                         size="sm"
                                         startContent={<IoMdShare />}
                                         className={`${
+                                          // Hide if not farmer OR if it's human-to-human OR if farmer has no technician support
+                                          userType !== "farmer" ||
+                                          isHumanToHuman ||
+                                          !user?.user_metadata
+                                            ?.technician_support
+                                            ? "hidden"
+                                            : ""
+                                        } ${
+                                          // Also hide if already shared (existing logic)
                                           chatConnection[0]
                                             ?.recipient_technician_id &&
                                           "hidden"

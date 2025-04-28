@@ -15,6 +15,7 @@ create or replace view "ViewLatestChatHeaders" as with ranked_messages as (
     cc.technician_archived,
     cc.status,
     cc.remarks,
+    cc.category, -- Add category column
     cm.created_at,
     sender_user.raw_user_meta_data->>'first_name' as sender_first_name,
     sender_user.raw_user_meta_data->>'last_name' as sender_last_name,
@@ -73,6 +74,7 @@ select
   first_msg.technician_archived,
   first_msg.status,
   first_msg.remarks,
+  first_msg.category, -- Select category column
   farmer_user.raw_user_meta_data->>'first_name' as farmer_first_name,
   farmer_user.raw_user_meta_data->>'last_name' as farmer_last_name,
   technician_user.raw_user_meta_data->>'first_name' as technician_first_name,

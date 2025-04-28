@@ -175,6 +175,7 @@ const UserComponent = () => {
     { key: "address", label: "ADDRESS" },
     { key: "mobile_number", label: "MOBILE" },
     { key: "email", label: "EMAIL" },
+    { key: "password", label: "PASSWORD" },
     { key: "actions", label: "ACTIONS" },
   ];
 

@@ -9,6 +9,8 @@ import {
   ModalHeader,
   Textarea,
   Chip,
+  Select, // Import Select
+  SelectItem, // Import SelectItem
 } from "@nextui-org/react";
 import { useState, useEffect } from "react";
 import { MdSave } from "react-icons/md";
@@ -29,29 +31,37 @@ const RemarksModal: React.FC<RemarksModalProps> = ({
   chatConnectionId,
   onSolveChat,
   existingRemarks = "",
-  category = "Others",
+  category = "Others", // Keep category prop for viewing existing remarks
 }) => {
   const [remarks, setRemarks] = useState(existingRemarks);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [firstMessage, setFirstMessage] = useState("");
-  const [detectedCategory, setDetectedCategory] = useState(category);
+  const [selectedCategory, setSelectedCategory] = useState<string>(
+    existingRemarks ? category : "" // Initialize with existing category if viewing, else empty
+  );
   const [technicianInfo, setTechnicianInfo] = useState({ id: "", name: "" });
 
-  // Fetch the first message when opening the modal
+  // Define categories
+  const categories = [
+    "Health Issues",
+    "Feeding Management",
+    "Housing Management",
+    "Reproduction",
+    "Management Practices",
+    "Others",
+  ];
+
+  // Fetch only technician info if needed (optional, can be removed if not used elsewhere)
   useEffect(() => {
-    if (openModal && chatConnectionId) {
-      const fetchConversationDetails = async () => {
+    if (openModal && chatConnectionId && !existingRemarks) {
+      // Simplified fetch, only if needed for other purposes
+      const fetchTechInfo = async () => {
         try {
-          // First get the conversation details
-          const { data: chatData, error: chatError } = await supabase
+          const { data: chatData } = await supabase
             .from("ChatConnections")
-            .select("parent_chat_connection_id, recipient_technician_id")
+            .select("recipient_technician_id")
             .eq("chat_connection_id", chatConnectionId)
             .single();
 
-          if (chatError) throw chatError;
-
-          // Get technician info
           if (chatData?.recipient_technician_id) {
             const { data: techData } = await supabase
               .from("profiles")
@@ -66,71 +76,42 @@ const RemarksModal: React.FC<RemarksModalProps> = ({
               });
             }
           }
-
-          // Determine which chat_connection_id to use for first message
-          let messageSourceId = chatConnectionId;
-
-          // If this is a shared conversation, get the first message from the parent
-          if (chatData?.parent_chat_connection_id) {
-            messageSourceId = chatData.parent_chat_connection_id;
-          }
-
-          // Get the first message
-          const { data: messageData, error: msgError } = await supabase
-            .from("ChatMessages")
-            .select("message")
-            .eq("chat_connection_id", messageSourceId)
-            .order("created_at", { ascending: true })
-            .limit(1)
-            .single();
-
-          if (msgError) throw msgError;
-
-          if (messageData) {
-            setFirstMessage(messageData.message);
-
-            // Look up category from PremadePrompts
-            const { data: promptData } = await supabase
-              .from("PremadePrompts")
-              .select("category")
-              .eq("prompt_message", messageData.message)
-              .maybeSingle();
-
-            if (promptData?.category) {
-              setDetectedCategory(promptData.category);
-            }
-          }
         } catch (err) {
-          console.error("Error fetching conversation details:", err);
+          console.error("Error fetching technician info:", err);
         }
       };
-
-      fetchConversationDetails();
+      fetchTechInfo();
     }
-  }, [openModal, chatConnectionId, existingRemarks]);
+    // Reset selectedCategory when modal opens for adding new remarks
+    if (openModal && !existingRemarks) {
+      setSelectedCategory("");
+      setRemarks(""); // Also clear remarks if opening for new entry
+    } else if (openModal && existingRemarks) {
+      setSelectedCategory(category); // Set category from prop when viewing
+      setRemarks(existingRemarks); // Set remarks from prop when viewing
+    }
+  }, [openModal, chatConnectionId, existingRemarks, category]);
 
   const handleSaveRemarks = async () => {
-    if (!chatConnectionId) return;
+    if (!chatConnectionId || !selectedCategory) return; // Ensure category is selected
 
     setIsSubmitting(true);
 
     try {
-      // Using upsert to ensure we update multiple aspects of the chat connection
       const { error } = await supabase
         .from("ChatConnections")
         .update({
           status: "solved",
           remarks: remarks,
-          technician_archived: true, // Auto-archive when marking as solved
+          category: selectedCategory, // Save the selected category
+          technician_archived: true,
         })
         .eq("chat_connection_id", chatConnectionId);
 
       if (error) throw error;
 
-      // Make sure we wait before triggering callback to ensure DB is updated
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // Call parent callback to refresh data
       onSolveChat();
       setOpenModal(false);
     } catch (err) {
@@ -172,41 +153,56 @@ const RemarksModal: React.FC<RemarksModalProps> = ({
               {existingRemarks ? "View Remarks" : "Add Remarks"}
             </ModalHeader>
             <ModalBody>
-              {detectedCategory && (
+              {/* Display Category Chip when viewing existing remarks */}
+              {existingRemarks && (
                 <div className="mb-4 flex items-center gap-2">
-                  <span className="text-sm">Category:</span>
+                  <span className="text-sm font-medium">Category:</span>
                   <Chip
-                    color={getCategoryChipColor(detectedCategory)}
+                    color={getCategoryChipColor(selectedCategory)} // Use selectedCategory (set from prop)
                     size="sm"
                   >
-                    {detectedCategory}
+                    {selectedCategory}
                   </Chip>
                 </div>
               )}
 
-              {firstMessage && !existingRemarks && (
-                <Textarea
-                  label="Initial Message"
-                  value={firstMessage}
-                  readOnly
-                  minRows={2}
+              {/* Show Select component only when adding new remarks */}
+              {!existingRemarks && (
+                <Select
+                  label="Select Category"
+                  placeholder="Choose a category"
                   className="mb-4"
-                />
+                  selectedKeys={selectedCategory ? [selectedCategory] : []}
+                  onChange={(e) => setSelectedCategory(e.target.value)}
+                  isRequired // Make selection mandatory
+                >
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </Select>
               )}
 
               <Textarea
                 label="Remarks"
-                placeholder="Enter your remarks about how the issue was resolved..."
+                placeholder={
+                  existingRemarks
+                    ? ""
+                    : "Enter your remarks about how the issue was resolved..."
+                }
                 value={remarks}
                 onChange={(e) => setRemarks(e.target.value)}
                 minRows={5}
                 maxRows={10}
                 readOnly={!!existingRemarks}
+                isRequired={!existingRemarks} // Make remarks mandatory when adding
               />
               {!existingRemarks && (
                 <p className="text-xs text-gray-500 mt-2">
                   Note: Marking this conversation as solved will archive it and
-                  prevent further messages from being sent.
+                  prevent further messages from being sent. Category and Remarks
+                  are required.
                 </p>
               )}
             </ModalBody>
@@ -224,7 +220,7 @@ const RemarksModal: React.FC<RemarksModalProps> = ({
                   startContent={<MdSave />}
                   onPress={handleSaveRemarks}
                   isLoading={isSubmitting}
-                  isDisabled={!remarks.trim()}
+                  isDisabled={!remarks.trim() || !selectedCategory} // Disable if remarks or category is empty
                 >
                   Mark as Solved
                 </Button>

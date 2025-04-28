@@ -10,6 +10,7 @@ import {
 import { format } from "date-fns";
 import { useSelector } from "react-redux";
 import { RootState } from "@/app/reduxUtils/store";
+import { Avatar } from "@nextui-org/react"; // Import Avatar
 
 interface ChatDisplayExtensionProps {
   currentUserType: string;
@@ -50,9 +51,25 @@ const ChatDisplayExtensionComponent: React.FC<ChatDisplayExtensionProps> = ({
           `}
     >
       <div className="h-full w-full">
-        <div className="h-full flex flex-col gap-3">
+        <div className="h-full flex flex-col gap-3 px-2 md:px-0">
+          {" "}
+          {/* Added padding for mobile */}
           {parentChatMessages.map((message: any) => {
-            const isSentByCurrentUser = message.sender_id === user?.id;
+            // Determine if the message is from the AI or the Farmer in the parent chat
+            const isFarmerMessage = message.sender_user_type === "farmer";
+            const isAIMessage = !isFarmerMessage; // Assuming only AI and Farmer in parent chat
+
+            const senderFirstName = message.sender_first_name;
+            const senderLastName = message.sender_last_name;
+            const initials = isFarmerMessage
+              ? `${(senderFirstName
+                  ? senderFirstName[0]
+                  : "F"
+                ).toUpperCase()}${(senderLastName
+                  ? senderLastName[0]
+                  : ""
+                ).toUpperCase()}`
+              : "AI";
 
             const messageDate = format(
               new Date(message.created_at),
@@ -67,7 +84,7 @@ const ChatDisplayExtensionComponent: React.FC<ChatDisplayExtensionProps> = ({
             return (
               <div
                 key={message.chat_message_id}
-                className={`w-full flex flex-col py-2`}
+                className={`w-full flex flex-col py-1`} // Reduced py
                 onClick={() => {
                   if (selectedMessageId === message.chat_message_id) {
                     setSelectedMessageId(null);
@@ -77,44 +94,66 @@ const ChatDisplayExtensionComponent: React.FC<ChatDisplayExtensionProps> = ({
                 }}
               >
                 {showDate && (
-                  <span className="text-[0.7rem] text-center">
+                  <span className="text-[0.7rem] text-center py-2">
+                    {" "}
+                    {/* Added py */}
                     {formatMessageDate(message.created_at)}
                   </span>
                 )}
+                {/* Message Row */}
                 <div
-                  className={`w-full flex flex-col md:flex-row md:gap-4 py-2 ${
-                    isSentByCurrentUser ? "justify-end" : "justify-start"
+                  className={`w-full flex items-end gap-2 ${
+                    // Use items-end for avatar alignment
+                    isFarmerMessage ? "justify-end" : "justify-start"
                   }`}
                 >
+                  {/* Avatar for AI */}
+                  {isAIMessage && (
+                    <Avatar size="sm" name="AI" className="flex-shrink-0" />
+                  )}
+
+                  {/* Message Bubble */}
                   <div
-                    className={`message flex flex-col max-w-full whitespace-pre-wrap flex-wrap text-wrap break-words relative`}
+                    className={`message flex flex-col max-w-[75%] whitespace-pre-wrap flex-wrap text-wrap break-words relative`}
                     style={{
                       overflowWrap: "break-word",
                       wordBreak: "break-word",
-                      maxWidth: "100%",
                     }}
                   >
                     <div
-                      className={`max-w-full text-sm py-2 relative ${
-                        isSentByCurrentUser && "px-3 rounded-2xl bg-green-200"
+                      className={`max-w-full text-sm py-2 px-3 rounded-2xl relative ${
+                        // Added px and rounded
+                        isFarmerMessage
+                          ? "bg-green-200" // Farmer message style
+                          : "bg-gray-200" // AI message style
                       }`}
                     >
                       {renderMessage(message.message)}
                       <div ref={bottomRef} />
                     </div>
 
+                    {/* Timestamp */}
                     {selectedMessageId === message.chat_message_id && (
-                      <>
-                        <span
-                          className={`text-[0.7rem] ${
-                            isSentByCurrentUser ? "text-end" : "text-start"
-                          }`}
-                        >
-                          {formatMessageTime(message.created_at)}
-                        </span>
-                      </>
+                      <span
+                        className={`text-[0.7rem] mt-1 ${
+                          // Added mt
+                          isFarmerMessage ? "text-end" : "text-start"
+                        }`}
+                      >
+                        {formatMessageTime(message.created_at)}
+                      </span>
                     )}
                   </div>
+
+                  {/* Avatar for Farmer */}
+                  {isFarmerMessage && (
+                    <Avatar
+                      size="sm"
+                      name={initials}
+                      showFallback
+                      className="flex-shrink-0"
+                    />
+                  )}
                 </div>
               </div>
             );

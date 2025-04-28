@@ -522,7 +522,11 @@ export default function ChatDisplayComponent() {
                       >
                         <div className="flex">
                           {!isSentByCurrentUser && !senderProfilePicture && (
-                            <Avatar size="sm" name={initials} showFallback />
+                            <Avatar
+                              size="sm"
+                              name={!message.sender_id ? "AI" : initials}
+                              showFallback
+                            />
                           )}
                         </div>
 
