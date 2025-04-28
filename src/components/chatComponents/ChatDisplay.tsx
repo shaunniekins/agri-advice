@@ -177,8 +177,17 @@ export default function ChatDisplayComponent() {
 
   useEffect(() => {
     const shouldGenerateReply = () => {
+      // First check: Don't generate if not a farmer conversation
       if (currentUserType !== "farmer") return false;
-      if (parentChatConnectionId) return false; // prevent AI response if there's a parent connection
+
+      // Second check: STRICT check for ANY shared conversation (parent OR child)
+      if (
+        parentChatConnectionId ||
+        chatConnection?.[0]?.recipient_technician_id
+      )
+        return false;
+
+      // Other existing checks
       if (!chatMessages.length || !currentUserId || !currentUserType)
         return false;
       if (aiIsGenerating || hasGeneratedReplyRef.current) return false;
@@ -209,9 +218,19 @@ export default function ChatDisplayComponent() {
     currentUserId,
     chatConnectionId,
     parentChatConnectionId,
+    chatConnection, // Add this dependency
   ]);
 
   const handleGenerateAiReply = async (chatMessageId?: number) => {
+    // Strict check: No AI generation in ANY shared conversation (parent or child)
+    if (
+      parentChatConnectionId ||
+      chatConnection?.[0]?.recipient_technician_id
+    ) {
+      console.log("Prevented AI generation in shared conversation");
+      return;
+    }
+
     if (aiIsGenerating) return;
     if (chatMessages.length === 0) return;
 
@@ -580,16 +599,19 @@ export default function ChatDisplayComponent() {
 
                           {!isSentByCurrentUser &&
                             !aiIsGenerating &&
-                            !parentChatConnectionId && (
+                            !(
+                              parentChatConnectionId ||
+                              chatConnection?.[0]?.recipient_technician_id
+                            ) && // Stricter check
+                            currentUserType === "farmer" && // Only farmer can see refresh button
+                            !message.sender_id && ( // Only show for AI messages (no sender_id)
                               <div className="text-gray-500 text-xs flex justify-start items-center">
                                 <Button
                                   size="sm"
                                   color="success"
                                   variant="light"
                                   isIconOnly
-                                  className={`${
-                                    currentUserType !== "farmer" && "hidden"
-                                  } md:-ml-3`}
+                                  className="md:-ml-3"
                                   onPress={() =>
                                     handleGenerateAiReply(
                                       message.chat_message_id

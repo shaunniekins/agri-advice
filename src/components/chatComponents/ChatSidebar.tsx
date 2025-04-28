@@ -208,7 +208,7 @@ export default function ChatSidebarComponent({
 
   // Add useEffect to log onlineUsers changes
   useEffect(() => {
-    console.log("ChatSidebar: onlineUsers updated:", onlineUsers);
+    // console.log("ChatSidebar: onlineUsers updated:", onlineUsers); // Removed log
   }, [onlineUsers]);
 
   // Initialize our new hook for auto-unarchiving
@@ -387,21 +387,6 @@ export default function ChatSidebarComponent({
                           const isPartnerOnline = partnerId
                             ? onlineUsers.has(partnerId)
                             : false;
-
-                          // Add detailed logging here
-                          if (isHumanToHuman && partnerId) {
-                            console.log(
-                              `ChatSidebar: Header ${
-                                message.chat_connection_id
-                              } - UserType: ${userType}, PartnerType: ${
-                                userType === "farmer" ? "technician" : "farmer"
-                              }, PartnerID: ${partnerId}, IsOnlineCheck: ${isPartnerOnline}`
-                            );
-                          } else if (!isHumanToHuman) {
-                            console.log(
-                              `ChatSidebar: Header ${message.chat_connection_id} - AI Chat, no partner.`
-                            );
-                          }
 
                           return (
                             <li
