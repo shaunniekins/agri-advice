@@ -436,18 +436,64 @@ export default function ChatSidebarComponent({
                                 );
                               }}
                             >
-                              {/* Add online status indicator - ONLY if it's human-to-human */}
-                              {isHumanToHuman && partnerId && (
-                                <div
-                                  className={`w-2 h-2 rounded-full mr-2 ${
-                                    isPartnerOnline
-                                      ? "bg-green-400"
-                                      : "bg-gray-400"
-                                  }`}
-                                  title={isPartnerOnline ? "Online" : "Offline"}
-                                />
-                              )}
+                              {/* Avatar with conditional border for online status */}
+                              <div className="mr-2 flex-shrink-0">
+                                {isHumanToHuman ? (
+                                  <div
+                                    className={`p-0.5 rounded-full ${
+                                      // Wrapper for border
+                                      isPartnerOnline
+                                        ? "ring-2 ring-green-400" // Green border if online
+                                        : "ring-2 ring-gray-400" // Gray border if offline
+                                    }`}
+                                    title={
+                                      isPartnerOnline ? "Online" : "Offline"
+                                    }
+                                  >
+                                    <Avatar
+                                      size="sm"
+                                      src={
+                                        userType === "farmer"
+                                          ? message.display_technician_profile_picture
+                                          : message.display_farmer_profile_picture
+                                      }
+                                      name={
+                                        userType === "farmer"
+                                          ? `${(
+                                              message
+                                                .display_technician_first_name?.[0] ||
+                                              ""
+                                            ).toUpperCase()}${(
+                                              message
+                                                .display_technician_last_name?.[0] ||
+                                              ""
+                                            ).toUpperCase()}`
+                                          : `${(
+                                              message
+                                                .display_farmer_first_name?.[0] ||
+                                              ""
+                                            ).toUpperCase()}${(
+                                              message
+                                                .display_farmer_last_name?.[0] ||
+                                              ""
+                                            ).toUpperCase()}`
+                                      }
+                                      showFallback
+                                      className="rounded-full object-cover" // Avatar itself remains rounded
+                                    />
+                                  </div>
+                                ) : (
+                                  // AI Avatar (no border needed)
+                                  <Avatar
+                                    size="sm"
+                                    name="AI"
+                                    showFallback
+                                    className="rounded-full object-cover"
+                                  />
+                                )}
+                              </div>
 
+                              {/* Chat Name/Message */}
                               <span
                                 className={`
                                 w-full text-left truncate text-base`}
