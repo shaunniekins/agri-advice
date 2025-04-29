@@ -533,34 +533,41 @@ export default function ChatDisplayComponent() {
                         </span>
                       )}
                       <div
-                        className={`w-full flex flex-col md:flex-row md:gap-4 py-2 ${
+                        className={`w-full flex flex-row gap-2 py-2 ${
+                          // Changed flex-col md:flex-row to flex-row, added gap-2
                           isSentByCurrentUser ? "justify-end" : "justify-start"
                         }
                         
                         `}
                       >
-                        <div className="flex">
-                          {!isSentByCurrentUser && !senderProfilePicture && (
+                        {/* Always render Avatar container for received messages */}
+                        {!isSentByCurrentUser && (
+                          <div className="flex-shrink-0">
+                            {" "}
+                            {/* Added flex-shrink-0 */}
                             <Avatar
                               size="sm"
-                              name={!message.sender_id ? "AI" : initials}
-                              showFallback
+                              src={senderProfilePicture || undefined} // Use src if available
+                              name={!message.sender_id ? "AI" : initials} // Fallback name
+                              showFallback // Show fallback if src fails or isn't provided
                             />
-                          )}
-                        </div>
+                          </div>
+                        )}
 
                         <div
-                          className={`message flex flex-col max-w-full whitespace-pre-wrap flex-wrap text-wrap break-words relative`}
+                          className={`message flex flex-col max-w-[85%] whitespace-pre-wrap flex-wrap text-wrap break-words relative`} // Adjusted max-width
                           style={{
                             overflowWrap: "break-word",
                             wordBreak: "break-word",
-                            maxWidth: "100%",
+                            // maxWidth: "100%", // Removed fixed max-width here
                           }}
                         >
                           <div
-                            className={`max-w-full text-sm py-2 relative ${
-                              isSentByCurrentUser &&
-                              "px-3 rounded-2xl bg-green-200"
+                            className={`max-w-full text-sm py-2 px-3 rounded-2xl relative ${
+                              // Added px-3 and rounded-2xl for both
+                              isSentByCurrentUser
+                                ? "bg-green-200"
+                                : "bg-gray-200" // Added background for received messages
                             }`}
                           >
                             {renderMessage(message.message)}
@@ -623,6 +630,7 @@ export default function ChatDisplayComponent() {
                               </div>
                             )}
                         </div>
+                        {/* Render Avatar for sent messages on the right (optional, adjust styling as needed) */}
                       </div>
                     </div>
                   );

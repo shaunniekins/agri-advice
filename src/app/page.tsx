@@ -60,7 +60,7 @@ export default function Home() {
                 onClick={() => handleSelect("farmer")}
               >
                 <p className="font-semibold">Farmer</p>
-                <p className="text-xs">Manage your farm and crops</p>
+                <p className="text-xs">Manage your pig farm</p>
               </div>
             </div>
           </CardBody>
