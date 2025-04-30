@@ -28,7 +28,7 @@ export default function Home() {
 
   return (
     <>
-      <div className="relative min-h-[100svh] w-screen flex justify-center items-center overflow-y-auto">
+      <div className="relative min-h-[100svh] w-screen flex flex-col items-center overflow-y-auto">
         {/* Background Image with Gradient Overlay */}
         <div className="absolute inset-0 z-0">
           <Image
@@ -42,7 +42,7 @@ export default function Home() {
         </div>
 
         {/* Welcome Text */}
-        <div className="absolute top-0 pt-5 sm:pt-8 z-10 text-center flex flex-col items-center w-full">
+        <div className=" pt-5 sm:pt-8 mb-12 z-10 text-center flex flex-col items-center w-full">
           <div className="w-16 h-16 sm:w-20 sm:h-20 relative">
             <Image
               src="/agri-advice-logo.png"

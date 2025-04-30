@@ -83,6 +83,9 @@ select
   technician_user.raw_user_meta_data->>'last_name' as display_technician_last_name,
   farmer_user.raw_user_meta_data->>'first_name' as display_farmer_first_name,
   farmer_user.raw_user_meta_data->>'last_name' as display_farmer_last_name,
+  -- Add profile picture columns
+  technician_user.raw_user_meta_data->>'profile_picture' as display_technician_profile_picture,
+  farmer_user.raw_user_meta_data->>'profile_picture' as display_farmer_profile_picture,
   first_msg.sender_meta_data,
   first_msg.receiver_meta_data,
   COALESCE(unread.unread_message_count, 0) as unread_count,

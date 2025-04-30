@@ -439,9 +439,12 @@ export default function ChatSidebarComponent({
                                     <Avatar
                                       size="sm"
                                       src={
+                                        // Correctly assign the src prop
                                         userType === "farmer"
-                                          ? message.display_technician_profile_picture
-                                          : message.display_farmer_profile_picture
+                                          ? message.display_technician_profile_picture ||
+                                            undefined // Use || undefined for clarity
+                                          : message.display_farmer_profile_picture ||
+                                            undefined // Use || undefined for clarity
                                       }
                                       name={
                                         userType === "farmer"

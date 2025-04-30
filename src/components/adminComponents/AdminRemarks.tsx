@@ -26,6 +26,7 @@ import { MdClose } from "react-icons/md";
 import { supabase } from "@/utils/supabase";
 import { formatMessageDate } from "@/utils/compUtils";
 import { useHelpPrompts } from "@/hooks/useHelpPrompts";
+import { IoTrash } from "react-icons/io5"; // Import delete icon
 
 interface Remark {
   chat_connection_id: string;
@@ -51,6 +52,9 @@ const AdminRemarks = () => {
   const rowsPerPage = 10;
   const [totalCount, setTotalCount] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false); // State for delete confirmation modal
+  const [remarkToDelete, setRemarkToDelete] = useState<Remark | null>(null); // State for remark to delete
+  const [isDeleting, setIsDeleting] = useState(false); // State for delete loading indicator
 
   // Fetch help prompts to identify categories
   const { helpPrompts, isLoadingHelpPrompts } = useHelpPrompts();
@@ -279,11 +283,42 @@ const AdminRemarks = () => {
 
   useEffect(() => {
     fetchRemarks();
-  }, [page]);
+  }, [page]); // Re-fetch when page changes
 
   const viewRemarkDetail = (remark: Remark) => {
     setSelectedRemark(remark);
     setOpenDetailModal(true);
+  };
+
+  // Function to open delete confirmation modal
+  const handleDeleteClick = (remark: Remark) => {
+    setRemarkToDelete(remark);
+    setIsDeleteModalOpen(true);
+  };
+
+  // Function to handle the actual deletion
+  const confirmDelete = async () => {
+    if (!remarkToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from("ChatConnections")
+        .delete()
+        .eq("chat_connection_id", remarkToDelete.chat_connection_id);
+
+      if (error) throw error;
+
+      // Close modal and refresh list
+      setIsDeleteModalOpen(false);
+      setRemarkToDelete(null);
+      fetchRemarks(); // Refresh the list
+    } catch (err) {
+      console.error("Error deleting remark:", err);
+      // Optionally show an error message to the user
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const getCategoryChipColor = (category: string) => {
@@ -321,6 +356,7 @@ const AdminRemarks = () => {
 
   return (
     <>
+      {/* Detail Modal */}
       <Modal
         size="2xl"
         backdrop="blur"
@@ -388,6 +424,62 @@ const AdminRemarks = () => {
                   onPress={() => setOpenDetailModal(false)}
                 >
                   Close
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        size="md"
+        backdrop="blur"
+        isOpen={isDeleteModalOpen}
+        onOpenChange={setIsDeleteModalOpen}
+        hideCloseButton={true}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                Confirm Deletion
+              </ModalHeader>
+              <ModalBody>
+                <p>
+                  Are you sure you want to permanently delete the conversation
+                  with{" "}
+                  <strong>
+                    {remarkToDelete?.farmer_first_name}{" "}
+                    {remarkToDelete?.farmer_last_name}
+                  </strong>{" "}
+                  handled by{" "}
+                  <strong>
+                    {remarkToDelete?.technician_first_name}{" "}
+                    {remarkToDelete?.technician_last_name}
+                  </strong>
+                  ?
+                </p>
+                <p className="text-sm text-danger">
+                  This action cannot be undone.
+                </p>
+              </ModalBody>
+              <ModalFooter>
+                <Button
+                  color="default"
+                  variant="light"
+                  onPress={() => setIsDeleteModalOpen(false)}
+                  isDisabled={isDeleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  color="danger"
+                  startContent={!isDeleting && <IoTrash />}
+                  onPress={confirmDelete}
+                  isLoading={isDeleting}
+                >
+                  {isDeleting ? "Deleting..." : "Delete"}
                 </Button>
               </ModalFooter>
             </>
@@ -490,13 +582,22 @@ const AdminRemarks = () => {
                         );
                       case "actions":
                         return (
-                          <TableCell className="text-center">
+                          <TableCell className="text-center flex justify-center gap-2">
                             <Button
                               size="sm"
                               color="success"
                               onClick={() => viewRemarkDetail(remark)}
                             >
                               View Details
+                            </Button>
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              color="danger"
+                              variant="light"
+                              onClick={() => handleDeleteClick(remark)} // Add delete handler
+                            >
+                              <IoTrash size={18} />
                             </Button>
                           </TableCell>
                         );

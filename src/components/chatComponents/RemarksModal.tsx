@@ -9,12 +9,13 @@ import {
   ModalHeader,
   Textarea,
   Chip,
-  Select, // Import Select
-  SelectItem, // Import SelectItem
+  Select,
+  SelectItem,
 } from "@nextui-org/react";
 import { useState, useEffect } from "react";
 import { MdSave } from "react-icons/md";
 import { supabase } from "@/utils/supabase";
+import usePromptCategory from "@/hooks/usePromptCategory";
 
 interface RemarksModalProps {
   openModal: boolean;
@@ -40,15 +41,19 @@ const RemarksModal: React.FC<RemarksModalProps> = ({
   );
   const [technicianInfo, setTechnicianInfo] = useState({ id: "", name: "" });
 
-  // Define categories
-  const categories = [
-    "Health Issues",
-    "Feeding Management",
-    "Housing Management",
-    "Reproduction",
-    "Management Practices",
-    "Others",
-  ];
+  // Fetch categories dynamically
+  const { category: fetchedCategories, isLoadingCategory } =
+    usePromptCategory(); // Use the hook
+
+  // Define categories - REMOVED HARDCODED LIST
+  // const categories = [
+  //   "Health Issues",
+  //   "Feeding Management",
+  //   "Housing Management",
+  //   "Reproduction",
+  //   "Management Practices",
+  //   "Others",
+  // ];
 
   // Fetch only technician info if needed (optional, can be removed if not used elsewhere)
   useEffect(() => {
@@ -175,10 +180,16 @@ const RemarksModal: React.FC<RemarksModalProps> = ({
                   selectedKeys={selectedCategory ? [selectedCategory] : []}
                   onChange={(e) => setSelectedCategory(e.target.value)}
                   isRequired // Make selection mandatory
+                  isLoading={isLoadingCategory} // Add loading state
+                  isDisabled={isLoadingCategory} // Disable while loading
                 >
-                  {categories.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
+                  {/* Map over fetched categories */}
+                  {fetchedCategories.map((cat: any) => (
+                    <SelectItem
+                      key={cat.category_name}
+                      value={cat.category_name}
+                    >
+                      {cat.category_name}
                     </SelectItem>
                   ))}
                 </Select>
