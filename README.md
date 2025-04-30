@@ -1,5 +1,19 @@
 # Agri Advice
 
+## System Description
+
+Agri-Advice is a specialized agricultural advisory platform designed to connect pig farmers with technical experts and provide AI-assisted guidance for swine management. The system features:
+
+- **Multi-User Support**: Separate interfaces for farmers, technicians, and administrators
+- **AI-Assisted Chat**: Intelligent responses to common pig farming queries
+- **Expert Connection**: Direct communication between farmers and specialized technicians
+- **Knowledge Management**: Curated reading lists and resources for farming best practices
+- **Case Management**: Tracking of solved issues with categorization for reporting
+- **Archiving System**: Organization of conversations for future reference
+- **Feedback Collection**: Rating system for continuous service improvement
+
+The platform aims to improve agricultural outcomes by providing timely expert advice and knowledge resources to pig farmers, while creating a supportive community of practice.
+
 ## Setup Instructions
 
 1. Install dependencies:

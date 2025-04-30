@@ -58,6 +58,7 @@ import useAutoUnarchive from "@/hooks/useAutoUnarchive";
 import RemarksModal from "./RemarksModal";
 import ViewRemarksModal from "./ViewRemarksModal";
 import UserProfile from "./UserProfile"; // Import UserProfile
+import Image from "next/image";
 
 export default function ChatSidebarComponent({
   children,
@@ -1176,8 +1177,16 @@ export default function ChatSidebarComponent({
                   <div
                     className={`${
                       chatId !== "chat" ? "hidden md:block" : "block"
-                    } `}
+                    } flex items-center gap-2`}
                   >
+                    <Image
+                      src="/agri-advice-logo.png"
+                      alt="Agri-Advice Logo"
+                      width={24}
+                      height={24}
+                      style={{ objectFit: "contain" }}
+                      priority
+                    />
                     AgriAdvice
                   </div>
                 </div>

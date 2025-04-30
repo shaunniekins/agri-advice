@@ -2,6 +2,7 @@
 
 import { Button } from "@nextui-org/react";
 import { usePathname, useRouter } from "next/navigation";
+import Image from "next/image";
 import {
   FaTachometerAlt,
   FaComments,
@@ -66,19 +67,43 @@ const AdminSidebarComponent = ({
 
   return (
     <div className="bg-[#007057] text-white h-full w-full flex flex-col justify-center select-none relative">
-      <h1 className="hidden lg:block absolute top-28 left-1/2 transform -translate-x-1/2 font-semibold text-3xl">
+      {/* Logo and Title - Small Screens */}
+      <div className="lg:hidden flex items-center absolute top-3 left-5 gap-2">
+        <Image
+          src="/agri-advice-logo.png"
+          alt="Agri-Advice Logo"
+          width={32}
+          height={32}
+          style={{ objectFit: "contain" }}
+          priority
+        />
+        <h1 className="text-xl font-semibold">AgriAdvice</h1>
+      </div>
+
+      {/* Logo - Large Screens */}
+      <div className="hidden lg:flex absolute top-10 left-1/2 transform -translate-x-1/2 w-24 h-24 justify-center items-center">
+        <Image
+          src="/agri-advice-logo.png"
+          alt="Agri-Advice Logo"
+          width={96}
+          height={96}
+          style={{ objectFit: "contain" }}
+          priority
+        />
+      </div>
+
+      {/* Title - Large Screens */}
+      <h1 className="hidden lg:block absolute top-36 left-1/2 transform -translate-x-1/2 font-semibold text-3xl">
         AgriAdvice
       </h1>
-      <h1 className="lg:hidden absolute top-3 left-5 text-xl font-semibold">
-        AgriAdvice
-      </h1>
+
       <button
         className="lg:hidden absolute top-3 right-5 text-xl"
         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
       >
         <FaBars />
       </button>
-      <ul className="flex flex-col py-5 pl-5">
+      <ul className="flex flex-col py-5 pl-5 mt-16">
         {navItems.map((item) => (
           <NavItem
             key={item.path}
