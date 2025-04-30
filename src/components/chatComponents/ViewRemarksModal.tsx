@@ -62,7 +62,7 @@ const ViewRemarksModal: React.FC<ViewRemarksModalProps> = ({
 
     setLoading(true);
     try {
-      // Fetch solved chats directly from the updated view
+      // Fetch solved chats directly from the updated view, including the category
       const { data: solvedChats, error: chatError } = await supabase
         .from("ViewLatestChatHeaders")
         .select(
@@ -76,7 +76,8 @@ const ViewRemarksModal: React.FC<ViewRemarksModalProps> = ({
           farmer_last_name,
           technician_first_name,
           technician_last_name,
-          parent_chat_connection_id
+          parent_chat_connection_id,
+          category 
         `
         )
         .eq("recipient_technician_id", userId)
@@ -85,11 +86,12 @@ const ViewRemarksModal: React.FC<ViewRemarksModalProps> = ({
 
       if (chatError) throw chatError;
 
-      // Process each chat to determine the initial message and category
+      // Process each chat to determine the initial message if it's a shared conversation
       const processedRemarks = await Promise.all(
         (solvedChats || []).map(async (chat) => {
           let initialMessage = chat.first_message;
-          let category = "Others";
+          // Use the category directly from the view, default to 'Others' if null/undefined
+          let category = chat.category || "Others";
 
           // If this is a shared conversation, get the parent conversation's first message
           if (chat.parent_chat_connection_id) {
@@ -107,22 +109,11 @@ const ViewRemarksModal: React.FC<ViewRemarksModalProps> = ({
             }
           }
 
-          // Find the category based on the initial message
-          const { data: categoryData } = await supabase
-            .from("PremadePrompts")
-            .select("category")
-            .eq("prompt_message", initialMessage)
-            .maybeSingle();
-
-          if (categoryData) {
-            category = categoryData.category;
-          }
-
-          // Return the data fetched from the view, plus the processed initial message and category
+          // Return the data fetched from the view, plus the processed initial message and the direct category
           return {
             ...chat,
             first_message: initialMessage,
-            category,
+            category, // Use the category fetched from the view
           };
         })
       );
@@ -180,7 +171,7 @@ const ViewRemarksModal: React.FC<ViewRemarksModalProps> = ({
                 Solved Conversations
               </ModalHeader>
               <ModalBody>
-                {loading || isLoadingHelpPrompts ? (
+                {loading || isLoadingCategory ? ( // Changed from isLoadingHelpPrompts
                   <div className="flex justify-center items-center h-40">
                     <Spinner color="success" />
                   </div>
@@ -211,11 +202,12 @@ const ViewRemarksModal: React.FC<ViewRemarksModalProps> = ({
                               )}
                               size="sm"
                             >
-                              {remark.category || "Others"}
+                              {remark.category}{" "}
+                              {/* Display the direct category */}
                             </Chip>
                           </TableCell>
                           <TableCell>
-                            <div className="max-w-xs truncate">
+                            <div className="max-w-[12rem] truncate">
                               {remark.first_message}
                             </div>
                           </TableCell>
@@ -249,9 +241,10 @@ const ViewRemarksModal: React.FC<ViewRemarksModalProps> = ({
           openModal={openDetailModal}
           setOpenModal={setOpenDetailModal}
           chatConnectionId={selectedRemark.chat_connection_id}
-          onSolveChat={fetchRemarks}
+          onSolveChat={fetchRemarks} // Ensure fetchRemarks is called on solve
           existingRemarks={selectedRemark.remarks}
-          category={selectedRemark.category}
+          category={selectedRemark.category} // Pass the direct category
+          initialMessage={selectedRemark.first_message} // Pass the potentially derived initial message
         />
       )}
     </>

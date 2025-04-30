@@ -26,7 +26,8 @@ import { MdClose } from "react-icons/md";
 import { supabase } from "@/utils/supabase";
 import { formatMessageDate } from "@/utils/compUtils";
 import { useHelpPrompts } from "@/hooks/useHelpPrompts";
-import { IoTrash } from "react-icons/io5"; // Import delete icon
+import usePromptCategory from "@/hooks/usePromptCategory"; // Import usePromptCategory
+import { IoTrash } from "react-icons/io5";
 
 interface Remark {
   chat_connection_id: string;
@@ -56,147 +57,25 @@ const AdminRemarks = () => {
   const [remarkToDelete, setRemarkToDelete] = useState<Remark | null>(null); // State for remark to delete
   const [isDeleting, setIsDeleting] = useState(false); // State for delete loading indicator
 
-  // Fetch help prompts to identify categories
-  const { helpPrompts, isLoadingHelpPrompts } = useHelpPrompts();
-  const [promptCategories, setPromptCategories] = useState<Map<string, string>>(
-    new Map()
-  );
-  const [categories, setCategories] = useState<string[]>([]);
+  // Fetch categories for the filter dropdown
+  const { category: fetchedCategories, isLoadingCategory } =
+    usePromptCategory();
 
-  // Process help prompts to create a map of prompts to categories
-  useEffect(() => {
-    if (!helpPrompts) return;
+  // Remove the state and useEffect related to helpPrompts and promptCategories map
+  // const { helpPrompts, isLoadingHelpPrompts } = useHelpPrompts();
+  // const [promptCategories, setPromptCategories] = useState<Map<string, string>>(new Map());
+  // const [categories, setCategories] = useState<string[]>([]);
 
-    const categoryMap = new Map<string, string>();
-    const uniqueCategories = new Set<string>();
+  // useEffect(() => { ... removed ... });
 
-    const fetchPremadePrompts = async () => {
-      try {
-        const { data, error } = await supabase
-          .from("PremadePrompts")
-          .select("prompt_message, category");
-
-        if (error) throw error;
-
-        // Add premade prompts to the category map
-        if (data) {
-          data.forEach((item) => {
-            categoryMap.set(
-              item.prompt_message.toLowerCase().trim(),
-              item.category
-            );
-            uniqueCategories.add(item.category);
-          });
-        }
-
-        // Also add helpPrompts based mappings
-        helpPrompts.forEach((category) => {
-          uniqueCategories.add(category.category);
-          if (category.prompts) {
-            category.prompts.forEach((prompt) => {
-              categoryMap.set(prompt.toLowerCase().trim(), category.category);
-            });
-          }
-        });
-
-        setPromptCategories(categoryMap);
-        setCategories(Array.from(uniqueCategories));
-      } catch (err) {
-        console.error("Error fetching premade prompts:", err);
-      }
-    };
-
-    fetchPremadePrompts();
-  }, [helpPrompts]);
-
-  // Get message category based on the first message
-  const getMessageCategory = (message: string): string => {
-    if (!message) return "Others";
-
-    const lowerMessage = message.toLowerCase().trim();
-
-    // First check for exact matches with premade prompts
-    if (promptCategories.has(lowerMessage)) {
-      return promptCategories.get(lowerMessage)!;
-    }
-
-    // Then check if the message contains any known prompt keywords
-    for (const [prompt, category] of Array.from(promptCategories)) {
-      if (lowerMessage.includes(prompt)) {
-        return category;
-      }
-    }
-
-    // Check common keywords for each category if no direct match found
-    const categoryKeywords = {
-      "Health Issues": [
-        "disease",
-        "sick",
-        "health",
-        "medicine",
-        "symptoms",
-        "treat",
-        "infection",
-      ],
-      "Feeding Management": [
-        "feed",
-        "nutrition",
-        "diet",
-        "eat",
-        "food",
-        "feeding",
-        "appetite",
-      ],
-      "Housing Management": [
-        "house",
-        "pen",
-        "shelter",
-        "building",
-        "structure",
-        "facility",
-      ],
-      Reproduction: [
-        "breed",
-        "mating",
-        "pregnant",
-        "birth",
-        "piglet",
-        "farrow",
-        "reproduction",
-      ],
-      "Management Practices": [
-        "manage",
-        "practice",
-        "operation",
-        "routine",
-        "schedule",
-        "procedure",
-      ],
-    };
-
-    for (const [category, keywords] of Object.entries(categoryKeywords)) {
-      if (keywords.some((keyword) => lowerMessage.includes(keyword))) {
-        return category;
-      }
-    }
-
-    return "Others";
-  };
+  // Remove getMessageCategory function
+  // const getMessageCategory = (message: string): string => { ... removed ... };
 
   const fetchRemarks = async () => {
     setLoading(true);
     try {
-      // First get the count for pagination
-      const { count, error: countError } = await supabase
-        .from("ChatConnections")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "solved");
-
-      if (countError) throw countError;
-      setTotalCount(count || 0);
-
-      // Get the solved conversations directly from the updated view
-      const { data, error } = await supabase
+      // Define the base query
+      let query = supabase
         .from("ViewLatestChatHeaders")
         .select(
           `
@@ -209,20 +88,35 @@ const AdminRemarks = () => {
           farmer_last_name,
           technician_first_name,
           technician_last_name,
-          parent_chat_connection_id
-        `
+          parent_chat_connection_id,
+          category
+        `,
+          { count: "exact" } // Request count
         )
-        .eq("status", "solved")
+        .eq("status", "solved");
+
+      // Apply category filter if not 'all'
+      if (selectedCategory !== "all") {
+        query = query.eq("category", selectedCategory);
+      }
+
+      // Apply ordering and pagination
+      query = query
         .order("first_created_at", { ascending: false })
         .range((page - 1) * rowsPerPage, page * rowsPerPage - 1);
 
-      if (error) throw error;
+      // Execute the query
+      const { data, error, count } = await query;
 
-      // Process each remark to get the correct initial message and category
+      if (error) throw error;
+      setTotalCount(count || 0); // Update total count based on filtered result
+
+      // Process each remark to get the correct initial message if needed
       const remarksWithDetails = await Promise.all(
-        data.map(async (item) => {
+        (data || []).map(async (item) => {
           let initialMessage = item.first_message;
-          let category = "Others";
+          // Use the category directly from the view, default to 'Others' if null/undefined
+          let category = item.category || "Others";
 
           // If this is a shared conversation, get the parent's first message
           if (item.parent_chat_connection_id) {
@@ -239,30 +133,18 @@ const AdminRemarks = () => {
             }
           }
 
-          // Try to find the category from PremadePrompts or keywords
-          const { data: categoryData } = await supabase
-            .from("PremadePrompts")
-            .select("category")
-            .eq("prompt_message", initialMessage)
-            .maybeSingle();
-
-          if (categoryData) {
-            category = categoryData.category;
-          } else {
-            category = getMessageCategory(initialMessage);
-          }
-
-          // Return the data fetched from the view, plus the processed initial message and category
+          // Return the data fetched from the view, plus the processed initial message and direct category
           return {
             ...item,
-            category: category,
-            initial_message: initialMessage,
+            category: category, // Use the direct category
+            initial_message: initialMessage, // Use the potentially derived initial message
           };
         })
       );
 
-      setRemarks(remarksWithDetails);
-      setFilteredRemarks(remarksWithDetails);
+      setRemarks(remarksWithDetails); // Set the main remarks state
+      // Filtering is now handled by the query itself, so no need for setFilteredRemarks here
+      // setFilteredRemarks(remarksWithDetails); // Remove this line
     } catch (err) {
       console.error("Error fetching remarks:", err);
     } finally {
@@ -270,20 +152,9 @@ const AdminRemarks = () => {
     }
   };
 
-  // Filter remarks by selected category
   useEffect(() => {
-    if (selectedCategory === "all") {
-      setFilteredRemarks(remarks);
-    } else {
-      setFilteredRemarks(
-        remarks.filter((remark) => remark.category === selectedCategory)
-      );
-    }
-  }, [selectedCategory, remarks]);
-
-  useEffect(() => {
-    fetchRemarks();
-  }, [page]); // Re-fetch when page changes
+    fetchRemarks(); // Fetch remarks whenever page or selectedCategory changes
+  }, [page, selectedCategory]); // Add selectedCategory to dependency array
 
   const viewRemarkDetail = (remark: Remark) => {
     setSelectedRemark(remark);
@@ -346,17 +217,18 @@ const AdminRemarks = () => {
     { key: "actions", label: "ACTIONS" },
   ];
 
+  // Calculate total pages based on the potentially filtered totalCount
   const totalPages = Math.ceil(totalCount / rowsPerPage);
 
-  // Prepare categories for the Select component's items prop
-  const categoryItems = categories.map((category) => ({
-    key: category,
-    label: category,
+  // Prepare categories for the Select component's items prop using fetchedCategories
+  const categoryItems = (fetchedCategories || []).map((cat: any) => ({
+    key: cat.category_name,
+    label: cat.category_name,
   }));
 
   return (
     <>
-      {/* Detail Modal */}
+      {/* Detail Modal (no changes needed here, it uses selectedRemark which now has the correct category) */}
       <Modal
         size="2xl"
         backdrop="blur"
@@ -431,7 +303,7 @@ const AdminRemarks = () => {
         </ModalContent>
       </Modal>
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Confirmation Modal (no changes needed) */}
       <Modal
         size="md"
         backdrop="blur"
@@ -495,14 +367,19 @@ const AdminRemarks = () => {
               className="w-64"
               selectedKeys={
                 selectedCategory === "all" ? [] : [selectedCategory]
-              } // Handle 'all' selection
+              }
               items={[
-                // Combine static and dynamic items
                 { key: "all", label: "All Categories" },
                 ...categoryItems,
-                { key: "Others", label: "Others" },
+                // Consider if "Others" should be dynamically added or always present
+                // { key: "Others", label: "Others" },
               ]}
-              onChange={(e) => setSelectedCategory(e.target.value || "all")} // Ensure 'all' if empty
+              onChange={(e) => {
+                setSelectedCategory(e.target.value || "all");
+                setPage(1); // Reset to page 1 when category changes
+              }}
+              isLoading={isLoadingCategory} // Add loading state
+              isDisabled={isLoadingCategory} // Disable while loading
             >
               {(item) => (
                 <SelectItem key={item.key} value={item.key}>
@@ -546,7 +423,7 @@ const AdminRemarks = () => {
               )}
             </TableHeader>
             <TableBody
-              items={filteredRemarks}
+              items={remarks} // Use the main remarks state directly
               emptyContent={"No solved conversations found"}
               loadingContent={<Spinner color="success" />}
               isLoading={loading}
@@ -576,7 +453,7 @@ const AdminRemarks = () => {
                               color={getCategoryChipColor(remark.category)}
                               size="sm"
                             >
-                              {remark.category}
+                              {remark.category} {/* Display direct category */}
                             </Chip>
                           </TableCell>
                         );
@@ -595,7 +472,7 @@ const AdminRemarks = () => {
                               size="sm"
                               color="danger"
                               variant="light"
-                              onClick={() => handleDeleteClick(remark)} // Add delete handler
+                              onClick={() => handleDeleteClick(remark)}
                             >
                               <IoTrash size={18} />
                             </Button>
@@ -604,6 +481,7 @@ const AdminRemarks = () => {
                       default:
                         return (
                           <TableCell className="text-center">
+                            {/* @ts-ignore */}
                             {remark[columnKey as keyof Remark]}
                           </TableCell>
                         );

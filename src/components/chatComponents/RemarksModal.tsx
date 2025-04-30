@@ -11,6 +11,7 @@ import {
   Chip,
   Select,
   SelectItem,
+  Input,
 } from "@nextui-org/react";
 import { useState, useEffect } from "react";
 import { MdSave } from "react-icons/md";
@@ -24,6 +25,7 @@ interface RemarksModalProps {
   onSolveChat: () => void;
   existingRemarks?: string;
   category?: string;
+  initialMessage?: string;
 }
 
 const RemarksModal: React.FC<RemarksModalProps> = ({
@@ -32,33 +34,21 @@ const RemarksModal: React.FC<RemarksModalProps> = ({
   chatConnectionId,
   onSolveChat,
   existingRemarks = "",
-  category = "Others", // Keep category prop for viewing existing remarks
+  category = "Others",
+  initialMessage = "",
 }) => {
   const [remarks, setRemarks] = useState(existingRemarks);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>(
-    existingRemarks ? category : "" // Initialize with existing category if viewing, else empty
+    existingRemarks ? category : ""
   );
   const [technicianInfo, setTechnicianInfo] = useState({ id: "", name: "" });
 
-  // Fetch categories dynamically
   const { category: fetchedCategories, isLoadingCategory } =
-    usePromptCategory(); // Use the hook
+    usePromptCategory();
 
-  // Define categories - REMOVED HARDCODED LIST
-  // const categories = [
-  //   "Health Issues",
-  //   "Feeding Management",
-  //   "Housing Management",
-  //   "Reproduction",
-  //   "Management Practices",
-  //   "Others",
-  // ];
-
-  // Fetch only technician info if needed (optional, can be removed if not used elsewhere)
   useEffect(() => {
     if (openModal && chatConnectionId && !existingRemarks) {
-      // Simplified fetch, only if needed for other purposes
       const fetchTechInfo = async () => {
         try {
           const { data: chatData } = await supabase
@@ -87,18 +77,18 @@ const RemarksModal: React.FC<RemarksModalProps> = ({
       };
       fetchTechInfo();
     }
-    // Reset selectedCategory when modal opens for adding new remarks
+
     if (openModal && !existingRemarks) {
       setSelectedCategory("");
-      setRemarks(""); // Also clear remarks if opening for new entry
+      setRemarks("");
     } else if (openModal && existingRemarks) {
-      setSelectedCategory(category); // Set category from prop when viewing
-      setRemarks(existingRemarks); // Set remarks from prop when viewing
+      setSelectedCategory(category);
+      setRemarks(existingRemarks);
     }
   }, [openModal, chatConnectionId, existingRemarks, category]);
 
   const handleSaveRemarks = async () => {
-    if (!chatConnectionId || !selectedCategory) return; // Ensure category is selected
+    if (!chatConnectionId || !selectedCategory) return;
 
     setIsSubmitting(true);
 
@@ -108,7 +98,7 @@ const RemarksModal: React.FC<RemarksModalProps> = ({
         .update({
           status: "solved",
           remarks: remarks,
-          category: selectedCategory, // Save the selected category
+          category: selectedCategory,
           technician_archived: true,
         })
         .eq("chat_connection_id", chatConnectionId);
@@ -158,12 +148,11 @@ const RemarksModal: React.FC<RemarksModalProps> = ({
               {existingRemarks ? "View Remarks" : "Add Remarks"}
             </ModalHeader>
             <ModalBody>
-              {/* Display Category Chip when viewing existing remarks */}
               {existingRemarks && (
-                <div className="mb-4 flex items-center gap-2">
+                <div className="mb-2 flex items-center gap-2">
                   <span className="text-sm font-medium">Category:</span>
                   <Chip
-                    color={getCategoryChipColor(selectedCategory)} // Use selectedCategory (set from prop)
+                    color={getCategoryChipColor(selectedCategory)}
                     size="sm"
                   >
                     {selectedCategory}
@@ -171,7 +160,6 @@ const RemarksModal: React.FC<RemarksModalProps> = ({
                 </div>
               )}
 
-              {/* Show Select component only when adding new remarks */}
               {!existingRemarks && (
                 <Select
                   label="Select Category"
@@ -179,11 +167,10 @@ const RemarksModal: React.FC<RemarksModalProps> = ({
                   className="mb-4"
                   selectedKeys={selectedCategory ? [selectedCategory] : []}
                   onChange={(e) => setSelectedCategory(e.target.value)}
-                  isRequired // Make selection mandatory
-                  isLoading={isLoadingCategory} // Add loading state
-                  isDisabled={isLoadingCategory} // Disable while loading
+                  isRequired
+                  isLoading={isLoadingCategory}
+                  isDisabled={isLoadingCategory}
                 >
-                  {/* Map over fetched categories */}
                   {fetchedCategories.map((cat: any) => (
                     <SelectItem
                       key={cat.category_name}
@@ -193,6 +180,14 @@ const RemarksModal: React.FC<RemarksModalProps> = ({
                     </SelectItem>
                   ))}
                 </Select>
+              )}
+
+              {existingRemarks && initialMessage && (
+                <Input
+                  label="Initial Message"
+                  value={initialMessage}
+                  readOnly
+                />
               )}
 
               <Textarea
@@ -207,7 +202,7 @@ const RemarksModal: React.FC<RemarksModalProps> = ({
                 minRows={5}
                 maxRows={10}
                 readOnly={!!existingRemarks}
-                isRequired={!existingRemarks} // Make remarks mandatory when adding
+                isRequired={!existingRemarks}
               />
               {!existingRemarks && (
                 <p className="text-xs text-gray-500 mt-2">
@@ -231,7 +226,7 @@ const RemarksModal: React.FC<RemarksModalProps> = ({
                   startContent={<MdSave />}
                   onPress={handleSaveRemarks}
                   isLoading={isSubmitting}
-                  isDisabled={!remarks.trim() || !selectedCategory} // Disable if remarks or category is empty
+                  isDisabled={!remarks.trim() || !selectedCategory}
                 >
                   Mark as Solved
                 </Button>
