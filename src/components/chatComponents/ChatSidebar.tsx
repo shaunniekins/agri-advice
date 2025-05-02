@@ -1179,8 +1179,8 @@ export default function ChatSidebarComponent({
                   </button>
                   <div
                     className={`${
-                      chatId !== "chat" ? "hidden md:block" : "block"
-                    } flex items-center gap-2`}
+                      chatId !== "chat" ? "hidden md:flex" : "flex"
+                    } items-center gap-2 whitespace-nowrap`}
                   >
                     <Image
                       src="/agri-advice-logo.png"
@@ -1190,7 +1190,7 @@ export default function ChatSidebarComponent({
                       style={{ objectFit: "contain" }}
                       priority
                     />
-                    AgriAdvice
+                    <span className="text-sm md:text-base">AgriAdvice</span>
                   </div>
                 </div>
                 <button

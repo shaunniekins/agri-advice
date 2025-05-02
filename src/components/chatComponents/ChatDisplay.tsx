@@ -44,7 +44,6 @@ export default function ChatDisplayComponent() {
 
   const [currentUserId, setCurrentUserId] = useState("");
   const [currentUserType, setCurrentUserType] = useState("");
-  // const [partnerId, setPartnerId] = useState("");
   const rowsPerPage = 1000;
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -63,6 +62,10 @@ export default function ChatDisplayComponent() {
     null
   );
   const hasGeneratedReplyRef = useRef(false);
+
+  const [respondedMessageIds, setRespondedMessageIds] = useState<Set<number>>(
+    new Set()
+  );
 
   // Handle resizing behavior for sidebar
   useEffect(() => {
@@ -102,8 +105,6 @@ export default function ChatDisplayComponent() {
 
   useEffect(() => {
     if (chatConnection && chatConnection[0])
-      // console.log("chatConnection: ", chatConnection[0]);
-
       setParentChatConnectionId(chatConnection[0]?.parent_chat_connection_id);
   }, [chatConnection]);
 
@@ -139,37 +140,6 @@ export default function ChatDisplayComponent() {
     currentUserType // Pass the user type to filter deleted conversations
   );
 
-  // useEffect(() => {
-  //   console.log("chatConnectionId1: ", chatConnectionId);
-  // }, [chatConnectionId]);
-
-  // useEffect(() => {
-  //   console.log("chatMessages: ", chatMessages);
-  // }, [chatMessages]);
-
-  // useEffect(() => {
-  //   console.log("parentChatConnectionId: ", parentChatConnectionId);
-  //   console.log("parentChatMessages: ", parentChatMessages);
-  // }, [parentChatConnectionId, parentChatMessages]);
-
-  // const [currentIndex, setCurrentIndex] = useState(0);
-  // const [filteredMessages, setFilteredMessages] = useState([]);
-
-  // Filter messages when chatMessages change
-  // useEffect(() => {
-  //   const filtered = chatMessages.filter((message) => {
-  //     return (
-  //       (currentUserType === "farmer" && message.sender_id !== currentUserId) ||
-  //       (currentUserType === "technician" &&
-  //         message.sender_id === currentUserId)
-  //     );
-  //   });
-
-  //   setFilteredMessages(filtered as any);
-  //   // Set default to the latest message (last item in the filtered array)
-  //   setCurrentIndex(filtered.length - 1);
-  // }, [chatMessages, currentUserType, currentUserId]);
-
   const BUCKET_NAME = "chat-images";
   const imageUrlPattern =
     /"https:\/\/vgckngozsjzlzkrntaoq\.supabase\.co\/storage\/v1\/object\/public\/chat-images\/[^"]+"/;
@@ -191,7 +161,11 @@ export default function ChatDisplayComponent() {
       if (!chatMessages.length || !currentUserId || !currentUserType)
         return false;
       if (aiIsGenerating || hasGeneratedReplyRef.current) return false;
+
       const lastMessage = chatMessages[chatMessages.length - 1];
+
+      // Check if we've already responded to this message
+      if (respondedMessageIds.has(lastMessage.chat_message_id)) return false;
 
       // Check if message is an image using imageUrlPattern
       const isImageMessage = imageUrlPattern.test(lastMessage.message);
@@ -206,19 +180,28 @@ export default function ChatDisplayComponent() {
 
     if (shouldGenerateReply()) {
       hasGeneratedReplyRef.current = true;
+
+      // Add the message ID to the set of responded messages
+      const lastMessageId =
+        chatMessages[chatMessages.length - 1].chat_message_id;
+      setRespondedMessageIds((prev) => {
+        const newSet = new Set(prev);
+        newSet.add(lastMessageId);
+        return newSet;
+      });
+
       handleGenerateAiReply();
     }
-
-    return () => {
-      hasGeneratedReplyRef.current = false;
-    };
   }, [
     currentUserType,
     chatMessages,
     currentUserId,
     chatConnectionId,
     parentChatConnectionId,
-    chatConnection, // Add this dependency
+    chatConnection,
+    respondedMessageIds,
+    aiIsGenerating,
+    processingMessageId,
   ]);
 
   const handleGenerateAiReply = async (chatMessageId?: number) => {
@@ -281,6 +264,11 @@ export default function ChatDisplayComponent() {
       setProcessingMessageId(null);
     }
   };
+
+  useEffect(() => {
+    hasGeneratedReplyRef.current = false;
+    setRespondedMessageIds(new Set());
+  }, [chatConnectionId]);
 
   const handleSubmit = async (message: string) => {
     if (!user || isConversationEnded) return; // Prevent sending if the conversation is ended
@@ -360,9 +348,6 @@ export default function ChatDisplayComponent() {
           ? chatConnection[0]?.farmer_id
           : undefined,
       });
-      // console.log("client: ", chatConnectionId);
-
-      // console.log("res2: ", res2);
 
       setMessageInput("");
     }
@@ -534,40 +519,34 @@ export default function ChatDisplayComponent() {
                       )}
                       <div
                         className={`w-full flex flex-row gap-2 py-2 ${
-                          // Changed flex-col md:flex-row to flex-row, added gap-2
                           isSentByCurrentUser ? "justify-end" : "justify-start"
                         }
                         
                         `}
                       >
-                        {/* Always render Avatar container for received messages */}
                         {!isSentByCurrentUser && (
                           <div className="flex-shrink-0">
-                            {" "}
-                            {/* Added flex-shrink-0 */}
                             <Avatar
                               size="sm"
-                              src={senderProfilePicture || undefined} // Use src if available
-                              name={!message.sender_id ? "AI" : initials} // Fallback name
-                              showFallback // Show fallback if src fails or isn't provided
+                              src={senderProfilePicture || undefined}
+                              name={!message.sender_id ? "AI" : initials}
+                              showFallback
                             />
                           </div>
                         )}
 
                         <div
-                          className={`message flex flex-col max-w-[85%] whitespace-pre-wrap flex-wrap text-wrap break-words relative`} // Adjusted max-width
+                          className={`message flex flex-col max-w-[85%] whitespace-pre-wrap flex-wrap text-wrap break-words relative`}
                           style={{
                             overflowWrap: "break-word",
                             wordBreak: "break-word",
-                            // maxWidth: "100%", // Removed fixed max-width here
                           }}
                         >
                           <div
                             className={`max-w-full text-sm py-2 px-3 rounded-2xl relative ${
-                              // Added px-3 and rounded-2xl for both
                               isSentByCurrentUser
                                 ? "bg-green-200"
-                                : "bg-gray-200" // Added background for received messages
+                                : "bg-gray-200"
                             }`}
                           >
                             {renderMessage(message.message)}
@@ -609,9 +588,9 @@ export default function ChatDisplayComponent() {
                             !(
                               parentChatConnectionId ||
                               chatConnection?.[0]?.recipient_technician_id
-                            ) && // Stricter check
-                            currentUserType === "farmer" && // Only farmer can see refresh button
-                            !message.sender_id && ( // Only show for AI messages (no sender_id)
+                            ) &&
+                            currentUserType === "farmer" &&
+                            !message.sender_id && (
                               <div className="text-gray-500 text-xs flex justify-start items-center">
                                 <Button
                                   size="sm"
@@ -630,7 +609,6 @@ export default function ChatDisplayComponent() {
                               </div>
                             )}
                         </div>
-                        {/* Render Avatar for sent messages on the right (optional, adjust styling as needed) */}
                       </div>
                     </div>
                   );
@@ -639,7 +617,6 @@ export default function ChatDisplayComponent() {
             </div>
           </div>
 
-          {/* ----- Extra side panel ----- */}
           {currentUserType !== "farmer" && (
             <ChatDisplayExtensionComponent
               currentUserType={currentUserType}
@@ -700,7 +677,7 @@ export default function ChatDisplayComponent() {
                         "opacity-50 cursor-not-allowed"
                       }`}
                       onClick={async () => {
-                        if (isConversationEnded || isConversationSolved) return; // Prevent sending if the conversation is ended or solved
+                        if (isConversationEnded || isConversationSolved) return;
 
                         if (selectedMessageToEdit) {
                           await handleEditAIMessage(
@@ -748,7 +725,6 @@ export default function ChatDisplayComponent() {
                       color="success"
                       variant="light"
                       startContent={<FaBars size={20} />}
-                      // className="md:hidden md:z-auto z-20"
                       className={`${
                         currentUserType === "farmer"
                           ? "hidden"
