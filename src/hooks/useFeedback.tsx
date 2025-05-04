@@ -9,10 +9,19 @@ const useFeedback = (rowsPerPage: number, currentPage: number) => {
 
   const fetchAndSubscribeFeedback = useCallback(async () => {
     try {
+      setIsLoadingFeedback(true);
+
       let query = supabase
         .from("ViewFullFeedback")
         .select("*", { count: "exact" })
         .order("feedback_created_at", { ascending: false });
+
+      // Add pagination
+      if (rowsPerPage > 0) {
+        const start = (currentPage - 1) * rowsPerPage;
+        const end = start + rowsPerPage - 1;
+        query = query.range(start, end);
+      }
 
       const response: PostgrestResponse<any> = await query;
 
@@ -22,7 +31,6 @@ const useFeedback = (rowsPerPage: number, currentPage: number) => {
 
       setFeedbackData(response.data || []);
       setTotalFeedbackEntries(response.count || 0);
-      setIsLoadingFeedback(false);
     } catch (err) {
       if (err instanceof Error) {
         console.error("Error fetching feedback:", err.message);
@@ -33,6 +41,11 @@ const useFeedback = (rowsPerPage: number, currentPage: number) => {
       setIsLoadingFeedback(false);
     }
   }, [rowsPerPage, currentPage]);
+
+  // Expose the refetch function for external use (like after deleting an entry)
+  const refetchFeedback = useCallback(() => {
+    return fetchAndSubscribeFeedback();
+  }, [fetchAndSubscribeFeedback]);
 
   const fetchFullFeedback = async (feedbackId: number) => {
     if (!feedbackId) return;
@@ -96,6 +109,8 @@ const useFeedback = (rowsPerPage: number, currentPage: number) => {
                 (feedback) => feedback.feedback_id !== payload.old.feedback_id
               )
             );
+            // Also update the total count
+            setTotalFeedbackEntries((prev) => Math.max(0, prev - 1));
           }
         }
       )
@@ -124,6 +139,7 @@ const useFeedback = (rowsPerPage: number, currentPage: number) => {
     feedbackData,
     isLoadingFeedback,
     totalFeedbackEntries,
+    refetchFeedback, // Expose the refetch function
   };
 };
 

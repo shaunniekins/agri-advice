@@ -22,7 +22,9 @@ import {
   Input,
 } from "@nextui-org/react";
 import { MdClose } from "react-icons/md";
+import { IoTrash } from "react-icons/io5";
 import StarRating from "../chatComponents/StarRating";
+import { deleteFeedback } from "@/app/api/feedbackIUD";
 
 const AdminReportsComponent = () => {
   const rowsPerPage = 16;
@@ -30,20 +32,46 @@ const AdminReportsComponent = () => {
   const [openModal, setOpenModal] = useState(false);
   const [selectedFeedback, setSelectedFeedback] = useState<any>({});
 
-  const { feedbackData, isLoadingFeedback, totalFeedbackEntries } = useFeedback(
+  // New states for delete confirmation
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [feedbackToDelete, setFeedbackToDelete] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const { feedbackData, totalFeedbackEntries, refetchFeedback } = useFeedback(
     rowsPerPage,
     page
   );
 
   const totalPages = Math.ceil(totalFeedbackEntries / rowsPerPage);
 
-  if (isLoadingFeedback) {
-    return (
-      <div className="h-full w-full flex justify-center items-center">
-        Loading...
-      </div>
-    );
-  }
+  // Handle opening delete confirmation modal
+  const handleDeleteClick = (feedbackId: string) => {
+    setFeedbackToDelete(feedbackId);
+    setIsDeleteModalOpen(true);
+  };
+
+  // Handle the actual deletion
+  const confirmDelete = async () => {
+    if (!feedbackToDelete) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteFeedback(feedbackToDelete);
+      // After successful deletion, close the modal and refetch data
+      setIsDeleteModalOpen(false);
+      setFeedbackToDelete(null);
+
+      // Refetch the feedback data to update the table
+      if (refetchFeedback) {
+        refetchFeedback();
+      }
+    } catch (error) {
+      console.error("Error deleting feedback:", error);
+      alert("Failed to delete feedback. Please try again.");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   const columns = [
     { key: "responder", label: "Responder" },
@@ -63,6 +91,7 @@ const AdminReportsComponent = () => {
   };
   return (
     <>
+      {/* Existing feedback detail modal */}
       <Modal
         size="lg"
         backdrop="blur"
@@ -134,6 +163,48 @@ const AdminReportsComponent = () => {
         </ModalContent>
       </Modal>
 
+      {/* New delete confirmation modal */}
+      <Modal
+        size="sm"
+        backdrop="blur"
+        isOpen={isDeleteModalOpen}
+        onOpenChange={setIsDeleteModalOpen}
+        hideCloseButton={true}
+      >
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                Confirm Delete
+              </ModalHeader>
+              <ModalBody>
+                <p>
+                  Are you sure you want to delete this feedback? This action
+                  cannot be undone.
+                </p>
+              </ModalBody>
+              <ModalFooter>
+                <Button
+                  color="default"
+                  variant="light"
+                  onPress={() => setIsDeleteModalOpen(false)}
+                  isDisabled={isDeleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  color="danger"
+                  onPress={confirmDelete}
+                  isLoading={isDeleting}
+                >
+                  Delete
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
       <div className="h-full w-full flex flex-col gap-2 overflow-hidden">
         <div className="w-full flex justify-start gap-2">
           <Pagination
@@ -162,7 +233,6 @@ const AdminReportsComponent = () => {
                 <TableColumn
                   key={column.key}
                   className="bg-[#007057] text-white text-center whitespace-nowrap flex-nowrap"
-                  // style={{ maxWidth: "200px" }}
                 >
                   {column.label}
                 </TableColumn>
@@ -250,6 +320,15 @@ const AdminReportsComponent = () => {
                               }}
                             >
                               Show
+                            </Button>
+                            <Button
+                              color="danger"
+                              startContent={<IoTrash />}
+                              onClick={() =>
+                                handleDeleteClick(item.feedback_id)
+                              }
+                            >
+                              Delete
                             </Button>
                           </div>
                         </TableCell>
