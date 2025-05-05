@@ -4,33 +4,24 @@ import { supabase } from "@/utils/supabase";
 // Define typed interface for presence state
 interface PresenceState {
   user_id: string;
-  last_active_at?: number;
+  last_active_at?: number; // Keep last_active_at if you want to track activity time
 }
 
 export const useOnlineStatus = (userId: string) => {
   const [onlineUsers, setOnlineUsers] = useState<Set<string>>(new Set());
   const unmountingRef = useRef(false);
-  const lastActivityRef = useRef<number>(Date.now());
   const channelRef = useRef<any>(null);
-  const presenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Track user activity to determine if they're actually active
+  // Keep activity tracking if desired, but it won't directly drive presence updates anymore
   useEffect(() => {
     if (!userId) return;
 
     const updateLastActivity = () => {
-      lastActivityRef.current = Date.now();
-
-      // Update presence state with new timestamp when user is active
-      if (channelRef.current) {
-        channelRef.current.track({
-          user_id: userId,
-          last_active_at: Date.now(),
-        });
-      }
+      // Optionally update presence state with new timestamp when user is active
+      // This might be useful if you want other clients to see the last active time,
+      // but it's not strictly required for basic online/offline status.
     };
 
-    // Track various user activities
     window.addEventListener("mousemove", updateLastActivity);
     window.addEventListener("keydown", updateLastActivity);
     window.addEventListener("click", updateLastActivity);
@@ -59,24 +50,23 @@ export const useOnlineStatus = (userId: string) => {
     const channel = supabase.channel("online-users", {
       config: {
         presence: {
-          key: userId,
+          key: userId, // Unique key for this client instance
         },
       },
     });
+    channelRef.current = channel; // Store channel reference immediately
 
     // Handle presence state changes
     const handlePresenceSync = () => {
+      if (unmountingRef.current) return; // Avoid state updates during unmount
       try {
-        const presenceState = channel.presenceState();
-
+        const presenceState = channelRef.current.presenceState();
         const newOnlineUsers = new Set<string>();
 
-        // Process all presence states from all users
         Object.keys(presenceState).forEach((presenceKey) => {
           const userStates = presenceState[
             presenceKey
           ] as unknown as PresenceState[];
-
           userStates.forEach((state) => {
             if (state.user_id) {
               newOnlineUsers.add(state.user_id);
@@ -84,7 +74,10 @@ export const useOnlineStatus = (userId: string) => {
           });
         });
 
-        console.log(`Presence sync: ${newOnlineUsers.size} users online`);
+        console.log(
+          `Presence sync: ${newOnlineUsers.size} users online:`,
+          Array.from(newOnlineUsers)
+        );
         setOnlineUsers(newOnlineUsers);
       } catch (error) {
         console.error("Error handling presence sync:", error);
@@ -92,51 +85,63 @@ export const useOnlineStatus = (userId: string) => {
     };
 
     // Subscribe to presence events
-    channelRef.current = channel
+    channel
       .on("presence", { event: "sync" }, handlePresenceSync)
       .on("presence", { event: "join" }, ({ key, newPresences }) => {
-        console.log(`User ${key} joined with states:`, newPresences);
-        handlePresenceSync(); // Refresh full state on joins
+        console.log(`User joined (key: ${key}):`, newPresences);
+        handlePresenceSync();
       })
       .on("presence", { event: "leave" }, ({ key, leftPresences }) => {
-        console.log(`User ${key} left with states:`, leftPresences);
-        handlePresenceSync(); // Refresh full state on leaves
+        console.log(`User left (key: ${key}):`, leftPresences);
+        handlePresenceSync();
       })
       .subscribe(async (status) => {
-        if (status === "SUBSCRIBED" && !unmountingRef.current) {
-          console.log(`Successfully subscribed to presence channel`);
+        if (unmountingRef.current) return; // Prevent actions if unmounting started
 
-          // Start tracking presence for current user
-          await channel.track({
-            user_id: userId,
-            last_active_at: Date.now(),
-          });
-
-          // Setup periodic updates to keep presence alive
-          const updatePresence = () => {
-            if (!unmountingRef.current && channelRef.current) {
-              channelRef.current.track({
-                user_id: userId,
-                last_active_at: Date.now(),
-              });
-            }
-          };
-
-          // Update presence every 30 seconds to keep it alive
-          presenceTimeoutRef.current = setInterval(updatePresence, 30000);
+        if (status === "SUBSCRIBED") {
+          console.log(
+            `Successfully subscribed to presence channel for ${userId}`
+          );
+          // Track presence for current user *once* on successful subscription
+          try {
+            const trackStatus = await channelRef.current.track({
+              user_id: userId,
+              last_active_at: Date.now(), // Include timestamp if needed
+            });
+            console.log(`Presence track status for ${userId}:`, trackStatus);
+            handlePresenceSync();
+          } catch (error) {
+            console.error(`Error tracking presence for ${userId}:`, error);
+          }
         } else if (status === "CHANNEL_ERROR") {
-          console.error("Failed to join presence channel");
+          console.error(
+            `Failed to subscribe to presence channel for ${userId}. Status: ${status}`
+          );
+        } else if (status === "TIMED_OUT") {
+          console.warn(
+            `Presence channel subscription timed out for ${userId}.`
+          );
+        } else if (status === "CLOSED") {
+          console.log(`Presence channel closed for ${userId}.`);
         }
       });
 
     // Handle page visibility changes
     const handleVisibilityChange = () => {
+      if (unmountingRef.current) return;
       if (document.visibilityState === "visible" && channelRef.current) {
-        // User is viewing the page again, update presence
-        channelRef.current.track({
-          user_id: userId,
-          last_active_at: Date.now(),
-        });
+        console.log(`Tab became visible for ${userId}, tracking presence.`);
+        channelRef.current
+          .track({
+            user_id: userId,
+            last_active_at: Date.now(),
+          })
+          .catch((error: any) =>
+            console.error(
+              "Error tracking presence on visibility change:",
+              error
+            )
+          );
       }
     };
 
@@ -147,32 +152,40 @@ export const useOnlineStatus = (userId: string) => {
       console.log(
         `useOnlineStatus: Cleaning up presence for userId: ${userId}`
       );
-      unmountingRef.current = true;
-
-      if (presenceTimeoutRef.current) {
-        clearInterval(presenceTimeoutRef.current);
-      }
+      unmountingRef.current = true; // Signal that unmounting has started
 
       document.removeEventListener("visibilitychange", handleVisibilityChange);
 
       if (channelRef.current) {
-        // Try to untrack cleanly first
-        try {
-          channelRef.current
-            .untrack()
-            .then(() => {
-              supabase.removeChannel(channelRef.current);
-            })
-            .catch((err: any) => {
-              console.error("Error untracking presence:", err);
-              // Still try to remove the channel even if untracking fails
-              supabase.removeChannel(channelRef.current);
-            });
-        } catch (e) {
-          console.error("Error during presence cleanup:", e);
-          // Fallback: force remove channel
-          supabase.removeChannel(channelRef.current);
-        }
+        const currentChannel = channelRef.current; // Capture ref
+        channelRef.current = null; // Clear ref
+
+        const cleanup = async () => {
+          try {
+            console.log(`Attempting to untrack presence for ${userId}...`);
+            const untrackStatus = await currentChannel.untrack();
+            console.log(
+              `Presence untrack status for ${userId}:`,
+              untrackStatus
+            );
+          } catch (err) {
+            console.error(`Error untracking presence for ${userId}:`, err);
+          } finally {
+            try {
+              console.log(`Attempting to remove channel for ${userId}...`);
+              const removeStatus = await supabase.removeChannel(currentChannel);
+              console.log(
+                `Channel removal status for ${userId}:`,
+                removeStatus
+              );
+            } catch (removeErr) {
+              console.error(`Error removing channel for ${userId}:`, removeErr);
+            }
+          }
+        };
+        cleanup();
+      } else {
+        console.log(`Cleanup for ${userId}: No channel reference found.`);
       }
     };
   }, [userId]);

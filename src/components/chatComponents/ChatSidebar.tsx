@@ -14,7 +14,7 @@ import React from "react";
 import { useEffect, useState } from "react";
 import { FaBars, FaSignOutAlt, FaCheck, FaUser } from "react-icons/fa";
 import { IoAddCircleOutline, IoAddSharp, IoArrowBack } from "react-icons/io5";
-import { IoMdShare, IoMdStar, IoMdTrash, IoMdWarning } from "react-icons/io";
+import { IoMdShare, IoMdStar, IoMdTrash } from "react-icons/io";
 import { useHandleLogout } from "@/utils/authUtils";
 import { useSelector } from "react-redux";
 import { RootState } from "@/app/reduxUtils/store";
