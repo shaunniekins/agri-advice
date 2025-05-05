@@ -26,15 +26,11 @@ import {
 } from "@/utils/compUtils";
 import { BsThreeDotsVertical } from "react-icons/bs";
 import {
-  deleteChatMessage,
   insertChatMessage,
   updateReceiverMessagesReadStatus,
-  updateSenderMessagesReadStatus,
 } from "@/app/api/chatMessagesIUD";
 import {
-  deleteChatConnection,
   insertChatConnection,
-  updateChatConnection,
   markChatConnectionAsDeletedForFarmer,
   markChatConnectionAsDeletedForTechnician,
   markChatConnectionAsArchivedForFarmer,
@@ -55,9 +51,10 @@ import RateModal from "./RateModal";
 import { useOnlineStatus } from "@/hooks/useOnlineStatus";
 import { supabase } from "@/utils/supabase";
 import useAutoUnarchive from "@/hooks/useAutoUnarchive";
+import useAutoCleanup from "@/hooks/useAutoCleanup";
 import RemarksModal from "./RemarksModal";
 import ViewRemarksModal from "./ViewRemarksModal";
-import UserProfile from "./UserProfile"; // Import UserProfile
+import UserProfile from "./UserProfile";
 import Image from "next/image";
 
 export default function ChatSidebarComponent({
@@ -212,8 +209,9 @@ export default function ChatSidebarComponent({
     // console.log("ChatSidebar: onlineUsers updated:", onlineUsers); // Removed log
   }, [onlineUsers]);
 
-  // Initialize our new hook for auto-unarchiving
+  // Initialize our hooks for auto-unarchiving and auto-cleanup
   useAutoUnarchive(user ? user.id : "", userType);
+  useAutoCleanup();
 
   const [openRemarksModal, setOpenRemarksModal] = useState(false);
   const [openViewRemarksModal, setOpenViewRemarksModal] = useState(false);

@@ -114,54 +114,7 @@ export const deleteChatConnection = async (
 // Clean up fully deleted chat connections (deleted by both parties)
 export const cleanupFullyDeletedChats = async () => {
   try {
-    // First get AI chats that have been deleted by farmers and have no active shared conversations
-    const { data: deletedAIChats, error: findError } = await supabase
-      .from("ChatConnections")
-      .select("chat_connection_id")
-      .eq("farmer_deleted", true)
-      .is("parent_chat_connection_id", null)
-      .is("recipient_technician_id", null);
-
-    if (findError) {
-      console.error("Error finding deleted AI chats:", findError);
-      return null;
-    }
-
-    if (deletedAIChats && deletedAIChats.length > 0) {
-      // For each deleted AI chat, check if it has any active shared conversations
-      for (const chat of deletedAIChats) {
-        const { data: sharedConvos, error: checkError } = await supabase
-          .from("ChatConnections")
-          .select("chat_connection_id, farmer_deleted, technician_deleted")
-          .eq("parent_chat_connection_id", chat.chat_connection_id);
-
-        if (checkError) {
-          console.error("Error checking shared conversations:", checkError);
-          continue;
-        }
-
-        // If all shared conversations are deleted by both parties, or there are no shared conversations
-        const allSharedDeleted =
-          !sharedConvos?.length ||
-          sharedConvos.every(
-            (convo) => convo.farmer_deleted && convo.technician_deleted
-          );
-
-        if (allSharedDeleted) {
-          // Permanently delete the AI chat
-          const { error: deleteError } = await supabase
-            .from("ChatConnections")
-            .delete()
-            .eq("chat_connection_id", chat.chat_connection_id);
-
-          if (deleteError) {
-            console.error("Error deleting chat connection:", deleteError);
-          }
-        }
-      }
-    }
-
-    // Check for shared chats that are deleted by both parties
+    // Only find shared conversations (child chats) that are deleted by both parties
     const { data: fullyDeletedShared, error: sharedError } = await supabase
       .from("ChatConnections")
       .select("chat_connection_id")
@@ -171,10 +124,7 @@ export const cleanupFullyDeletedChats = async () => {
 
     if (sharedError) {
       console.error("Error finding fully deleted shared chats:", sharedError);
-      return null;
-    }
-
-    if (fullyDeletedShared && fullyDeletedShared.length > 0) {
+    } else if (fullyDeletedShared && fullyDeletedShared.length > 0) {
       // Delete these fully deleted shared chats
       const chatIds = fullyDeletedShared.map((chat) => chat.chat_connection_id);
       const { error: deleteError } = await supabase
@@ -187,8 +137,13 @@ export const cleanupFullyDeletedChats = async () => {
           "Error deleting fully deleted shared chats:",
           deleteError
         );
+      } else {
+        console.log(`Deleted ${chatIds.length} fully deleted shared chats`);
       }
     }
+
+    // NOTE: We're intentionally NOT deleting parent AI chats automatically
+    // Parent chats should only be deleted when the farmer explicitly requests it
 
     return true;
   } catch (error: any) {
