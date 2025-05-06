@@ -70,6 +70,8 @@ export default function ChatDisplayComponent() {
   const [shouldGenerateReplyAfterSend, setShouldGenerateReplyAfterSend] =
     useState(false);
   const lastMessageRef = useRef<string | null>(null);
+  const [manuallyTriggeredAI, setManuallyTriggeredAI] = useState(false);
+  const justSentMessageRef = useRef<string | null>(null);
 
   // Handle resizing behavior for sidebar
   useEffect(() => {
@@ -161,12 +163,18 @@ export default function ChatDisplayComponent() {
       )
         return false;
 
+      // Don't auto-respond if we've just manually triggered a response
+      if (manuallyTriggeredAI) return false;
+
       // Other existing checks
       if (!chatMessages.length || !currentUserId || !currentUserType)
         return false;
       if (aiIsGenerating || hasGeneratedReplyRef.current) return false;
 
       const lastMessage = chatMessages[chatMessages.length - 1];
+
+      // Skip if this is the message we just sent and responded to
+      if (justSentMessageRef.current === lastMessage.message) return false;
 
       // Check if we've already responded to this message
       if (respondedMessageIds.has(lastMessage.chat_message_id)) return false;
@@ -183,6 +191,7 @@ export default function ChatDisplayComponent() {
     };
 
     if (shouldGenerateReply()) {
+      console.log("Auto-triggering AI reply for existing message");
       hasGeneratedReplyRef.current = true;
 
       // Add the message ID to the set of responded messages
@@ -206,9 +215,13 @@ export default function ChatDisplayComponent() {
     respondedMessageIds,
     aiIsGenerating,
     processingMessageId,
+    manuallyTriggeredAI,
   ]);
 
-  const handleGenerateAiReply = async (chatMessageId?: number) => {
+  const handleGenerateAiReply = async (
+    chatMessageId?: number,
+    directMessage?: string
+  ) => {
     // Strict check: No AI generation in ANY shared conversation (parent or child)
     if (
       parentChatConnectionId ||
@@ -219,7 +232,7 @@ export default function ChatDisplayComponent() {
     }
 
     if (aiIsGenerating) return;
-    if (chatMessages.length === 0 && !chatMessageId) return;
+    if (chatMessages.length === 0 && !chatMessageId && !directMessage) return;
 
     setAiIsGenerating(true);
     setProcessingMessageId(chatMessageId || null);
@@ -230,14 +243,40 @@ export default function ChatDisplayComponent() {
         .slice(-10)
         .filter((msg) => !imageUrlPattern.test(msg.message));
 
+      // Add the direct message to context if provided
+      let contextMessages = [...relevantMessages];
+      if (directMessage) {
+        // Add the new message to the context so AI has immediate access to it
+        contextMessages.push({
+          sender_user_type: "farmer",
+          message: directMessage,
+          created_at: new Date().toISOString(),
+          is_ai: false,
+        });
+      }
+
+      // If we're responding to a specific message ID, mark it as responded to
+      if (chatMessageId) {
+        setRespondedMessageIds((prev) => {
+          const newSet = new Set(prev);
+          newSet.add(chatMessageId);
+          return newSet;
+        });
+      }
+
+      console.log(
+        "Generating AI reply with context:",
+        directMessage ? "Has direct message" : "No direct message"
+      );
+
       const response = await fetch("/api/generate-ai-reply", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          messages: relevantMessages,
-          lastMessage: lastMessageRef.current,
+          messages: contextMessages,
+          lastMessage: directMessage || lastMessageRef.current,
         }),
       });
 
@@ -261,8 +300,13 @@ export default function ChatDisplayComponent() {
         });
       }
 
-      // Clear the last message reference
+      // Reset references and flags
       lastMessageRef.current = null;
+      justSentMessageRef.current = null;
+
+      // Set a flag to prevent duplicate responses
+      setManuallyTriggeredAI(true);
+      setTimeout(() => setManuallyTriggeredAI(false), 2000);
 
       // Reset states
       setMessageInput("");
@@ -291,14 +335,16 @@ export default function ChatDisplayComponent() {
       await unarchiveChatConnectionForTechnician(chatConnectionId);
     }
 
-    // Store the message for potential AI reply
+    // Store a copy of the message for AI context
+    const messageCopy = message;
+    justSentMessageRef.current = message;
+    lastMessageRef.current = message;
+
+    // Determine if this is an AI conversation
     const isAiConversation =
       currentUserType === "farmer" &&
       !parentChatConnectionId &&
       !chatConnection?.[0]?.recipient_technician_id;
-
-    // Store message temporarily
-    lastMessageRef.current = message;
 
     if (file) {
       const filePath = `public/${chatConnectionId}/${file.name}`;
@@ -369,12 +415,21 @@ export default function ChatDisplayComponent() {
 
       setMessageInput("");
 
-      // Immediately trigger AI reply if this is a farmer in an AI conversation
+      // Directly generate AI response with the exact message content
       if (isAiConversation && !aiIsGenerating) {
-        // Set a brief timeout to ensure the message is saved before generating reply
-        setTimeout(() => {
-          setShouldGenerateReplyAfterSend(true);
-        }, 100);
+        console.log("Directly triggering AI reply for just-sent message");
+
+        // Record this message ID to avoid double responses
+        if (messageResponse && messageResponse[0]) {
+          setRespondedMessageIds((prev) => {
+            const newSet = new Set(prev);
+            newSet.add(messageResponse[0].chat_message_id);
+            return newSet;
+          });
+        }
+
+        // Generate AI reply with direct message content - this bypasses any database delays
+        handleGenerateAiReply(undefined, messageCopy);
       }
     }
   };
@@ -467,16 +522,13 @@ export default function ChatDisplayComponent() {
     };
   }, [chatConnectionId, markMessagesAsRead]);
 
-  // Separate useEffect specifically for handling AI reply after sending
+  // Remove or replace the post-send effect since we're handling it directly
   useEffect(() => {
     if (shouldGenerateReplyAfterSend && !aiIsGenerating) {
-      // Reset the flag
+      // We no longer need this mechanism since we call handleGenerateAiReply directly
       setShouldGenerateReplyAfterSend(false);
-
-      // Generate AI reply
-      handleGenerateAiReply();
     }
-  }, [shouldGenerateReplyAfterSend]);
+  }, [shouldGenerateReplyAfterSend, aiIsGenerating]);
 
   // Don't render input field until we know the conversation status
   const showInput = connectionLoaded && !isLoadingChatConnections;

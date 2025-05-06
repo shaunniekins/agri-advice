@@ -5,11 +5,12 @@ import {
   HarmBlockThreshold,
 } from "@google/generative-ai";
 
-const MODEL_NAME = "gemini-2.0-flash-lite";
+const MODEL_NAME = "gemini-2.5-flash-preview-04-17";
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
 
 async function runChat(
-  conversationHistory: Array<{ role: string; parts: Array<{ text: string }> }>
+  conversationHistory: Array<{ role: string; parts: Array<{ text: string }> }>,
+  lastMessage?: string | null
 ): Promise<string> {
   const genAI = new GoogleGenerativeAI(API_KEY as string);
   const model = genAI.getGenerativeModel({ model: MODEL_NAME });
@@ -46,16 +47,19 @@ async function runChat(
     history: conversationHistory,
   });
 
-  const result = await chat.sendMessage(
-    "Generate a response in formal but commonly understood Bisaya/Cebuano based on the conversation history"
-  );
+  // If we have a lastMessage parameter, make sure to emphasize it
+  const promptMessage = lastMessage
+    ? `Generate a response in formal but commonly understood Bisaya/Cebuano based on the conversation history. Focus specifically on addressing this latest message: "${lastMessage}"`
+    : "Generate a response in formal but commonly understood Bisaya/Cebuano based on the conversation history";
+
+  const result = await chat.sendMessage(promptMessage);
   const response = result.response;
   return response.text();
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages } = await request.json();
+    const { messages, lastMessage } = await request.json();
 
     // Convert messages to the format expected by the API
     const conversationHistory = messages.map((msg: any) => ({
@@ -74,13 +78,14 @@ export async function POST(request: NextRequest) {
 - Do not include any English phrases like "Hope this helps" at the end
 - Do not wrap or mark the response with any meta-text or formatting
 - Maintain professionalism while using commonly understood terms
-- End naturally without any closing remarks or signatures`,
+- End naturally without any closing remarks or signatures
+- Make sure your response is specifically addressing the most recent question or message`,
         },
       ],
     };
 
     const updatedHistory = [initialPrompt, ...conversationHistory];
-    const aiReply = await runChat(updatedHistory);
+    const aiReply = await runChat(updatedHistory, lastMessage);
 
     return NextResponse.json({ aiReply });
   } catch (error) {
