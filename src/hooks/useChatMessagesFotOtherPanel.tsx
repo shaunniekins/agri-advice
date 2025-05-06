@@ -66,18 +66,11 @@ const useChatMessagesFotOtherPanel = (
     if (!chatMessageId) return null;
 
     try {
-      // First try to get the message directly from the current messages
-      // const existingMessage = chatMessages.find(
-      //   (msg) => msg.chat_connection_id === chatConnectionId
-      // );
-      // if (existingMessage) return existingMessage;
-
-      // If not found in current messages, fetch from database
       const { data, error } = await supabase
         .from("ViewFullChatMessages")
         .select("*")
         .eq("chat_message_id", chatMessageId)
-        .single(); // Use maybeSingle() instead of single()
+        .single();
 
       if (error) {
         console.log("Error fetching full chat message:", error);
@@ -94,7 +87,7 @@ const useChatMessagesFotOtherPanel = (
   // Set up real-time subscription for INSERT, UPDATE, and DELETE events
   const subscribeToChanges = useCallback(() => {
     const channel = supabase
-      .channel("chat_messages_changes_2")
+      .channel(`other_panel_messages_${chatConnectionId}`)
       .on(
         "postgres_changes",
         {
@@ -113,12 +106,10 @@ const useChatMessagesFotOtherPanel = (
             if (fullChatMessage) {
               setChatMessages((prev) => [...prev, fullChatMessage]);
             }
-
             return;
           }
 
           if (eventType === "UPDATE") {
-            // FIX: Use chat_message_id for comparison instead of chat_connection_id
             setChatMessages((prev) =>
               prev.map((msg) =>
                 msg.chat_message_id === newRecord.chat_message_id
@@ -130,7 +121,6 @@ const useChatMessagesFotOtherPanel = (
           }
 
           if (eventType === "DELETE") {
-            // FIX: Use chat_message_id for comparison instead of chat_connection_id
             setChatMessages((prev) =>
               prev.filter(
                 (msg) => msg.chat_message_id !== oldRecord.chat_message_id

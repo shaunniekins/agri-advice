@@ -67,6 +67,10 @@ export default function ChatDisplayComponent() {
     new Set()
   );
 
+  const [shouldGenerateReplyAfterSend, setShouldGenerateReplyAfterSend] =
+    useState(false);
+  const lastMessageRef = useRef<string | null>(null);
+
   // Handle resizing behavior for sidebar
   useEffect(() => {
     const handleResize = () => {
@@ -215,7 +219,7 @@ export default function ChatDisplayComponent() {
     }
 
     if (aiIsGenerating) return;
-    if (chatMessages.length === 0) return;
+    if (chatMessages.length === 0 && !chatMessageId) return;
 
     setAiIsGenerating(true);
     setProcessingMessageId(chatMessageId || null);
@@ -233,6 +237,7 @@ export default function ChatDisplayComponent() {
         },
         body: JSON.stringify({
           messages: relevantMessages,
+          lastMessage: lastMessageRef.current,
         }),
       });
 
@@ -256,6 +261,10 @@ export default function ChatDisplayComponent() {
         });
       }
 
+      // Clear the last message reference
+      lastMessageRef.current = null;
+
+      // Reset states
       setMessageInput("");
     } catch (error) {
       console.error("Error generating AI reply:", error);
@@ -281,6 +290,15 @@ export default function ChatDisplayComponent() {
     } else if (currentUserType === "technician") {
       await unarchiveChatConnectionForTechnician(chatConnectionId);
     }
+
+    // Store the message for potential AI reply
+    const isAiConversation =
+      currentUserType === "farmer" &&
+      !parentChatConnectionId &&
+      !chatConnection?.[0]?.recipient_technician_id;
+
+    // Store message temporarily
+    lastMessageRef.current = message;
 
     if (file) {
       const filePath = `public/${chatConnectionId}/${file.name}`;
@@ -336,7 +354,7 @@ export default function ChatDisplayComponent() {
         console.error("Error uploading image:", error);
       }
     } else {
-      const res2 = await insertChatMessage({
+      const messageResponse = await insertChatMessage({
         message,
         chat_connection_id: chatConnectionId,
         sender_id: user.id,
@@ -350,6 +368,14 @@ export default function ChatDisplayComponent() {
       });
 
       setMessageInput("");
+
+      // Immediately trigger AI reply if this is a farmer in an AI conversation
+      if (isAiConversation && !aiIsGenerating) {
+        // Set a brief timeout to ensure the message is saved before generating reply
+        setTimeout(() => {
+          setShouldGenerateReplyAfterSend(true);
+        }, 100);
+      }
     }
   };
 
@@ -440,6 +466,17 @@ export default function ChatDisplayComponent() {
       supabase.removeChannel(channel);
     };
   }, [chatConnectionId, markMessagesAsRead]);
+
+  // Separate useEffect specifically for handling AI reply after sending
+  useEffect(() => {
+    if (shouldGenerateReplyAfterSend && !aiIsGenerating) {
+      // Reset the flag
+      setShouldGenerateReplyAfterSend(false);
+
+      // Generate AI reply
+      handleGenerateAiReply();
+    }
+  }, [shouldGenerateReplyAfterSend]);
 
   // Don't render input field until we know the conversation status
   const showInput = connectionLoaded && !isLoadingChatConnections;
