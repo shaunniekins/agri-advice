@@ -18,17 +18,21 @@ import {
   ModalBody,
   Input,
   ModalFooter,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
 } from "@nextui-org/react";
 import useUsers from "@/hooks/useUsers";
 import { useState, useEffect } from "react";
 import { supabaseAdmin } from "@/utils/supabase";
-import { FaCheckCircle, FaEdit, FaEllipsisH, FaTrash } from "react-icons/fa";
+import { FaCheckCircle, FaEllipsisH, FaTrash } from "react-icons/fa";
 import { IoAdd, IoAddOutline, IoRemoveCircle } from "react-icons/io5";
 import { EyeSlashFilledIcon } from "../../../public/icons/EyeSlashFilledIcon";
 import { EyeFilledIcon } from "../../../public/icons/EyeFilledIcon";
 import UserProfile from "../chatComponents/UserProfile";
 import useBarangay from "@/hooks/useBarangay";
 import { deleteBarangay, insertBarangay } from "@/app/api/barangayIUD";
+
 const UserComponent = () => {
   const [page, setPage] = useState(1);
   const [userType, setUserType] = useState("technician");
@@ -59,14 +63,13 @@ const UserComponent = () => {
     "false" | "true"
   >("true");
 
-  // const [populatedBarangay, setPopulatedBarangay] = useState<any[]>([]);
-
-  const {
-    usersData,
-    isLoadingUsers,
-    totalUserEntries,
-    fetchAndSubscribeUsers,
-  } = useUsers(rowsPerPage, page, userType, statusFilter, technician_support);
+  const { usersData, totalUserEntries, fetchAndSubscribeUsers } = useUsers(
+    rowsPerPage,
+    page,
+    userType,
+    statusFilter,
+    technician_support
+  );
 
   useEffect(() => {
     setPage(1); // Reset the page when userType changes
@@ -75,12 +78,6 @@ const UserComponent = () => {
   const totalPages = Math.ceil(totalUserEntries / rowsPerPage);
 
   const { barangay } = useBarangay();
-
-  // useEffect(() => {
-  //   if (barangay) {
-  //     setPopulatedBarangay([...barangay, { barangay_name: "Add Barangay" }]);
-  //   }
-  // }, [barangay]);
 
   const handleDeleteBarangay = async (barangayName: string) => {
     const confirmed = window.confirm(
@@ -106,17 +103,7 @@ const UserComponent = () => {
       return;
     }
     setAddress(value);
-  };
-
-  if (isLoadingUsers) {
-    return (
-      <div className="h-full w-full flex justify-center items-center">
-        Loading...
-      </div>
-    );
-  }
-
-  // const handleAction = async (
+  }; // const handleAction = async (
   //   user_id: string,
   //   action: string,
   //   item_data: any
@@ -511,14 +498,15 @@ const UserComponent = () => {
           emptyContent={"No rows to display."}
           loadingContent={<Spinner color="success" />}
         >
-          {(item) => (
-            <TableRow key={item.user_id} className="text-center">
-              {(columnKey) => {
-                if (columnKey === "actions") {
-                  return (
-                    <TableCell>
-                      <div className="flex gap-2 justify-center">
-                        {/* <Button
+          {(item) => {
+            return (
+              <TableRow key={item.id} className="text-center">
+                {(columnKey) => {
+                  if (columnKey === "actions") {
+                    return (
+                      <TableCell>
+                        <div className="flex gap-2 justify-center">
+                          {/* <Button
                           color="success"
                           isDisabled={item.account_status === "active"}
                           className="text-white"
@@ -538,71 +526,103 @@ const UserComponent = () => {
                           }
                         >
                           Reject
-                        </Button> */}
-                        <Button
-                          color="success"
-                          size="sm"
-                          startContent=<FaEllipsisH />
-                          className="text-white"
-                          onClick={() => {
-                            setCurrentUserId(item.id);
-                            setCurrentUserType(item.user_type);
-                            setCurrentUserInfo(item);
-                            setOpenUserInfo(true);
-                          }}
-                        >
-                          View
-                        </Button>
-                        {userType === "farmer" &&
-                          statusFilter === "pending" && (
-                            <Button
-                              color="secondary"
-                              size="sm"
-                              startContent={<FaCheckCircle />}
-                              onClick={async () => {
-                                await supabaseAdmin.auth.admin.updateUserById(
-                                  item.id,
-                                  {
-                                    user_metadata: { account_status: "active" },
-                                  }
-                                );
-                                fetchAndSubscribeUsers();
-                              }}
-                            >
-                              Accept
-                            </Button>
-                          )}
-                        <Button
-                          color="danger"
-                          size="sm"
-                          startContent=<FaTrash />
-                          onClick={async () => {
-                            const confirmed = window.confirm(
-                              "Are you sure you want to delete this user?"
-                            );
-                            if (confirmed) {
-                              await supabaseAdmin.auth.admin.deleteUser(
-                                item.id
+                        </Button> */}{" "}
+                          <Button
+                            color="success"
+                            size="sm"
+                            startContent=<FaEllipsisH />
+                            className="text-white"
+                            onClick={() => {
+                              setCurrentUserId(item.id);
+                              setCurrentUserType(item.user_type);
+                              setCurrentUserInfo(item);
+                              setOpenUserInfo(true);
+                            }}
+                          >
+                            View
+                          </Button>
+                          {userType === "farmer" &&
+                            statusFilter === "pending" && (
+                              <Button
+                                color="secondary"
+                                size="sm"
+                                startContent={<FaCheckCircle />}
+                                onClick={async () => {
+                                  await supabaseAdmin.auth.admin.updateUserById(
+                                    item.id,
+                                    {
+                                      user_metadata: {
+                                        account_status: "active",
+                                      },
+                                    }
+                                  );
+                                  fetchAndSubscribeUsers();
+                                }}
+                              >
+                                Accept
+                              </Button>
+                            )}
+                          <Button
+                            color="danger"
+                            size="sm"
+                            startContent=<FaTrash />
+                            onClick={async () => {
+                              const confirmed = window.confirm(
+                                "Are you sure you want to delete this user?"
                               );
-                            }
-                            fetchAndSubscribeUsers();
-                          }}
-                        >
-                          Delete
-                        </Button>
-                      </div>
+                              if (confirmed) {
+                                await supabaseAdmin.auth.admin.deleteUser(
+                                  item.id
+                                );
+                              }
+                              fetchAndSubscribeUsers();
+                            }}
+                          >
+                            Delete
+                          </Button>
+                        </div>
+                      </TableCell>
+                    );
+                  }
+
+                  if (columnKey === "password") {
+                    return (
+                      <TableCell className="text-center">
+                        <div className="flex items-center justify-center">
+                          <Popover placement="top">
+                            <PopoverTrigger>
+                              <div className="flex items-center cursor-pointer">
+                                <span className="text-gray-500">••••••••</span>
+                                <Button variant="light" isIconOnly>
+                                  <EyeFilledIcon className="text-xl text-default-400" />
+                                </Button>
+                              </div>
+                            </PopoverTrigger>
+                            <PopoverContent>
+                              <div className="p-4">
+                                <div className="mb-2 text-sm text-gray-500">
+                                  Password:
+                                </div>
+                                <div className="font-bold text-blue-600 bg-gray-50 p-2 rounded border">
+                                  {item.password || "[Not Set]"}
+                                </div>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        </div>
+                      </TableCell>
+                    );
+                  }
+
+                  return (
+                    <TableCell className="text-center">
+                      {item[columnKey as keyof typeof item]}
                     </TableCell>
                   );
-                }
-
-                return (
-                  <TableCell className="text-center">
-                    {item[columnKey as keyof typeof item]}
-                  </TableCell>
-                );
-              }}
-            </TableRow>
-          )}
+                }}
+              </TableRow>
+            );
+          }}
         </TableBody>
       </Table>
     </div>
