@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ReduxProviders } from "./redux_providers";
+import ClientRouteGuard from "@/components/ClientRouteGuard";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -18,7 +19,9 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <ReduxProviders>{children}</ReduxProviders>
+        <ReduxProviders>
+          <ClientRouteGuard>{children}</ClientRouteGuard>
+        </ReduxProviders>
       </body>
     </html>
   );

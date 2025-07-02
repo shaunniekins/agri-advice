@@ -44,7 +44,13 @@ const SigninComponent = ({ userType }: SigninComponentProps) => {
         dispatch(setUser(user));
       }
       // console.log("Signed in successfully:", data);
-      router.push(`/${userType}`);
+      // router.push(`/${userType}`);
+
+      if (userType === "farmer" || userType === "technician") {
+        router.push(`/${userType}/chat`);
+      } else if (userType === "administrator") {
+        router.push("/admin/dashboard");
+      }
     }
   };
 

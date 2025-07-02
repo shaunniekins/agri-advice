@@ -1,0 +1,28 @@
+RewriteEngine On
+
+# Handle client-side routing for SPA
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.html [L]
+
+# Force HTTPS
+RewriteCond %{HTTPS} off
+RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# Basic redirects that can be handled server-side
+RewriteRule ^admin/?$ /admin/dashboard [R=301,L]
+RewriteRule ^administrator/?$ /admin/dashboard [R=301,L]
+RewriteRule ^farmer/?$ /farmer/chat [R=301,L]
+RewriteRule ^technician/?$ /technician/chat [R=301,L]
+RewriteRule ^signin/?$ /ident/signin [R=301,L]
+RewriteRule ^ident/?$ /ident/signin [R=301,L]
+
+# Cache static assets
+<IfModule mod_expires.c>
+    ExpiresActive on
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/jpg "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+</IfModule>

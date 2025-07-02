@@ -1,0 +1,10 @@
+# Handle SPA routing
+/*    /index.html   200
+
+# Specific redirects for admin routes
+/admin    /admin/dashboard    301
+/administrator    /admin/dashboard    301
+/farmer    /farmer/chat    301
+/technician    /technician/chat    301
+/signin    /ident/signin    301
+/ident    /ident/signin    301
