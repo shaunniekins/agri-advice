@@ -1,10 +1,17 @@
-# Handle SPA routing
-/*    /index.html   200
-
 # Specific redirects for admin routes
-/admin    /admin/dashboard    301
-/administrator    /admin/dashboard    301
-/farmer    /farmer/chat    301
-/technician    /technician/chat    301
-/signin    /ident/signin    301
-/ident    /ident/signin    301
+/admin    /admin/dashboard/index.html    301
+/administrator    /admin/dashboard/index.html    301
+/farmer    /farmer/chat/index.html    301
+/technician    /technician/chat/index.html    301
+/signin    /ident/signin/index.html    301
+/ident    /ident/signin/index.html    301
+
+# Handle legacy dynamic chat routes - redirect to new format
+/farmer/chat/*    /farmer/chat/view/index.html?id=:splat    301
+/technician/chat/*    /technician/chat/view/index.html?id=:splat    301
+
+# Handle admin routes
+/admin/*    /admin/dashboard/index.html    200
+
+# Handle SPA routing - this should be last to catch all unmatched routes
+/*    /index.html   200
