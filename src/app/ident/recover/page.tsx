@@ -33,8 +33,6 @@ export default function RecoverPage() {
         console.error("Error resetting password:", error.message);
         alert("Error sending recovery email. Please try again later.");
       } else {
-        console.log("data: ", data);
-
         setEmail("");
         setDescription("Success! Check your email to reset your password.");
       }

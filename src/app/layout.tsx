@@ -3,6 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ReduxProviders } from "./redux_providers";
 import ClientRouteGuard from "@/components/ClientRouteGuard";
+import ClientRedirectGuard from "@/components/ClientRedirectGuard";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -20,7 +21,9 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <ReduxProviders>
-          <ClientRouteGuard>{children}</ClientRouteGuard>
+          <ClientRedirectGuard allowUnauthenticated={true}>
+            <ClientRouteGuard>{children}</ClientRouteGuard>
+          </ClientRedirectGuard>
         </ReduxProviders>
       </body>
     </html>

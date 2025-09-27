@@ -80,7 +80,6 @@ const useChatMessages = (
         .single(); // Use maybeSingle() instead of single()
 
       if (error) {
-        console.log("Error fetching full chat message:", error);
         throw error;
       }
 

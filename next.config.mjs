@@ -3,6 +3,7 @@
 const nextConfig = {
   images: {
     unoptimized: true,
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: "https",
@@ -12,9 +13,13 @@ const nextConfig = {
         protocol: "https",
         hostname: "vgckngozsjzlzkrntaoq.supabase.co",
       },
+      {
+        protocol: "https",
+        hostname: "vgckngozsjzlzkrntaoq.supabase.co",
+      },
     ],
   },
-  output: "export",
+  // output: "export",
   trailingSlash: true,
   // This ensures dynamic routes work in static exports
   basePath: "",
@@ -26,6 +31,8 @@ const nextConfig = {
   },
   // Ensure all pages are generated as static files
   generateBuildId: () => "build",
+  // Disable server-side features that don't work with static export
+  // distDir: "out",
 };
 
 export default nextConfig;

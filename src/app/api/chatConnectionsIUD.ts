@@ -138,7 +138,7 @@ export const cleanupFullyDeletedChats = async () => {
           deleteError
         );
       } else {
-        console.log(`Deleted ${chatIds.length} fully deleted shared chats`);
+        // console.log(`Deleted ${chatIds.length} fully deleted shared chats`);
       }
     }
 

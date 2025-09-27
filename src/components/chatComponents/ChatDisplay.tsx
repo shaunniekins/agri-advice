@@ -13,7 +13,7 @@ import {
 import { RootState } from "@/app/reduxUtils/store";
 import useChatMessages from "@/hooks/useChatMessages";
 import { Avatar, Button, Spinner, Textarea } from "@nextui-org/react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import React, { useRef, useCallback } from "react";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
@@ -24,6 +24,7 @@ import {
 } from "react-icons/io5";
 import { useSelector } from "react-redux";
 import { supabase } from "@/utils/supabase";
+import { generateAIReply } from "@/utils/aiService";
 import { GrRefresh } from "react-icons/gr";
 import useChatConnectionForTechnicianRecipient from "@/hooks/useChatConnectionForTechnicianRecipient";
 import {
@@ -32,7 +33,7 @@ import {
   renderMessage,
 } from "@/utils/compUtils";
 import ChatDisplayExtensionComponent from "./ChatDisplayExtension";
-import { FaBars } from "react-icons/fa";
+import { FaBars, FaRobot, FaUser } from "react-icons/fa";
 
 export default function ChatDisplayComponent() {
   const user = useSelector((state: RootState) => state.user.user);
@@ -48,6 +49,7 @@ export default function ChatDisplayComponent() {
   const [currentPage, setCurrentPage] = useState(1);
 
   const pathName = usePathname();
+  const searchParams = useSearchParams();
 
   const [aiIsGenerating, setAiIsGenerating] = useState(false);
   const [parentChatConnectionId, setParentChatConnectionId] = useState("");
@@ -58,6 +60,7 @@ export default function ChatDisplayComponent() {
   const [selectedMessageId, setSelectedMessageId] = useState(null);
 
   const [otherPanelOpen, setOtherPanelOpen] = useState(true);
+  const [isMobile, setIsMobile] = useState(false);
   const [processingMessageId, setProcessingMessageId] = useState<number | null>(
     null
   );
@@ -76,7 +79,10 @@ export default function ChatDisplayComponent() {
   // Handle resizing behavior for sidebar
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 768) {
+      const isMobileSize = window.innerWidth < 768;
+      setIsMobile(isMobileSize);
+
+      if (isMobileSize) {
         setOtherPanelOpen(false);
       } else {
         setOtherPanelOpen(true);
@@ -103,8 +109,12 @@ export default function ChatDisplayComponent() {
   const [chatConnectionId, setChatConnectionId] = useState("");
 
   useEffect(() => {
-    setChatConnectionId(pathName.split("/")[3]);
-  }, [pathName]);
+    // Get chat ID from search params instead of URL path
+    const chatId = searchParams?.get("id");
+    if (chatId) {
+      setChatConnectionId(chatId);
+    }
+  }, [searchParams]);
 
   const { chatConnection, isLoadingChatConnections } =
     useChatConnectionForTechnicianRecipient(chatConnectionId);
@@ -191,7 +201,7 @@ export default function ChatDisplayComponent() {
     };
 
     if (shouldGenerateReply()) {
-      console.log("Auto-triggering AI reply for existing message");
+      // console.log("Auto-triggering AI reply for existing message");
       hasGeneratedReplyRef.current = true;
 
       // Add the message ID to the set of responded messages
@@ -269,23 +279,11 @@ export default function ChatDisplayComponent() {
         directMessage ? "Has direct message" : "No direct message"
       );
 
-      const response = await fetch("/api/generate-ai-reply", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          messages: contextMessages,
-          lastMessage: directMessage || lastMessageRef.current,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to generate AI reply");
-      }
-
-      const data = await response.json();
-      const aiReply = data.aiReply;
+      // Use client-side AI service instead of API route
+      const aiReply = await generateAIReply(
+        contextMessages,
+        directMessage || lastMessageRef.current
+      );
 
       if (chatMessageId) {
         await updateChatMessage(chatMessageId, {
@@ -533,6 +531,16 @@ export default function ChatDisplayComponent() {
   // Don't render input field until we know the conversation status
   const showInput = connectionLoaded && !isLoadingChatConnections;
 
+  // Check if input should be disabled when viewing AI conversation on mobile
+  const isViewingAIOnMobile =
+    isMobile && currentUserType !== "farmer" && otherPanelOpen;
+  const shouldDisableInput =
+    isTextareaDisabled ||
+    aiIsGenerating ||
+    isConversationEnded ||
+    isConversationSolved ||
+    isViewingAIOnMobile;
+
   if (loadingChatMessages || isLoadingChatConnections) {
     return (
       <div className="h-full flex justify-center items-center">
@@ -553,15 +561,23 @@ export default function ChatDisplayComponent() {
     <>
       <div className="h-full flex flex-col overflow-hidden">
         <div
-          className={`h-full overflow-y-auto grid grid-cols-1 md:gap-10 
-            ${currentUserType !== "farmer" && "md:grid-cols-[2fr_1fr]"}
-            
-            `}
+          className={`h-full overflow-y-auto relative
+            ${
+              currentUserType !== "farmer"
+                ? "md:grid md:grid-cols-[2fr_1fr] md:gap-10"
+                : "grid grid-cols-1"
+            }`}
         >
           {/* Chat view */}
           <div
             className={`
-              h-full w-full overflow-y-auto bg-[#F4FFFC] md:bg-none rounded-tl-md md:rounded-none`}
+              h-full w-full overflow-y-auto bg-[#F4FFFC] md:bg-none rounded-tl-md md:rounded-none
+              ${currentUserType !== "farmer" && !otherPanelOpen ? "block" : ""}
+              ${
+                currentUserType !== "farmer" && otherPanelOpen
+                  ? "md:block hidden"
+                  : ""
+              }`}
           >
             <div className="h-full w-full">
               <div className="flex flex-col gap-3">
@@ -707,15 +723,27 @@ export default function ChatDisplayComponent() {
           </div>
 
           {currentUserType !== "farmer" && (
-            <ChatDisplayExtensionComponent
-              currentUserType={currentUserType}
-              parentChatConnectionId={parentChatConnectionId}
-            />
+            <div
+              className={`
+              ${otherPanelOpen ? "block" : "hidden"} 
+              md:block 
+              absolute md:relative 
+              top-0 right-0 
+              h-full w-full md:w-auto 
+              bg-white md:bg-transparent 
+              z-30 md:z-auto
+            `}
+            >
+              <ChatDisplayExtensionComponent
+                currentUserType={currentUserType}
+                parentChatConnectionId={parentChatConnectionId}
+              />
+            </div>
           )}
         </div>
         <div
           className={`${
-            currentUserType !== "farmer" && "grid md:grid-cols-[2fr_1fr]"
+            currentUserType !== "farmer" && "md:grid md:grid-cols-[2fr_1fr]"
           } flex-none w-full pb-6`}
         >
           {aiIsGenerating && (
@@ -729,6 +757,15 @@ export default function ChatDisplayComponent() {
 
           {showInput && (
             <div className="flex flex-col gap-3">
+              {isViewingAIOnMobile && (
+                <div className="flex items-center gap-2 py-2">
+                  <span className="text-sm text-blue-600 font-medium">
+                    Viewing AI conversation. Switch to technician view to send
+                    messages.
+                  </span>
+                </div>
+              )}
+
               {isConversationEnded && (
                 <div className="flex items-center gap-2 py-2">
                   <span className="text-sm text-gray-500 font-medium">
@@ -751,22 +788,32 @@ export default function ChatDisplayComponent() {
                 radius="lg"
                 maxRows={6}
                 minRows={1}
+                className={shouldDisableInput ? "pointer-events-none" : ""}
                 color={`${
                   selectedMessageToEdit
                     ? "secondary"
-                    : isConversationEnded || isConversationSolved
+                    : isConversationEnded ||
+                      isConversationSolved ||
+                      isViewingAIOnMobile
                     ? "default"
                     : "success"
                 }`}
                 endContent={
-                  <div className="flex gap-3 text-2xl">
+                  <div className="flex gap-3 text-2xl pointer-events-auto">
                     <button
                       className={`${!messageInput && "hidden"} ${
-                        (isConversationEnded || isConversationSolved) &&
+                        (isConversationEnded ||
+                          isConversationSolved ||
+                          isViewingAIOnMobile) &&
                         "opacity-50 cursor-not-allowed"
                       }`}
                       onClick={async () => {
-                        if (isConversationEnded || isConversationSolved) return;
+                        if (
+                          isConversationEnded ||
+                          isConversationSolved ||
+                          isViewingAIOnMobile
+                        )
+                          return;
 
                         if (selectedMessageToEdit) {
                           await handleEditAIMessage(
@@ -776,11 +823,7 @@ export default function ChatDisplayComponent() {
                           await handleSubmit(messageInput);
                         }
                       }}
-                      disabled={
-                        isTextareaDisabled ||
-                        isConversationEnded ||
-                        isConversationSolved
-                      }
+                      disabled={shouldDisableInput}
                     >
                       <IoSendOutline />
                     </button>
@@ -813,19 +856,31 @@ export default function ChatDisplayComponent() {
                       size="lg"
                       color="success"
                       variant="light"
-                      startContent={<FaBars size={20} />}
+                      startContent={
+                        otherPanelOpen ? (
+                          <FaUser size={20} />
+                        ) : (
+                          <FaRobot size={20} />
+                        )
+                      }
                       className={`${
                         currentUserType === "farmer"
                           ? "hidden"
                           : "md:hidden md:z-auto z-20"
                       }`}
                       onPress={() => setOtherPanelOpen(!otherPanelOpen)}
-                      aria-label="toggle side panel"
+                      aria-label={
+                        otherPanelOpen
+                          ? "switch to technician view"
+                          : "switch to AI view"
+                      }
                     />
                   </div>
                 }
                 placeholder={
-                  isConversationSolved
+                  isViewingAIOnMobile
+                    ? "Switch to technician view to send messages"
+                    : isConversationSolved
                     ? "This conversation has been marked as solved"
                     : isConversationEnded
                     ? "This conversation has ended"
@@ -838,7 +893,8 @@ export default function ChatDisplayComponent() {
                   if (
                     selectedImage ||
                     isConversationEnded ||
-                    isConversationSolved
+                    isConversationSolved ||
+                    isViewingAIOnMobile
                   )
                     return;
                   setMessageInput(e.target.value);
@@ -847,12 +903,7 @@ export default function ChatDisplayComponent() {
                     setSelectedMessageToEdit("");
                   }
                 }}
-                isDisabled={
-                  isTextareaDisabled ||
-                  aiIsGenerating ||
-                  isConversationEnded ||
-                  isConversationSolved
-                }
+                isDisabled={shouldDisableInput}
               />
             </div>
           )}

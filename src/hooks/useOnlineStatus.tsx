@@ -39,11 +39,9 @@ export const useOnlineStatus = (userId: string) => {
 
   useEffect(() => {
     if (!userId) {
-      console.log("useOnlineStatus: No userId provided, exiting.");
       return;
     }
 
-    console.log(`useOnlineStatus: Initializing presence for userId: ${userId}`);
     unmountingRef.current = false;
 
     // Setup presence channel using Supabase Realtime
@@ -74,10 +72,6 @@ export const useOnlineStatus = (userId: string) => {
           });
         });
 
-        console.log(
-          `Presence sync: ${newOnlineUsers.size} users online:`,
-          Array.from(newOnlineUsers)
-        );
         setOnlineUsers(newOnlineUsers);
       } catch (error) {
         console.error("Error handling presence sync:", error);
@@ -88,27 +82,22 @@ export const useOnlineStatus = (userId: string) => {
     channel
       .on("presence", { event: "sync" }, handlePresenceSync)
       .on("presence", { event: "join" }, ({ key, newPresences }) => {
-        console.log(`User joined (key: ${key}):`, newPresences);
         handlePresenceSync();
       })
       .on("presence", { event: "leave" }, ({ key, leftPresences }) => {
-        console.log(`User left (key: ${key}):`, leftPresences);
         handlePresenceSync();
       })
       .subscribe(async (status) => {
         if (unmountingRef.current) return; // Prevent actions if unmounting started
 
         if (status === "SUBSCRIBED") {
-          console.log(
-            `Successfully subscribed to presence channel for ${userId}`
-          );
           // Track presence for current user *once* on successful subscription
           try {
             const trackStatus = await channelRef.current.track({
               user_id: userId,
               last_active_at: Date.now(), // Include timestamp if needed
             });
-            console.log(`Presence track status for ${userId}:`, trackStatus);
+
             handlePresenceSync();
           } catch (error) {
             console.error(`Error tracking presence for ${userId}:`, error);
@@ -122,7 +111,7 @@ export const useOnlineStatus = (userId: string) => {
             `Presence channel subscription timed out for ${userId}.`
           );
         } else if (status === "CLOSED") {
-          console.log(`Presence channel closed for ${userId}.`);
+          console.warn(`Presence channel closed for ${userId}.`);
         }
       });
 
@@ -130,7 +119,6 @@ export const useOnlineStatus = (userId: string) => {
     const handleVisibilityChange = () => {
       if (unmountingRef.current) return;
       if (document.visibilityState === "visible" && channelRef.current) {
-        console.log(`Tab became visible for ${userId}, tracking presence.`);
         channelRef.current
           .track({
             user_id: userId,
@@ -149,9 +137,6 @@ export const useOnlineStatus = (userId: string) => {
 
     // Clean up function
     return () => {
-      console.log(
-        `useOnlineStatus: Cleaning up presence for userId: ${userId}`
-      );
       unmountingRef.current = true; // Signal that unmounting has started
 
       document.removeEventListener("visibilitychange", handleVisibilityChange);
@@ -162,22 +147,12 @@ export const useOnlineStatus = (userId: string) => {
 
         const cleanup = async () => {
           try {
-            console.log(`Attempting to untrack presence for ${userId}...`);
             const untrackStatus = await currentChannel.untrack();
-            console.log(
-              `Presence untrack status for ${userId}:`,
-              untrackStatus
-            );
           } catch (err) {
             console.error(`Error untracking presence for ${userId}:`, err);
           } finally {
             try {
-              console.log(`Attempting to remove channel for ${userId}...`);
               const removeStatus = await supabase.removeChannel(currentChannel);
-              console.log(
-                `Channel removal status for ${userId}:`,
-                removeStatus
-              );
             } catch (removeErr) {
               console.error(`Error removing channel for ${userId}:`, removeErr);
             }
@@ -185,7 +160,6 @@ export const useOnlineStatus = (userId: string) => {
         };
         cleanup();
       } else {
-        console.log(`Cleanup for ${userId}: No channel reference found.`);
       }
     };
   }, [userId]);

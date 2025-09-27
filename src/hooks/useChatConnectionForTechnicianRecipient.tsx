@@ -51,7 +51,6 @@ const useChatConnectionForTechnicianRecipient = (
           filter: `chat_connection_id=eq.${chat_connection_id}`,
         },
         (payload: any) => {
-          console.log("Chat connection changed:", payload);
           const { new: newChat, old: oldChat, eventType } = payload;
 
           // Handle INSERT

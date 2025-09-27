@@ -42,8 +42,6 @@ export async function POST(req: NextRequest) {
       result: result.body,
     });
   } catch (error: any) {
-    console.log("Error details:", error); // Log the error for debugging
-
     const errorMessage =
       error.response?.body || error.message || "Unknown error";
 

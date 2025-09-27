@@ -66,7 +66,7 @@ export default function ChatSidebarComponent({
   const [childrenIsLoading, setChildrenIsLoading] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [page, setPage] = useState(1);
-  const rowsPerPage = 9;
+  const rowsPerPage = 7;
   const router = useRouter();
   const pathname = usePathname();
   const user = useSelector((state: RootState) => state.user.user);
@@ -416,7 +416,7 @@ export default function ChatSidebarComponent({
 
                                 // Navigate to the chat (existing logic)
                                 router.push(
-                                  `/${userType}/chat/${message.chat_connection_id}` // Navigate using connection_id
+                                  `/${userType}/chat/view?id=${message.chat_connection_id}` // Navigate using connection_id
                                 );
                               }}
                             >
@@ -508,8 +508,7 @@ export default function ChatSidebarComponent({
                                   1. There are unread messages 
                                   2. User is not currently viewing this chat */}
                               {message.unread_count > 0 &&
-                                pathname !==
-                                  `/${userType}/chat/${message.chat_connection_id}` && (
+                                pathname !== `/${userType}/chat/view` && (
                                   <div className="flex items-center justify-center min-w-[20px] h-[20px] rounded-full bg-green-500 text-white text-xs font-bold mx-1">
                                     {message.unread_count}
                                   </div>
@@ -1043,7 +1042,7 @@ export default function ChatSidebarComponent({
                                                             null
                                                           );
                                                           router.push(
-                                                            `/${userType}/chat/${newSession.data[0].chat_connection_id}`
+                                                            `/${userType}/chat/view?id=${newSession.data[0].chat_connection_id}`
                                                           );
                                                         }
                                                       }

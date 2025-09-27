@@ -72,7 +72,7 @@ const ChatPageComponent = () => {
     setIsLoading(true);
     setMessageInput("");
 
-    router.push(`/${userType}/chat/${chatConnectionId}`);
+    router.push(`/${userType}/chat/view?id=${chatConnectionId}`);
   };
 
   if (userType === "technician") {

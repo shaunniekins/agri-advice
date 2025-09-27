@@ -1,18 +1,21 @@
-import { NextRequest, NextResponse } from "next/server";
 import {
   GoogleGenerativeAI,
   HarmCategory,
   HarmBlockThreshold,
 } from "@google/generative-ai";
 
-const MODEL_NAME = "gemini-2.5-flash";
+const MODEL_NAME = "gemini-1.5-flash";
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
 
 async function runChat(
   conversationHistory: Array<{ role: string; parts: Array<{ text: string }> }>,
   lastMessage?: string | null
 ): Promise<string> {
-  const genAI = new GoogleGenerativeAI(API_KEY as string);
+  if (!API_KEY) {
+    throw new Error("Google API key is not configured");
+  }
+
+  const genAI = new GoogleGenerativeAI(API_KEY);
   const model = genAI.getGenerativeModel({ model: MODEL_NAME });
 
   const generationConfig = {
@@ -47,7 +50,6 @@ async function runChat(
     history: conversationHistory,
   });
 
-  // If we have a lastMessage parameter, make sure to emphasize it
   const promptMessage = lastMessage
     ? `Generate a response in formal but commonly understood Bisaya/Cebuano based on the conversation history. Focus specifically on addressing this latest message: "${lastMessage}"`
     : "Generate a response in formal but commonly understood Bisaya/Cebuano based on the conversation history";
@@ -57,10 +59,11 @@ async function runChat(
   return response.text();
 }
 
-export async function POST(request: NextRequest) {
+export async function generateAIReply(
+  messages: any[],
+  lastMessage?: string | null
+): Promise<string> {
   try {
-    const { messages, lastMessage } = await request.json();
-
     // Convert messages to the format expected by the API
     const conversationHistory = messages.map((msg: any) => ({
       role: msg.is_ai ? "model" : "user",
@@ -87,12 +90,9 @@ export async function POST(request: NextRequest) {
     const updatedHistory = [initialPrompt, ...conversationHistory];
     const aiReply = await runChat(updatedHistory, lastMessage);
 
-    return NextResponse.json({ aiReply });
+    return aiReply;
   } catch (error) {
-    console.error("Error generating reply:", error);
-    return NextResponse.json(
-      { error: "Failed to generate reply" },
-      { status: 500 }
-    );
+    console.error("Error generating AI reply:", error);
+    throw new Error("Failed to generate AI reply");
   }
 }

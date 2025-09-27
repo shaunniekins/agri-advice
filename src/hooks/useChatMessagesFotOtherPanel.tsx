@@ -73,7 +73,6 @@ const useChatMessagesFotOtherPanel = (
         .single();
 
       if (error) {
-        console.log("Error fetching full chat message:", error);
         throw error;
       }
 
