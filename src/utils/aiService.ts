@@ -4,7 +4,7 @@ import {
   HarmBlockThreshold,
 } from "@google/generative-ai";
 
-const MODEL_NAME = "gemini-1.5-flash";
+const MODEL_NAME = "gemini-flash-lite-latest";
 const API_KEY = process.env.NEXT_PUBLIC_GOOGLE_API_KEY;
 
 async function runChat(

@@ -14,7 +14,7 @@ const nextConfig = {
       },
     ],
   },
-  // output: "export",
+  output: "export",
   trailingSlash: true,
   // This ensures dynamic routes work in static exports
   basePath: "",
